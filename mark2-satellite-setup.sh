@@ -466,17 +466,17 @@ EOF
     cat > "$LABWC_RC" << 'EOF'
 <?xml version="1.0" encoding="UTF-8"?>
 <labwc_config>
-  <core><decoration>client</decoration><gap>0</gap></core>
+  <core>
+    <decoration>server</decoration>
+    <gap>0</gap>
+  </core>
   <windowRules>
-    <windowRule identifier="chromium" matchType="substring">
+    <windowRule identifier="*" serverDecoration="no"/>
+    <windowRule identifier="org.chromium.Chromium">
       <action name="Maximize"/>
-      <serverDecoration>no</serverDecoration>
-      <skipTaskbar>yes</skipTaskbar>
     </windowRule>
     <windowRule identifier="hud.html" matchType="substring">
       <action name="ToggleAlwaysOnTop"/>
-      <serverDecoration>no</serverDecoration>
-      <skipTaskbar>yes</skipTaskbar>
     </windowRule>
   </windowRules>
 </labwc_config>
