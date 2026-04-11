@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body {
+      width: 100%; height: 100%;
+      background: #0a0a0f;
+      display: flex; align-items: center; justify-content: center;
+      overflow: hidden;
+    }
+    #face-wrap {
+      position: relative;
+      width: 220px; height: 220px;
+      transition: opacity 0.5s ease;
+      opacity: 0;
+    }
+    #face-wrap.visible { opacity: 1; }
+
+    svg#face {
+      width: 100%; height: 100%;
+      overflow: visible;
+    }
+
+    /* Eye whites */
+    .eye-white {
+      fill: #e8e8f0;
+      transition: all 0.15s ease;
+    }
+    /* Pupils */
+    .pupil {
+      fill: #1a1a2e;
+      transition: all 0.15s ease;
+    }
+    /* Eyelids - covers top of eye for sleeping/thinking */
+    .eyelid {
+      fill: #0a0a0f;
+      transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    /* Mouth path */
+    #mouth {
+      fill: none;
+      stroke: #e8e8f0;
+      stroke-width: 3;
+      stroke-linecap: round;
+      transition: d 0.3s ease;
+    }
+    /* Blush circles - show when speaking */
+    .blush {
+      fill: #ff6b8a;
+      opacity: 0;
+      transition: opacity 0.4s ease;
+    }
+    /* Thinking dots */
+    .think-dot {
+      fill: #6080ff;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+    /* Wake exclamation */
+    #wake-mark {
+      fill: #6080ff;
+      opacity: 0;
+      font-size: 28px;
+      font-weight: bold;
+      font-family: system-ui, sans-serif;
+      text-anchor: middle;
+      dominant-baseline: central;
+      transition: opacity 0.2s ease;
+    }
+    /* Error brow */
+    .brow {
+      stroke: #e8e8f0;
+      stroke-width: 3;
+      stroke-linecap: round;
+      fill: none;
+      opacity: 0;
+      transition: all 0.3s ease;
+    }
+  </style>
+</head>
+<body>
+<div id="face-wrap">
+  <svg id="face" viewBox="0 0 220 220">
+
+    <!-- Left eye group -->
+    <g id="eye-left">
+      <ellipse class="eye-white" id="eye-left-white" cx="72" cy="105" rx="28" ry="32"/>
+      <ellipse class="pupil" id="pupil-left" cx="72" cy="108" rx="14" ry="16"/>
+      <!-- Eyelid (clip from top) -->
+      <rect class="eyelid" id="lid-left" x="44" y="73" width="56" height="0" rx="4"/>
+    </g>
+
+    <!-- Right eye group -->
+    <g id="eye-right">
+      <ellipse class="eye-white" id="eye-right-white" cx="148" cy="105" rx="28" ry="32"/>
+      <ellipse class="pupil" id="pupil-right" cx="148" cy="108" rx="14" ry="16"/>
+      <!-- Eyelid (clip from top) -->
+      <rect class="eyelid" id="lid-right" x="120" y="73" width="56" height="0" rx="4"/>
+    </g>
+
+    <!-- Brows (shown on error) -->
+    <path class="brow" id="brow-left"  d="M50 72 Q72 64 90 72"/>
+    <path class="brow" id="brow-right" d="M130 72 Q148 64 170 72"/>
+
+    <!-- Blush -->
+    <ellipse class="blush" id="blush-left"  cx="42"  cy="128" rx="18" ry="10"/>
+    <ellipse class="blush" id="blush-right" cx="178" cy="128" rx="18" ry="10"/>
+
+    <!-- Mouth -->
+    <path id="mouth" d="M 82 155 Q 110 170 138 155"/>
+
+    <!-- Thinking dots -->
+    <circle class="think-dot" id="dot1" cx="95"  cy="175" r="5"/>
+    <circle class="think-dot" id="dot2" cx="110" cy="175" r="5"/>
+    <circle class="think-dot" id="dot3" cx="125" cy="175" r="5"/>
+
+    <!-- Wake exclamation -->
+    <text id="wake-mark" x="110" y="38">!</text>
+
+  </svg>
+</div>
+
+<script>
+const face = document.getElementById('face-wrap');
+const lidL  = document.getElementById('lid-left');
+const lidR  = document.getElementById('lid-right');
+const pupilL = document.getElementById('pupil-left');
+const pupilR = document.getElementById('pupil-right');
+const eyeLW  = document.getElementById('eye-left-white');
+const eyeRW  = document.getElementById('eye-right-white');
+const mouth  = document.getElementById('mouth');
+const blushL = document.getElementById('blush-left');
+const blushR = document.getElementById('blush-right');
+const dot1   = document.getElementById('dot1');
+const dot2   = document.getElementById('dot2');
+const dot3   = document.getElementById('dot3');
+const wakeMark = document.getElementById('wake-mark');
+const browL  = document.getElementById('brow-left');
+const browR  = document.getElementById('brow-right');
+
+let currentState = 'idle';
+let animFrame = null;
+let blinkTimer = null;
+let thinkTimer = null;
+let speakTimer = null;
+let hideTimer  = null;
+
+// --- State definitions ---
+const STATES = {
+  idle: {
+    lidH: 22,          // half-closed lids
+    pupilRY: 10,
+    mouthD: 'M 88 155 Q 110 158 132 155',  // slight neutral line
+    blush: 0, dots: 0, brows: 0, wake: 0,
+  },
+  wake: {
+    lidH: 0,
+    pupilRY: 18,       // big open eyes
+    mouthD: 'M 82 152 Q 110 162 138 152',  // small smile
+    blush: 0, dots: 0, brows: 0, wake: 1,
+  },
+  listen: {
+    lidH: 0,
+    pupilRY: 17,
+    mouthD: 'M 85 155 Q 110 162 135 155',  // gentle smile
+    blush: 0, dots: 0, brows: 0, wake: 0,
+  },
+  think: {
+    lidH: 6,           // slightly squinting
+    pupilRY: 13,
+    mouthD: 'M 88 158 Q 110 155 132 158',  // flat/pondering
+    blush: 0, dots: 1, brows: 0, wake: 0,
+  },
+  speak: {
+    lidH: 0,
+    pupilRY: 16,
+    mouthD: 'M 82 153 Q 110 172 138 153',  // open smile
+    blush: 0.45, dots: 0, brows: 0, wake: 0,
+  },
+  error: {
+    lidH: 8,
+    pupilRY: 12,
+    mouthD: 'M 85 165 Q 110 155 135 165',  // sad curve
+    blush: 0, dots: 0, brows: 1, wake: 0,
+  },
+};
+
+function applyState(s) {
+  const def = STATES[s] || STATES.idle;
+  lidL.setAttribute('height', def.lidH);
+  lidR.setAttribute('height', def.lidH);
+  pupilL.setAttribute('ry', def.pupilRY);
+  pupilR.setAttribute('ry', def.pupilRY);
+  mouth.setAttribute('d', def.mouthD);
+  blushL.style.opacity = def.blush;
+  blushR.style.opacity = def.blush;
+  dot1.style.opacity = def.dots;
+  dot2.style.opacity = def.dots;
+  dot3.style.opacity = def.dots;
+  browL.style.opacity = def.brows;
+  browR.style.opacity = def.brows;
+  wakeMark.style.opacity = def.wake;
+}
+
+// --- Blink animation ---
+function blink() {
+  const dur = 120;
+  lidL.setAttribute('height', 32);
+  lidR.setAttribute('height', 32);
+  setTimeout(() => {
+    const def = STATES[currentState] || STATES.idle;
+    lidL.setAttribute('height', def.lidH);
+    lidR.setAttribute('height', def.lidH);
+  }, dur);
+}
+
+function scheduleBlink() {
+  clearTimeout(blinkTimer);
+  const interval = 2500 + Math.random() * 3000;
+  blinkTimer = setTimeout(() => {
+    if (currentState === 'listen' || currentState === 'wake' || currentState === 'idle') {
+      blink();
+    }
+    scheduleBlink();
+  }, interval);
+}
+
+// --- Thinking dot animation ---
+let dotStep = 0;
+function animateThinkDots() {
+  const dots = [dot1, dot2, dot3];
+  dots.forEach((d, i) => d.style.opacity = i === dotStep ? '1' : '0.2');
+  dotStep = (dotStep + 1) % 3;
+}
+
+// --- Speaking mouth animation ---
+const speakMouths = [
+  'M 82 153 Q 110 172 138 153',
+  'M 84 155 Q 110 164 136 155',
+  'M 82 153 Q 110 175 138 153',
+  'M 85 154 Q 110 166 135 154',
+];
+let speakStep = 0;
+function animateSpeakMouth() {
+  mouth.setAttribute('d', speakMouths[speakStep % speakMouths.length]);
+  speakStep++;
+}
+
+// --- Pupil wander (listen state) ---
+let wanderAngle = 0;
+function wanderPupils() {
+  if (currentState !== 'listen') return;
+  wanderAngle += 0.04;
+  const dx = Math.sin(wanderAngle) * 4;
+  const dy = Math.cos(wanderAngle * 0.7) * 2;
+  pupilL.setAttribute('cx', 72 + dx);
+  pupilR.setAttribute('cx', 148 + dx);
+  pupilL.setAttribute('cy', 108 + dy);
+  pupilR.setAttribute('cy', 108 + dy);
+}
+
+// --- Main animation loop ---
+let lastTime = 0;
+let thinkAccum = 0;
+let speakAccum = 0;
+let wanderAccum = 0;
+
+function loop(ts) {
+  const dt = ts - lastTime;
+  lastTime = ts;
+
+  if (currentState === 'think') {
+    thinkAccum += dt;
+    if (thinkAccum > 400) { animateThinkDots(); thinkAccum = 0; }
+  } else {
+    thinkAccum = 0;
+    dot1.style.opacity = '0';
+    dot2.style.opacity = '0';
+    dot3.style.opacity = '0';
+  }
+
+  if (currentState === 'speak') {
+    speakAccum += dt;
+    if (speakAccum > 180) { animateSpeakMouth(); speakAccum = 0; }
+  }
+
+  if (currentState === 'listen') {
+    wanderAccum += dt;
+    if (wanderAccum > 30) { wanderPupils(); wanderAccum = 0; }
+  }
+
+  animFrame = requestAnimationFrame(loop);
+}
+
+// --- Handle state changes ---
+function setState(s) {
+  if (s === currentState) return;
+  currentState = s;
+
+  clearTimeout(hideTimer);
+
+  if (s === 'idle') {
+    // Fade out after 3s of idle
+    hideTimer = setTimeout(() => {
+      face.classList.remove('visible');
+    }, 3000);
+  } else {
+    face.classList.add('visible');
+  }
+
+  applyState(s);
+
+  // Reset pupil position when leaving listen
+  if (s !== 'listen') {
+    pupilL.setAttribute('cx', 72);
+    pupilR.setAttribute('cx', 148);
+    pupilL.setAttribute('cy', 108);
+    pupilR.setAttribute('cy', 108);
+  }
+
+  // Wake! flash — then transition to listen
+  if (s === 'wake') {
+    setTimeout(() => {
+      wakeMark.style.opacity = '0';
+    }, 600);
+  }
+}
+
+// --- Listen for events via file polling ---
+let lastEvent = '';
+async function pollEvent() {
+  try {
+    const r = await fetch('file:///tmp/mark2-face-event.json?' + Date.now());
+    const text = await r.text();
+    if (text !== lastEvent) {
+      lastEvent = text;
+      const d = JSON.parse(text);
+      if (d.state) setState(d.state);
+    }
+  } catch(e) {}
+}
+
+// --- Map LED states to face states ---
+const STATE_MAP = {
+  idle:   'idle',
+  wake:   'wake',
+  listen: 'listen',
+  think:  'think',
+  speak:  'speak',
+  error:  'error',
+  mute:   'idle',
+  volume: 'idle',
+};
+
+// Also listen via BroadcastChannel from mark2-face command
+const bc = new BroadcastChannel('mark2-face');
+bc.onmessage = (e) => {
+  const mapped = STATE_MAP[e.data?.state] || 'idle';
+  setState(mapped);
+};
+
+// Start
+applyState('idle');
+scheduleBlink();
+requestAnimationFrame(loop);
+setInterval(pollEvent, 200);
+</script>
+</body>
+</html>

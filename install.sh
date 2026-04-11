@@ -90,7 +90,7 @@ print_banner() {
 # =============================================================================
 
 print_progress() {
-    local modules=("hardware" "satellite" "snapcast" "airplay" "screensaver" "leds" "mpd" "kdeconnect" "usb-audio" "overlay")
+    local modules=("hardware" "satellite" "snapcast" "airplay" "screensaver" "leds" "mpd" "kdeconnect" "usb-audio" "overlay" "face")
     echo ""
     echo -e "${CYAN}  Installation progress:${NC}"
     for m in "${modules[@]}"; do
@@ -189,11 +189,10 @@ prompt_ha_url
 
 select_modules() {
     # Default selections (pre-ticked)
-    local defaults="screensaver leds overlay"
+    local defaults="screensaver leds overlay face"
 
-    # Build whiptail checklist
     local items=()
-    local modules=("snapcast" "airplay" "screensaver" "leds" "mpd" "kdeconnect" "usb-audio" "overlay")
+    local modules=("snapcast" "airplay" "screensaver" "leds" "mpd" "kdeconnect" "usb-audio" "overlay" "face")
     local descs=(
         "Snapcast — multiroom audio"
         "AirPlay — Mark II as AirPlay speaker"
@@ -203,6 +202,7 @@ select_modules() {
         "KDE Connect — Android phone integration"
         "USB audio — fallback if SJ201 fails"
         "Volume overlay — on-screen status"
+        "Animated face — reacts to Wyoming events"
     )
 
     for i in "${!modules[@]}"; do
@@ -325,6 +325,7 @@ run_module "mpd"         "MPD — local music player (HA / Music Assistant)"
 run_module "kdeconnect"  "KDE Connect — Android phone integration"
 run_module "usb-audio"   "USB audio fallback — auto-switch if SJ201 fails"
 run_module "overlay"     "Volume overlay — on-screen status display"
+run_module "face"        "Animated face — reacts to Wyoming events"
 
 # =============================================================================
 # DONE
