@@ -22,7 +22,7 @@ echo "  · Speaking:     solid green"
 echo "  · Error:        flash red"
 echo ""
 
-if ! ask_yes_no "Install LED ring control?"; then
+if ! confirm_or_skip "Install LED ring control?"; then
     log "Skipping LED control"
     exit 0
 fi

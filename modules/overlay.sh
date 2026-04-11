@@ -17,7 +17,7 @@ echo "  Transparent on-screen overlay showing volume and Wyoming status."
 echo "  Auto-hides after 3 seconds."
 echo ""
 
-if ! ask_yes_no "Install volume/status overlay?"; then
+if ! confirm_or_skip "Install volume/status overlay?"; then
     log "Skipping volume overlay"
     exit 0
 fi

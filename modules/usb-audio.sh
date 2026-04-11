@@ -18,7 +18,7 @@ echo "  if the SJ201 sound card fails to initialize at boot."
 echo "  Also installs: mark2-audio-switch command for manual control."
 echo ""
 
-if ! ask_yes_no "Install USB audio fallback?"; then
+if ! confirm_or_skip "Install USB audio fallback?"; then
     log "Skipping USB audio fallback"
     exit 0
 fi

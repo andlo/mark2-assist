@@ -36,6 +36,18 @@ ask_yes_no() {
     [[ "${answer,,}" == "y" ]]
 }
 
+# --- Used by modules to skip their own prompt when called from install.sh ---
+# If MARK2_MODULE_CONFIRMED=1 is set, skip the confirmation prompt.
+# Usage at top of each module:
+#   confirm_or_skip "Install Snapcast client?" || exit 0
+confirm_or_skip() {
+    local prompt="$1"
+    if [ "${MARK2_MODULE_CONFIRMED:-0}" = "1" ]; then
+        return 0  # already confirmed by install.sh
+    fi
+    ask_yes_no "$prompt"
+}
+
 # --- Verify not running as raw root ---
 check_not_root() {
     if [ "$(id -u)" -eq 0 ] && [ -z "${SUDO_USER:-}" ]; then

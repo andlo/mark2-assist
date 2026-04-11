@@ -18,7 +18,7 @@ echo "  Requires a Snapcast server already running on your network (or NAS/HA)."
 echo "  In Home Assistant the 'Snapcast' integration shows Mark II as a media player."
 echo ""
 
-if ! ask_yes_no "Install Snapcast client?"; then
+if ! confirm_or_skip "Install Snapcast client?"; then
     log "Skipping Snapcast"
     exit 0
 fi

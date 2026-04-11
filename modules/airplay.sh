@@ -20,7 +20,7 @@ echo "  NOTE: AirPlay 1 only. shairport-sync may occasionally lose timing"
 echo "  sync on Trixie with PipeWire."
 echo ""
 
-if ! ask_yes_no "Install AirPlay receiver?"; then
+if ! confirm_or_skip "Install AirPlay receiver?"; then
     log "Skipping AirPlay"
     exit 0
 fi

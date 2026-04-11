@@ -20,7 +20,7 @@ echo "  Requires a Home Assistant long-lived access token."
 echo "  Get one at: HA Profile page > Long-Lived Access Tokens"
 echo ""
 
-if ! ask_yes_no "Install clock/weather screensaver?"; then
+if ! confirm_or_skip "Install clock/weather screensaver?"; then
     log "Skipping screensaver"
     exit 0
 fi

@@ -132,7 +132,7 @@ run_module() {
     fi
 
     _log_write "----" "=== Starting module: ${name} ==="
-    if bash "$script"; then
+    if MARK2_MODULE_CONFIRMED=1 bash "$script"; then
         progress_set "$name" "done"
     else
         progress_set "$name" "failed"

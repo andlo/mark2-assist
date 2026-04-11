@@ -19,7 +19,7 @@ echo "  · Music Assistant (streams local files and radio)"
 echo "  · Snapcast (if installed - MPD feeds audio to Snapcast)"
 echo ""
 
-if ! ask_yes_no "Install MPD?"; then
+if ! confirm_or_skip "Install MPD?"; then
     log "Skipping MPD"
     exit 0
 fi

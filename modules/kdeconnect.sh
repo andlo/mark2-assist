@@ -23,7 +23,7 @@ echo "  Android: KDE Connect (Play Store / F-Droid)"
 echo "  iPhone:  Not supported"
 echo ""
 
-if ! ask_yes_no "Install KDE Connect?"; then
+if ! confirm_or_skip "Install KDE Connect?"; then
     log "Skipping KDE Connect"
     exit 0
 fi
