@@ -51,6 +51,97 @@ The Mycroft Mark II contains:
 ./install.sh
 ```
 
+### Installer — welcome screen
+
+```
+    __  ___           __      ________     ___              _      __
+   /  |/  /___ ______/ /__   /  _/  _/    /   |  __________(_)____/ /_
+  / /|_/ / __ `/ ___/ //_/   / / / /     / /| | / ___/ ___/ / ___/ __/
+ / /  / / /_/ / /  / ,<    _/ /_/ /     / ___ |(__  |__  ) (__  ) /_
+/_/  /_/\__,_/_/  /_/|_|  /___/___/    /_/  |_/____/____/_/____/\__/
+
+  Welcome to the Mark II Assist installer
+  github.com/andlo/mark2-assist
+```
+
+### Installer — yes/no dialogs (whiptail)
+
+```
+ ┌────────────────────────────────────────────────────┐
+ │                  Mark II Assist                    │
+ │                                                    │
+ │         Ready to begin installation?               │
+ │                                                    │
+ │               <Yes>          <No>                  │
+ └────────────────────────────────────────────────────┘
+```
+
+### Installer — input dialogs
+
+```
+ ┌────────────────────────────────────────────────────┐
+ │                  Mark II Assist                    │
+ │                                                    │
+ │  Home Assistant URL                                │
+ │                                                    │
+ │  ┌──────────────────────────────────────────────┐  │
+ │  │ http://192.168.1.100:8123                    │  │
+ │  └──────────────────────────────────────────────┘  │
+ │                                                    │
+ │               <Ok>           <Cancel>              │
+ └────────────────────────────────────────────────────┘
+```
+
+### Installer — module selection menu
+
+```
+ ┌────────────────────────────────────────────────────────────────┐
+ │                      Mark II Assist                            │
+ │  Select modules to install:                                    │
+ │  (Space to toggle, Enter to confirm)                           │
+ │                                                                │
+ │  [*] snapcast    Snapcast — multiroom audio                    │
+ │  [ ] airplay     AirPlay — Mark II as AirPlay speaker          │
+ │  [*] screensaver Screensaver — clock + weather display         │
+ │  [*] leds        LED ring — visual Wyoming feedback            │
+ │  [ ] mpd         MPD — local music player                      │
+ │  [ ] kdeconnect  KDE Connect — Android phone integration       │
+ │  [ ] usb-audio   USB audio — fallback if SJ201 fails           │
+ │  [*] overlay     Volume overlay — on-screen status             │
+ │  [*] face        Animated face — reacts to Wyoming events      │
+ │  [ ] mqtt-sensors MQTT sensors — publish status to HA          │
+ │                                                                │
+ │                   <Ok>              <Cancel>                   │
+ └────────────────────────────────────────────────────────────────┘
+```
+
+### Installer — progress tracking
+
+```
+  Installation progress:
+    ✓ hardware
+    ✓ satellite
+    ✓ screensaver
+    ✓ leds
+    - airplay       (skipped)
+    ✗ mpd           (failed)
+    · kdeconnect    (pending)
+```
+
+### After reboot — resume reminder
+
+```
+╔══════════════════════════════════════════╗
+║   Mark II installation paused            ║
+║                                          ║
+║   Hardware setup complete ✓              ║
+║   Reboot done ✓                          ║
+║                                          ║
+║   Run to continue:                       ║
+║     ./mark2-assist/install.sh            ║
+╚══════════════════════════════════════════╝
+```
+
 The installer is fully guided:
 
 1. Asks for Home Assistant URL (saved and reused by all modules)
@@ -114,12 +205,124 @@ Installs Wyoming satellite, openWakeWord, Chromium kiosk (served from `~/.config
 
 The touchscreen runs a single Chromium window (`kiosk.html`) with layered content:
 
-- **Home Assistant** — shown full screen when nothing else is happening
-- **Animated face** — zooms in from the bottom-right corner during voice interaction, shrinks back when idle
-- **Music mode** — cover art fills the screen when MPD plays, the face stays small in the corner and reacts to the music
-- **Voice over music** — if Wyoming activates during music playback, the face zooms to full screen over the dimmed cover art
-- **Volume bar** — pops up in the bottom center on volume change, auto-hides after 3 seconds
-- **Content panel** — a dedicated layer for displaying images and text pushed from a HA integration (see [HA Integration](HA_INTEGRATION.md))
+### Normal — Home Assistant full screen
+
+```
+┌─────────────────────────────────────────┐
+│                                         │
+│         Home Assistant Dashboard        │
+│                                         │
+│   ┌──────────┐  ┌──────────┐           │
+│   │  Lights  │  │  Climate │           │
+│   └──────────┘  └──────────┘           │
+│                                         │
+│   ┌──────────┐  ┌──────────┐           │
+│   │  Media   │  │  Energy  │           │
+│   └──────────┘  └──────────┘           │
+│                                         │
+└─────────────────────────────────────────┘
+```
+
+### Voice active — animated face zooms from corner
+
+```
+┌─────────────────────────────────────────┐
+│                                         │
+│          ● Listening...                 │  ← status pill
+│                                         │
+│   ╭─────────────────────────────────╮   │
+│   │                                 │   │
+│   │         (  ◉      ◉  )         │   │  ← face full screen
+│   │              ╰──╯               │   │     zoomed from corner
+│   │                                 │   │
+│   ╰─────────────────────────────────╯   │
+│                                         │
+└─────────────────────────────────────────┘
+```
+
+### Music playing — cover art full screen, face reacts in corner
+
+```
+┌─────────────────────────────────────────┐
+│                                         │
+│         ░░░░░░░░░░░░░░░░░░░░░           │
+│         ░░                 ░░           │
+│         ░░   [cover art]   ░░           │
+│         ░░                 ░░           │
+│         ░░░░░░░░░░░░░░░░░░░░░           │
+│                                         │
+│  Wish You Were Here                     │  ← track info
+│  Pink Floyd                             │
+│  ▁▃▅▇▅▃▁▂▄▆▄▂▁▃▅▃▁  ╭──────╮           │  ← viz bars + face
+│                      │ ◉  ◉ │           │     (mouth moves
+│                      │  ~~  │           │      with music)
+│                      ╰──────╯           │
+└─────────────────────────────────────────┘
+```
+
+### Wyoming activates during music — face takes over
+
+```
+┌─────────────────────────────────────────┐
+│                                         │
+│   ░ ░ ░ [cover art dimmed] ░ ░ ░       │
+│                                         │
+│   ╭─────────────────────────────────╮   │
+│   │                                 │   │
+│   │         (  ◉      ◉  )         │   │  ← face full screen
+│   │              ╰──╯               │   │     over dimmed cover
+│   │             · · ·               │   │     (thinking dots)
+│   │                                 │   │
+│   ╰─────────────────────────────────╯   │
+└─────────────────────────────────────────┘
+```
+
+### Volume changed — bar pops up briefly
+
+```
+┌─────────────────────────────────────────┐
+│                                         │
+│         Home Assistant Dashboard        │
+│                                         │
+│                                         │
+│         ┌─────────────────────┐         │
+│         │ 🔊 ████████░░░  72% │         │  ← auto-hides 3s
+│         └─────────────────────┘         │
+│                                         │
+└─────────────────────────────────────────┘
+```
+
+### Screensaver — after 2 min idle
+
+```
+┌─────────────────────────────────────────┐
+│                                         │
+│                                         │
+│               22:47:03                  │
+│         SATURDAY · 11 APRIL 2026        │
+│                                         │
+│          ☀️  18°C  Sunny                │
+│      Humidity: 45%  ·  Wind: 3 m/s     │
+│                                         │
+│                                         │
+└─────────────────────────────────────────┘
+```
+*Touch screen to return to Home Assistant.*
+
+---
+
+## LED Ring States
+
+When the LED module is installed, the SJ201 ring follows Wyoming events:
+
+| State | LED behaviour |
+|-------|--------------|
+| Idle | Off |
+| Wake word | Pulsing blue |
+| Listening | Solid blue |
+| Thinking | Spinning cyan |
+| Speaking | Solid green |
+| Error | Flashing red |
 
 ---
 
