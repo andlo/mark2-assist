@@ -1,4 +1,7 @@
 #!/bin/bash
+
+# shellcheck source=lib/common.sh
+source "$(dirname "$0")/lib/common.sh"
 # =============================================================================
 # mark2-advanced-setup.sh
 # Mycroft Mark II - Advanced features
@@ -55,8 +58,6 @@ SYSTEMD_USER_DIR="${USER_HOME}/.config/systemd/user"
 MARK2_DIR="${USER_HOME}/.config/mark2"
 mkdir -p "$SYSTEMD_USER_DIR" "$MARK2_DIR"
 
-WYOMING_SAT_DIR="${USER_HOME}/wyoming-satellite"
-KERNEL_VERSION=$(uname -r)
 
 ask_yes_no() {
     local answer
@@ -420,7 +421,6 @@ install_kernel_watchdog() {
         return
     fi
 
-    VOCALFUSION_REPO="https://github.com/OpenVoiceOS/VocalFusionDriver"
     REBUILD_SCRIPT="${MARK2_DIR}/rebuild-vocalfusion.sh"
 
     cat > "$REBUILD_SCRIPT" << 'SHEOF'
@@ -717,6 +717,7 @@ EOF
 # MODULE 5: USB AUDIO FALLBACK
 # =============================================================================
 
+# shellcheck disable=SC2120
 install_usb_audio_fallback() {
     section "USB Audio Fallback"
     echo "  Automatically switches audio output to a USB DAC/speaker"

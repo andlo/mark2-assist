@@ -1,4 +1,7 @@
 #!/bin/bash
+
+# shellcheck source=lib/common.sh
+source "$(dirname "$0")/lib/common.sh"
 # =============================================================================
 # mark2-satellite-setup.sh
 # Mycroft Mark II - Wyoming Voice Satellite + HA Kiosk Display + Media Player

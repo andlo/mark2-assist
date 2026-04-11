@@ -1,4 +1,7 @@
 #!/bin/bash
+
+# shellcheck source=lib/common.sh
+source "$(dirname "$0")/lib/common.sh"
 # =============================================================================
 # mark2-hardware-setup.sh
 # Mycroft Mark II hardware driver setup for Raspberry Pi OS (Trixie / Debian 13+)
