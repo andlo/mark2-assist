@@ -29,7 +29,7 @@ fi
 
 sudo apt-get install -y --no-install-recommends \
     python3-spidev \
-    python3-gpiod \
+    python3-libgpiod \
     python3-smbus2 \
     i2c-tools
 

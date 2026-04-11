@@ -233,7 +233,7 @@ setup_sj201_venv() {
         sudo apt-get install -y --no-install-recommends \
             python3-rpi-lgpio \
             python3-smbus2 \
-            python3-gpiod 2>/dev/null || warn "Some system GPIO packages not available - continuing"
+            python3-libgpiod 2>/dev/null || warn "Some system GPIO packages not available - continuing"
         python3 -m venv --system-site-packages "$SJ201_VENV"
     else
         python3 -m venv "$SJ201_VENV"
