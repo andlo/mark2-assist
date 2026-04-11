@@ -276,22 +276,12 @@ configure_kiosk() {
     KIOSK_DIR="${USER_HOME}/.config/mark2-kiosk"
     mkdir -p "$KIOSK_DIR"
 
-    # Get local IP for MPD watcher
-    LOCAL_IP=$(hostname -I | awk '{print $1}')
-
-    # Copy and substitute kiosk.html template
-    sed \
-        -e "s|%%HA_URL%%|${HA_URL}|g" \
-        -e "s|%%MPD_HOST%%|${LOCAL_IP}|g" \
-        "${TEMPLATE_DIR}/kiosk.html" > "${KIOSK_DIR}/kiosk.html"
-    log "Created kiosk page: ${KIOSK_DIR}/kiosk.html"
-
-    # Install MPD watcher (polls MPD, writes coverart + track info)
+    # Install MPD watcher
     sudo install -m 755 "${SCRIPT_DIR}/lib/mpd-watcher.py" /usr/local/bin/mark2-mpd-watcher
 
     cat > "${SYSTEMD_USER_DIR}/mark2-mpd-watcher.service" << EOF
 [Unit]
-Description=Mark II MPD state watcher (coverart + track info for HUD)
+Description=Mark II MPD state watcher
 After=mpd.service network-online.target
 
 [Service]
@@ -303,9 +293,12 @@ RestartSec=5
 [Install]
 WantedBy=default.target
 EOF
-    log "Created mark2-mpd-watcher.service (starts with MPD if installed)"
 
-    # Kiosk launcher script
+    # Copy HUD template (face + volume + coverart - no iframe)
+    cp "${TEMPLATE_DIR}/kiosk.html" "${KIOSK_DIR}/hud.html"
+    log "Copied HUD template to ${KIOSK_DIR}/hud.html"
+
+    # ── HA kiosk launcher (Window 1 - full screen) ──
     KIOSK_SCRIPT="${USER_HOME}/kiosk.sh"
     cat > "$KIOSK_SCRIPT" << EOF
 #!/bin/bash
@@ -318,6 +311,7 @@ until curl -sf --max-time 3 "${HA_URL}" > /dev/null 2>&1; do
     sleep 5
 done
 
+# Launch HA directly in Chromium kiosk (no iframe - avoids X-Frame-Options)
 exec chromium \\
     --kiosk \\
     --noerrdialogs \\
@@ -331,13 +325,63 @@ exec chromium \\
     --autoplay-policy=no-user-gesture-required \\
     --disable-background-timer-throttling \\
     --disk-cache-dir=/dev/null \\
-    "file://${KIOSK_DIR}/kiosk.html"
+    "${HA_URL}"
 EOF
     chmod +x "$KIOSK_SCRIPT"
-    log "Created kiosk script: ${KIOSK_SCRIPT}"
+    log "Created HA kiosk script: ${KIOSK_SCRIPT}"
 
-    # Add to labwc autostart
+    # ── HUD launcher (Window 2 - always on top, transparent) ──
+    HUD_SCRIPT="${USER_HOME}/hud.sh"
+    cat > "$HUD_SCRIPT" << EOF
+#!/bin/bash
+export WAYLAND_DISPLAY=\${WAYLAND_DISPLAY:-wayland-1}
+# Small delay so HA window is behind before HUD starts
+sleep 3
+
+exec chromium \\
+    --app="file://${KIOSK_DIR}/hud.html" \\
+    --window-size=800,480 \\
+    --window-position=0,0 \\
+    --ozone-platform=wayland \\
+    --password-store=basic \\
+    --no-first-run \\
+    --disable-infobars \\
+    --disable-background-timer-throttling \\
+    --app-auto-launched \\
+    --enable-features=UseOzonePlatform
+EOF
+    chmod +x "$HUD_SCRIPT"
+    log "Created HUD script: ${HUD_SCRIPT}"
+
+    # ── labwc rc.xml — window rule to keep HUD always on top ──
+    LABWC_RC="${USER_HOME}/.config/labwc/rc.xml"
+    mkdir -p "$(dirname "$LABWC_RC")"
+    cat > "$LABWC_RC" << 'EOF'
+<?xml version="1.0" encoding="UTF-8"?>
+<labwc_config>
+  <core>
+    <decoration>client</decoration>
+    <gap>0</gap>
+  </core>
+  <windowRules>
+    <!-- HUD overlay: always on top, no decorations, no focus steal -->
+    <windowRule identifier="hud.html" matchType="substring">
+      <action name="AlwaysOnTop"/>
+      <action name="Decoration" decoration="none"/>
+      <skipTaskbar>yes</skipTaskbar>
+    </windowRule>
+    <!-- HA kiosk: full screen, no decorations -->
+    <windowRule identifier="chromium" matchType="substring">
+      <action name="Decoration" decoration="none"/>
+    </windowRule>
+  </windowRules>
+</labwc_config>
+EOF
+    log "Configured labwc window rules (HUD always-on-top)"
+
+    # ── labwc autostart: HA first, HUD second ──
     labwc_autostart_add "kiosk.sh" "${KIOSK_SCRIPT} &"
+    labwc_autostart_add "hud.sh"   "${HUD_SCRIPT} &"
 
     cat > "${SYSTEMD_USER_DIR}/ha-kiosk.service" << EOF
 [Unit]
