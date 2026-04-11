@@ -98,10 +98,9 @@ MODULE_PATH="/lib/modules/${KERNEL_VERSION}/${VOCALFUSION_MODULE}.ko"
 MODULES_LOAD_CONF="/etc/modules-load.d/vocalfusion.conf"
 EEPROM_CONFIG="/etc/default/rpi-eeprom-update"
 
-# --- SJ201 firmware and script URLs ---
-XVFTOOL_URL="https://raw.githubusercontent.com/OpenVoiceOS/ovos-buildroot/0e464466194f58553af11c34f7435dba76ec70a3/buildroot-external/package/vocalfusion/xvf3510-flash"
-FIRMWARE_URL="https://raw.githubusercontent.com/OpenVoiceOS/ovos-buildroot/c67d7f0b7f2a3eff5faab96d6adf7495e9b48b93/buildroot-external/package/vocalfusion/app_xvf3510_int_spi_boot_v4_2_0.bin"
-INIT_TAS_URL="https://raw.githubusercontent.com/MycroftAI/mark-ii-hardware-testing/main/utils/init_tas5806.py"
+# --- SJ201 firmware and scripts (vendored in assets/) ---
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+ASSETS_DIR="${SCRIPT_DIR}/assets"
 
 # =============================================================================
 # FUNCTIONS
@@ -248,10 +247,20 @@ setup_sj201_venv() {
 }
 
 download_sj201_firmware() {
-    log "Downloading SJ201 firmware and scripts..."
-    sudo curl -fsSL "$XVFTOOL_URL"  -o "${WORK_DIR}/xvf3510-flash"  && sudo chmod +x "${WORK_DIR}/xvf3510-flash"
-    sudo curl -fsSL "$FIRMWARE_URL" -o "${WORK_DIR}/app_xvf3510_int_spi_boot_v4_2_0.bin"
-    sudo curl -fsSL "$INIT_TAS_URL" -o "${WORK_DIR}/init_tas5806"   && sudo chmod +x "${WORK_DIR}/init_tas5806"
+    log "Installing SJ201 firmware and scripts from assets/..."
+
+    # xvf3510-flash (vendored Python script)
+    sudo cp "${ASSETS_DIR}/xvf3510-flash" "${WORK_DIR}/xvf3510-flash"
+    sudo chmod +x "${WORK_DIR}/xvf3510-flash"
+
+    # init_tas5806 (vendored Python script)
+    sudo cp "${ASSETS_DIR}/init_tas5806.py" "${WORK_DIR}/init_tas5806"
+    sudo chmod +x "${WORK_DIR}/init_tas5806"
+
+    # XVF3510 firmware binary (vendored in assets/)
+    sudo cp "${ASSETS_DIR}/app_xvf3510_int_spi_boot_v4_2_0.bin" "${WORK_DIR}/app_xvf3510_int_spi_boot_v4_2_0.bin"
+    log "Firmware copied from assets/"
+
     sudo chown -R "${CURRENT_USER}:${CURRENT_USER}" "$WORK_DIR"
 }
 
