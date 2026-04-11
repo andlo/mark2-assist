@@ -141,7 +141,7 @@ install_wyoming_satellite() {
 
     log "Running Wyoming Satellite setup..."
     cd "$WYOMING_SAT_DIR"
-    bash script/setup
+    python3 script/setup
     log "Wyoming Satellite installed"
 }
 
@@ -158,7 +158,7 @@ install_wyoming_openwakeword() {
 
     log "Running openWakeWord setup (downloads models - may take a while)..."
     cd "$WYOMING_OWW_DIR"
-    bash script/setup
+    python3 script/setup
     log "openWakeWord installed"
 }
 
