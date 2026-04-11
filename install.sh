@@ -124,16 +124,16 @@ configure_upfront() {
                     "snapcast" "airplay" "mpd"
                     "kdeconnect" "usb-audio")
     local mod_desc=(
-        "── Display ──  LED ring — SJ201 ring reacts to wake/listen/speak/error"
-        "── Display ──  Animated face — zooms in on voice, dances to music"
-        "── Display ──  Volume overlay — on-screen volume bar, auto-hides"
-        "── Display ──  Screensaver — fullscreen clock + weather from HA"
-        "── HA ───────  MQTT sensors — Wyoming state, MPD, CPU temp to HA"
-        "── Audio ────  Snapcast — synchronized multiroom audio endpoint"
-        "── Audio ────  AirPlay — Mark II as AirPlay 1 speaker"
-        "── Audio ────  MPD — local music player (Music Assistant / HA)"
-        "── Extra ────  KDE Connect — Android phone notifications + media"
-        "── Extra ────  USB audio — auto-fallback if SJ201 fails at boot"
+        "[Display] LED ring — reacts to wake/listen/speak/error"
+        "[Display] Animated face — zooms in on voice, dances to music"
+        "[Display] Volume overlay — on-screen bar, auto-hides"
+        "[Display] Screensaver — clock + weather from HA"
+        "[HA]      MQTT sensors — Wyoming/MPD/CPU state to HA"
+        "[Audio]   Snapcast — synchronized multiroom audio"
+        "[Audio]   AirPlay — Mark II as AirPlay speaker"
+        "[Audio]   MPD — local music player (Music Assistant)"
+        "[Extra]   KDE Connect — Android phone integration"
+        "[Extra]   USB audio — fallback if SJ201 fails"
     )
 
     local items=()
@@ -150,7 +150,7 @@ configure_upfront() {
 
     SELECTED_MODULES=$(whiptail --title "Mark II Assist — Select modules" \
         --checklist "Choose what to install:\n(Space to toggle, Enter to confirm)" \
-        24 72 12 \
+        24 70 12 \
         "${items[@]}" \
         3>&1 1>&2 2>&3) || { warn "Cancelled"; exit 0; }
     SELECTED_MODULES=$(echo "$SELECTED_MODULES" | tr -d '"')
