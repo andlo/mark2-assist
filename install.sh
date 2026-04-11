@@ -194,7 +194,7 @@ prompt_ha_url
 
 select_modules() {
     # Default selections (pre-ticked)
-    local defaults="screensaver leds overlay face"
+    local defaults="screensaver leds overlay face mqtt-sensors"
 
     local items=()
     local modules=("snapcast" "airplay" "screensaver" "leds" "mpd" "kdeconnect" "usb-audio" "overlay" "face")
