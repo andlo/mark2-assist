@@ -150,6 +150,8 @@ configure_upfront() {
         3>&1 1>&2 2>&3) || { warn "Cancelled"; exit 0; }
     SELECTED_MODULES=$(echo "$SELECTED_MODULES" | tr -d '"')
     export SELECTED_MODULES
+    # Save module selection so it survives reboot
+    config_save "SELECTED_MODULES" "$SELECTED_MODULES"
 
     # ── Step 2: Home Assistant URL ──
     prompt_ha_url
@@ -264,16 +266,13 @@ if [ "$RESUME" = false ] && \
 fi
 
 if [ "$RESUME" = true ]; then
-    echo -e "${CYAN}  Resuming installation after reboot...${NC}"
-    remove_resume_hook
     print_progress
-    # Re-use previously saved config, skip upfront questions
+    whiptail --title "Mark II Assist — Resuming" \
+        --yesno "Resuming installation after reboot.\n\nHardware drivers installed ✓\nReboot complete ✓\n\nReady to continue with:\n  · Wyoming Satellite + Kiosk\n  · Selected optional modules\n\nContinue?" \
+        18 60 || { echo "Cancelled."; exit 0; }
+    remove_resume_hook
     config_load
-    SELECTED_MODULES="${SELECTED_MODULES:-}"
-    # Re-load module selection from progress (all non-done, non-skipped = selected)
-    if [ -z "$SELECTED_MODULES" ]; then
-        SELECTED_MODULES="screensaver leds overlay face mqtt-sensors"
-    fi
+    SELECTED_MODULES="${SELECTED_MODULES:-screensaver leds overlay face mqtt-sensors}"
 else
     print_progress
     _ans=""
