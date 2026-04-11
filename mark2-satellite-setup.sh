@@ -387,76 +387,69 @@ RestartSec=5
 WantedBy=default.target
 EOF
 
-    # Copy HUD template (face + volume + coverart - no iframe)
+    # Copy HUD template
     cp "${TEMPLATE_DIR}/kiosk.html" "${KIOSK_DIR}/hud.html"
     log "Copied HUD template to ${KIOSK_DIR}/hud.html"
 
-    # ── HA kiosk launcher (Window 1 - full screen) ──
+    # ── HA kiosk launcher ──
     KIOSK_SCRIPT="${USER_HOME}/kiosk.sh"
-    cat > "$KIOSK_SCRIPT" << EOF
+    cat > "$KIOSK_SCRIPT" << 'SCRIPTEOF'
 #!/bin/bash
-export WAYLAND_DISPLAY=\${WAYLAND_DISPLAY:-wayland-0}
-export XDG_RUNTIME_DIR=/run/user/\$(id -u)
+export WAYLAND_DISPLAY=${WAYLAND_DISPLAY:-wayland-0}
+export XDG_RUNTIME_DIR=/run/user/$(id -u)
 
-# Wait for Home Assistant
+CONFIG="${HOME}/.config/mark2/config"
+HA_URL=""; HA_TOKEN=""
+[ -f "$CONFIG" ] && source "$CONFIG"
+
 until curl -sf --max-time 3 "${HA_URL}" > /dev/null 2>&1; do
-    echo "Waiting for Home Assistant..."
-    sleep 5
+    echo "Waiting for Home Assistant at ${HA_URL}..."; sleep 5
 done
 
-# Launch HA directly in Chromium kiosk (no iframe - avoids X-Frame-Options)
-exec chromium \\
-    --kiosk \\
-    --noerrdialogs \\
-    --disable-infobars \\
-    --no-first-run \\
-    --disable-session-crashed-bubble \\
-    --disable-component-update \\
-    --password-store=basic \\
-    --ozone-platform=wayland \\
-    --enable-features=UseOzonePlatform \\
-    --autoplay-policy=no-user-gesture-required \\
-    --disable-background-timer-throttling \\
-    --user-data-dir=${USER_HOME}/.config/chromium-kiosk \\
-    "${HA_URL}"
-EOF
+if [ -n "${HA_TOKEN}" ]; then
+    START_URL="${HA_URL}?auth_callback=1&code=${HA_TOKEN}&state=/"
+else
+    START_URL="${HA_URL}"
+fi
+
+exec chromium \
+    --kiosk --noerrdialogs --disable-infobars --no-first-run \
+    --disable-session-crashed-bubble --disable-component-update \
+    --password-store=basic --ozone-platform=wayland \
+    --enable-features=UseOzonePlatform \
+    --autoplay-policy=no-user-gesture-required \
+    --disable-background-timer-throttling \
+    --user-data-dir="${HOME}/.config/chromium-kiosk" \
+    "${START_URL}"
+SCRIPTEOF
     chmod +x "$KIOSK_SCRIPT"
     log "Created HA kiosk script: ${KIOSK_SCRIPT}"
 
-    # ── HUD launcher (Window 2 - always on top, transparent) ──
+    # ── HUD launcher ──
     HUD_SCRIPT="${USER_HOME}/hud.sh"
     cat > "$HUD_SCRIPT" << EOF
 #!/bin/bash
 export WAYLAND_DISPLAY=\${WAYLAND_DISPLAY:-wayland-0}
 export XDG_RUNTIME_DIR=/run/user/\$(id -u)
-# Small delay so HA window is behind before HUD starts
 sleep 3
-
 exec chromium \\
     --app="file://${KIOSK_DIR}/hud.html" \\
-    --window-size=800,480 \\
-    --window-position=0,0 \\
-    --ozone-platform=wayland \\
-    --password-store=basic \\
-    --no-first-run \\
-    --disable-infobars \\
+    --window-size=800,480 --window-position=0,0 \\
+    --ozone-platform=wayland --password-store=basic \\
+    --no-first-run --disable-infobars \\
     --disable-background-timer-throttling \\
-    --app-auto-launched \\
-    --enable-features=UseOzonePlatform
+    --app-auto-launched --enable-features=UseOzonePlatform
 EOF
     chmod +x "$HUD_SCRIPT"
     log "Created HUD script: ${HUD_SCRIPT}"
 
-    # ── labwc rc.xml — window rule to keep HUD always on top ──
+    # ── labwc rc.xml ──
     LABWC_RC="${USER_HOME}/.config/labwc/rc.xml"
     mkdir -p "$(dirname "$LABWC_RC")"
     cat > "$LABWC_RC" << 'EOF'
 <?xml version="1.0" encoding="UTF-8"?>
 <labwc_config>
-  <core>
-    <decoration>client</decoration>
-    <gap>0</gap>
-  </core>
+  <core><decoration>client</decoration><gap>0</gap></core>
   <windowRules>
     <windowRule identifier="hud.html" matchType="substring">
       <action name="ToggleAlwaysOnTop"/>
@@ -465,9 +458,8 @@ EOF
   </windowRules>
 </labwc_config>
 EOF
-    log "Configured labwc window rules (HUD always-on-top)"
+    log "Configured labwc window rules"
 
-    # ── labwc autostart: HA first, HUD second ──
     labwc_autostart_add "kiosk.sh" "${KIOSK_SCRIPT} &"
     labwc_autostart_add "hud.sh"   "${HUD_SCRIPT} &"
 
@@ -482,7 +474,7 @@ Type=simple
 ExecStart=${KIOSK_SCRIPT}
 Restart=on-failure
 RestartSec=10
-Environment=WAYLAND_DISPLAY=wayland-1
+Environment=WAYLAND_DISPLAY=wayland-0
 Environment=XDG_RUNTIME_DIR=/run/user/$(id -u "$CURRENT_USER")
 
 [Install]
