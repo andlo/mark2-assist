@@ -207,6 +207,9 @@ ExecStart=${WYOMING_SAT_DIR}/script/run \\
     --awake-wav ${WYOMING_SAT_DIR}/sounds/awake.wav \\
     --done-wav ${WYOMING_SAT_DIR}/sounds/done.wav
 WorkingDirectory=${WYOMING_SAT_DIR}
+Environment=PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+Environment=XDG_RUNTIME_DIR=/run/user/$(id -u "$CURRENT_USER")
+Environment=DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/$(id -u "$CURRENT_USER")/bus
 Restart=always
 RestartSec=5
 
