@@ -269,40 +269,55 @@ EOF
 }
 
 configure_kiosk() {
-    section "Configuring Chromium kiosk mode"
+    section "Configuring Chromium kiosk"
 
-    # Trixie uses labwc (Wayland) - autostart goes here
-    LABWC_AUTOSTART_DIR="${USER_HOME}/.config/labwc"
-    LABWC_AUTOSTART="${LABWC_AUTOSTART_DIR}/autostart"
-    mkdir -p "$LABWC_AUTOSTART_DIR"
+    SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+    TEMPLATE_DIR="${SCRIPT_DIR}/templates"
+    KIOSK_DIR="${USER_HOME}/.config/mark2-kiosk"
+    mkdir -p "$KIOSK_DIR"
 
-    # Create kiosk launch script
+    # Get local IP for MPD watcher
+    LOCAL_IP=$(hostname -I | awk '{print $1}')
+
+    # Copy and substitute kiosk.html template
+    sed \
+        -e "s|%%HA_URL%%|${HA_URL}|g" \
+        -e "s|%%MPD_HOST%%|${LOCAL_IP}|g" \
+        "${TEMPLATE_DIR}/kiosk.html" > "${KIOSK_DIR}/kiosk.html"
+    log "Created kiosk page: ${KIOSK_DIR}/kiosk.html"
+
+    # Install MPD watcher (polls MPD, writes coverart + track info)
+    sudo install -m 755 "${SCRIPT_DIR}/lib/mpd-watcher.py" /usr/local/bin/mark2-mpd-watcher
+
+    cat > "${SYSTEMD_USER_DIR}/mark2-mpd-watcher.service" << EOF
+[Unit]
+Description=Mark II MPD state watcher (coverart + track info for HUD)
+After=mpd.service network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/mark2-mpd-watcher
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=default.target
+EOF
+    log "Created mark2-mpd-watcher.service (starts with MPD if installed)"
+
+    # Kiosk launcher script
     KIOSK_SCRIPT="${USER_HOME}/kiosk.sh"
     cat > "$KIOSK_SCRIPT" << EOF
 #!/bin/bash
-# Mark II Home Assistant Kiosk
-# Waits for display to be ready, then launches Chromium
-
-# Disable screen blanking and power management
-wlr-randr 2>/dev/null || true
-# For labwc/Wayland - disable dpms
 export WAYLAND_DISPLAY=\${WAYLAND_DISPLAY:-wayland-1}
-
-# Hide mouse cursor after 1 second of inactivity (Wayland)
 unclutter-xfixes --timeout 1 &
 
-# Disable screen saver / power saving (no-op on Wayland, kept for safety)
-xset s off 2>/dev/null || true
-xset -dpms 2>/dev/null || true
-xset s noblank 2>/dev/null || true
-
-# Wait for network
+# Wait for Home Assistant
 until curl -sf --max-time 3 "${HA_URL}" > /dev/null 2>&1; do
-    echo "Waiting for Home Assistant at ${HA_URL}..."
+    echo "Waiting for Home Assistant..."
     sleep 5
 done
 
-# Launch Chromium in kiosk mode
 exec chromium \\
     --kiosk \\
     --noerrdialogs \\
@@ -310,28 +325,20 @@ exec chromium \\
     --no-first-run \\
     --disable-session-crashed-bubble \\
     --disable-component-update \\
-    --disable-translate \\
-    --disable-features=TranslateUI \\
     --password-store=basic \\
     --ozone-platform=wayland \\
     --enable-features=UseOzonePlatform \\
     --autoplay-policy=no-user-gesture-required \\
+    --disable-background-timer-throttling \\
     --disk-cache-dir=/dev/null \\
-    --media-router=1 \\
-    --enable-media-session-service \\
-    "${HA_URL}"
+    "file://${KIOSK_DIR}/kiosk.html"
 EOF
     chmod +x "$KIOSK_SCRIPT"
     log "Created kiosk script: ${KIOSK_SCRIPT}"
 
     # Add to labwc autostart
-    # Remove old entry if exists
-    grep -v "kiosk.sh" "$LABWC_AUTOSTART" 2>/dev/null > /tmp/labwc_autostart_tmp || true
-    mv /tmp/labwc_autostart_tmp "$LABWC_AUTOSTART" 2>/dev/null || true
-    echo "${KIOSK_SCRIPT} &" >> "$LABWC_AUTOSTART"
-    log "Added kiosk to labwc autostart: ${LABWC_AUTOSTART}"
+    labwc_autostart_add "kiosk.sh" "${KIOSK_SCRIPT} &"
 
-    # Also create a systemd user service as fallback/alternative
     cat > "${SYSTEMD_USER_DIR}/ha-kiosk.service" << EOF
 [Unit]
 Description=Home Assistant Kiosk Display

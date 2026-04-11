@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mark II</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    html, body {
+      width: 100%; height: 100%;
+      background: #0a0a0f;
+      overflow: hidden;
+      font-family: system-ui, sans-serif;
+    }
+
+    /* HA iframe - full screen background */
+    #ha-frame {
+      position: absolute;
+      inset: 0;
+      width: 100%; height: 100%;
+      border: none;
+      background: #0a0a0f;
+    }
+
+    /* HUD layer - transparent overlay on top of HA */
+    #hud {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      z-index: 10;
+    }
+
+    /* ── FACE ── */
+    #face-wrap {
+      position: absolute;
+      bottom: 24px; right: 24px;
+      width: 180px; height: 180px;
+      opacity: 0;
+      transition: opacity 0.5s ease;
+    }
+    #face-wrap.visible { opacity: 1; }
+    #face svg { width: 100%; height: 100%; }
+    .eye-w  { fill: #e8e8f0; }
+    .eye-p  { fill: #1a1a2e; }
+    .eyelid { fill: #0a0a0f; transition: height 0.35s ease; }
+    #mouth  { fill: none; stroke: #e8e8f0; stroke-width: 2.5; stroke-linecap: round; }
+    .blush  { fill: #ff6b8a; opacity: 0; transition: opacity 0.4s; }
+    .tdot   { fill: #6080ff; opacity: 0; transition: opacity 0.3s; }
+    #wmark  { fill: #6080ff; opacity: 0; transition: opacity 0.2s; font-size: 22px; font-weight: bold; text-anchor: middle; dominant-baseline: central; }
+    .brow   { stroke: #e8e8f0; stroke-width: 2.5; stroke-linecap: round; fill: none; opacity: 0; transition: opacity 0.3s; }
+
+    /* ── VOLUME BAR ── */
+    #vol-bar {
+      position: absolute;
+      bottom: 24px; left: 50%;
+      transform: translateX(-50%);
+      background: rgba(15, 15, 30, 0.88);
+      border: 1px solid rgba(100, 120, 255, 0.2);
+      border-radius: 40px;
+      padding: 10px 20px;
+      display: flex; align-items: center; gap: 12px;
+      min-width: 220px;
+      opacity: 0;
+      transition: opacity 0.4s ease;
+    }
+    #vol-bar.visible { opacity: 1; }
+    #vol-icon { font-size: 16px; color: #9090c0; }
+    #vol-track {
+      flex: 1; height: 4px;
+      background: rgba(255,255,255,0.12);
+      border-radius: 2px; overflow: hidden;
+    }
+    #vol-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #4060ff, #80a0ff);
+      border-radius: 2px;
+      transition: width 0.2s ease;
+      width: 0%;
+    }
+    #vol-pct { font-size: 13px; color: #6070a0; min-width: 30px; text-align: right; }
+
+    /* ── COVERART ── */
+    #coverart {
+      position: absolute;
+      bottom: 24px; left: 24px;
+      width: 160px; height: 160px;
+      border-radius: 12px;
+      background: rgba(15,15,30,0.6);
+      border: 1px solid rgba(100,120,255,0.15);
+      overflow: hidden;
+      opacity: 0;
+      transition: opacity 0.6s ease;
+    }
+    #coverart.visible { opacity: 1; }
+    #coverart img {
+      width: 100%; height: 100%;
+      object-fit: cover;
+    }
+    #coverart-info {
+      position: absolute;
+      bottom: 0; left: 0; right: 0;
+      padding: 8px 10px;
+      background: linear-gradient(transparent, rgba(0,0,0,0.75));
+    }
+    #track-title {
+      font-size: 11px; color: #e0e0f0;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      font-weight: 500;
+    }
+    #track-artist {
+      font-size: 10px; color: #8080b0;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+
+    /* ── STATUS PILL ── */
+    #status-pill {
+      position: absolute;
+      top: 20px; left: 50%;
+      transform: translateX(-50%);
+      background: rgba(15,15,30,0.88);
+      border: 1px solid rgba(100,120,255,0.25);
+      border-radius: 40px;
+      padding: 6px 18px;
+      font-size: 13px; color: #a0b0ff;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+      white-space: nowrap;
+    }
+    #status-pill.visible { opacity: 1; }
+  </style>
+</head>
+<body>
+
+<!-- Home Assistant -->
+<iframe id="ha-frame" src="%%HA_URL%%" allow="microphone; camera; autoplay"></iframe>
+
+<!-- HUD overlay -->
+<div id="hud">
+
+  <!-- Status pill (top center) -->
+  <div id="status-pill"></div>
+
+  <!-- Coverart (bottom left) -->
+  <div id="coverart">
+    <img id="coverart-img" src="" alt="">
+    <div id="coverart-info">
+      <div id="track-title"></div>
+      <div id="track-artist"></div>
+    </div>
+  </div>
+
+  <!-- Volume bar (bottom center) -->
+  <div id="vol-bar">
+    <span id="vol-icon">🔊</span>
+    <div id="vol-track"><div id="vol-fill"></div></div>
+    <span id="vol-pct">--</span>
+  </div>
+
+  <!-- Animated face (bottom right) -->
+  <div id="face-wrap">
+    <svg id="face" viewBox="0 0 180 180">
+      <g id="eye-l">
+        <ellipse class="eye-w" cx="58" cy="86" rx="23" ry="26"/>
+        <ellipse class="eye-p" id="puL" cx="58" cy="89" rx="11" ry="13"/>
+        <rect class="eyelid" id="lidL" x="35" y="60" width="46" height="18" rx="3"/>
+      </g>
+      <g id="eye-r">
+        <ellipse class="eye-w" cx="122" cy="86" rx="23" ry="26"/>
+        <ellipse class="eye-p" id="puR" cx="122" cy="89" rx="11" ry="13"/>
+        <rect class="eyelid" id="lidR" x="99" y="60" width="46" height="18" rx="3"/>
+      </g>
+      <path class="brow" id="browL" d="M40 59 Q58 51 74 59"/>
+      <path class="brow" id="browR" d="M106 59 Q122 51 140 59"/>
+      <ellipse class="blush" id="blL" cx="34" cy="106" rx="14" ry="8"/>
+      <ellipse class="blush" id="blR" cx="146" cy="106" rx="14" ry="8"/>
+      <path id="mouth" d="M 70 128 Q 90 136 110 128"/>
+      <circle class="tdot" id="d1" cx="77"  cy="145" r="4"/>
+      <circle class="tdot" id="d2" cx="90"  cy="145" r="4"/>
+      <circle class="tdot" id="d3" cx="103" cy="145" r="4"/>
+      <text id="wmark" x="90" y="30">!</text>
+    </svg>
+  </div>
+
+</div>
+
+<script>
+const HA_URL    = '%%HA_URL%%';
+const MPD_HOST  = '%%MPD_HOST%%';   // hostname or IP of this device
+const MPD_PORT  = 6600;
+
+// ── Element refs ──
+const faceWrap   = document.getElementById('face-wrap');
+const lidL       = document.getElementById('lidL');
+const lidR       = document.getElementById('lidR');
+const puL        = document.getElementById('puL');
+const puR        = document.getElementById('puR');
+const browL      = document.getElementById('browL');
+const browR      = document.getElementById('browR');
+const blL        = document.getElementById('blL');
+const blR        = document.getElementById('blR');
+const mouth      = document.getElementById('mouth');
+const d1         = document.getElementById('d1');
+const d2         = document.getElementById('d2');
+const d3         = document.getElementById('d3');
+const wmark      = document.getElementById('wmark');
+const volBar     = document.getElementById('vol-bar');
+const volFill    = document.getElementById('vol-fill');
+const volPct     = document.getElementById('vol-pct');
+const volIcon    = document.getElementById('vol-icon');
+const coverart   = document.getElementById('coverart');
+const coverImg   = document.getElementById('coverart-img');
+const trackTitle = document.getElementById('track-title');
+const trackArtist= document.getElementById('track-artist');
+const statusPill = document.getElementById('status-pill');
+
+// ── Face state definitions ──
+const FACE = {
+  idle:   { lid:18, pry:10, m:'M 72 128 Q 90 131 108 128', bl:0, brow:0, wake:0 },
+  wake:   { lid:0,  pry:15, m:'M 68 125 Q 90 133 112 125', bl:0, brow:0, wake:1 },
+  listen: { lid:0,  pry:14, m:'M 70 127 Q 90 134 110 127', bl:0, brow:0, wake:0 },
+  think:  { lid:6,  pry:11, m:'M 72 130 Q 90 127 108 130', bl:0, brow:0, wake:0 },
+  speak:  { lid:0,  pry:13, m:'M 68 126 Q 90 140 112 126', bl:.4, brow:0, wake:0 },
+  error:  { lid:8,  pry:10, m:'M 70 136 Q 90 126 110 136', bl:0, brow:1, wake:0 },
+};
+const SPEAK_M = [
+  'M 68 126 Q 90 140 112 126',
+  'M 70 127 Q 90 134 110 127',
+  'M 68 126 Q 90 143 112 126',
+  'M 71 127 Q 90 135 109 127',
+];
+
+let curFace = 'idle';
+let wanderAngle = 0;
+let dotStep = 0, speakStep = 0;
+let thinkAcc = 0, speakAcc = 0, wanderAcc = 0, lastTs = 0;
+let blinkTimer, faceHideTimer;
+
+function applyFace(s) {
+  const d = FACE[s] || FACE.idle;
+  lidL.setAttribute('height', d.lid);
+  lidR.setAttribute('height', d.lid);
+  puL.setAttribute('ry', d.pry);
+  puR.setAttribute('ry', d.pry);
+  mouth.setAttribute('d', d.m);
+  blL.style.opacity = d.bl;
+  blR.style.opacity = d.bl;
+  browL.style.opacity = d.brow;
+  browR.style.opacity = d.brow;
+  wmark.style.opacity = d.wake;
+}
+
+function blink() {
+  lidL.setAttribute('height', 26);
+  lidR.setAttribute('height', 26);
+  setTimeout(() => {
+    const d = FACE[curFace] || FACE.idle;
+    lidL.setAttribute('height', d.lid);
+    lidR.setAttribute('height', d.lid);
+  }, 110);
+}
+
+function scheduleBlink() {
+  clearTimeout(blinkTimer);
+  blinkTimer = setTimeout(() => {
+    if (['idle','listen','wake'].includes(curFace)) blink();
+    scheduleBlink();
+  }, 2500 + Math.random() * 3000);
+}
+
+function setFace(s) {
+  if (s === curFace) return;
+  curFace = s;
+  clearTimeout(faceHideTimer);
+
+  if (s === 'idle') {
+    faceHideTimer = setTimeout(() => faceWrap.classList.remove('visible'), 4000);
+  } else {
+    faceWrap.classList.add('visible');
+  }
+
+  applyFace(s);
+
+  if (s !== 'listen') {
+    puL.setAttribute('cx', 58); puR.setAttribute('cx', 122);
+    puL.setAttribute('cy', 89); puR.setAttribute('cy', 89);
+  }
+  if (s === 'wake') setTimeout(() => { wmark.style.opacity = '0'; }, 600);
+}
+
+// ── Animation loop ──
+function loop(ts) {
+  const dt = ts - lastTs; lastTs = ts;
+
+  if (curFace === 'think') {
+    thinkAcc += dt;
+    if (thinkAcc > 400) {
+      [d1,d2,d3].forEach((d,i) => d.style.opacity = i === dotStep ? '1' : '0.2');
+      dotStep = (dotStep + 1) % 3; thinkAcc = 0;
+    }
+  } else {
+    d1.style.opacity = d2.style.opacity = d3.style.opacity = '0';
+    thinkAcc = 0;
+  }
+
+  if (curFace === 'speak') {
+    speakAcc += dt;
+    if (speakAcc > 175) {
+      mouth.setAttribute('d', SPEAK_M[speakStep % SPEAK_M.length]);
+      speakStep++; speakAcc = 0;
+    }
+  }
+
+  if (curFace === 'listen') {
+    wanderAcc += dt;
+    if (wanderAcc > 30) {
+      wanderAngle += 0.04;
+      const dx = Math.sin(wanderAngle) * 3;
+      const dy = Math.cos(wanderAngle * 0.7) * 2;
+      puL.setAttribute('cx', 58 + dx); puR.setAttribute('cx', 122 + dx);
+      puL.setAttribute('cy', 89 + dy); puR.setAttribute('cy', 89 + dy);
+      wanderAcc = 0;
+    }
+  }
+
+  requestAnimationFrame(loop);
+}
+
+// ── Volume bar ──
+let volHideTimer;
+function showVolume(pct) {
+  const v = Math.max(0, Math.min(100, pct));
+  volFill.style.width = v + '%';
+  volPct.textContent = v + '%';
+  volIcon.textContent = v === 0 ? '🔇' : v < 40 ? '🔉' : '🔊';
+  volBar.classList.add('visible');
+  clearTimeout(volHideTimer);
+  volHideTimer = setTimeout(() => volBar.classList.remove('visible'), 3000);
+}
+
+// ── Status pill ──
+let pillHideTimer;
+function showStatus(text, ms = 4000) {
+  statusPill.textContent = text;
+  statusPill.classList.add('visible');
+  clearTimeout(pillHideTimer);
+  if (ms > 0) pillHideTimer = setTimeout(() => statusPill.classList.remove('visible'), ms);
+}
+
+// ── Coverart (polls MPD HTTP stream info via local proxy) ──
+// MPD albumart is fetched via a small helper file written by mpd-watcher.sh
+let lastTrack = '';
+async function pollMPD() {
+  try {
+    const r = await fetch('file:///tmp/mark2-mpd-state.json?' + Date.now());
+    const d = await r.json();
+
+    if (d.state === 'play') {
+      const track = (d.title || '') + (d.artist || '');
+      if (track !== lastTrack) {
+        lastTrack = track;
+        trackTitle.textContent  = d.title  || 'Unknown track';
+        trackArtist.textContent = d.artist || d.album || '';
+        if (d.coverart) {
+          coverImg.src = d.coverart;
+          coverart.classList.add('visible');
+        } else {
+          coverart.classList.remove('visible');
+        }
+      }
+    } else {
+      if (lastTrack !== '') {
+        lastTrack = '';
+        coverart.classList.remove('visible');
+      }
+    }
+  } catch(e) {
+    coverart.classList.remove('visible');
+  }
+}
+
+// ── Event polling (Wyoming face states + volume) ──
+let lastFaceEvent = '', lastVolEvent = '';
+async function pollEvents() {
+  try {
+    const r = await fetch('file:///tmp/mark2-face-event.json?' + Date.now());
+    const text = await r.text();
+    if (text !== lastFaceEvent) {
+      lastFaceEvent = text;
+      const d = JSON.parse(text);
+      if (d.state) setFace(d.state);
+      if (d.status) showStatus(d.status);
+    }
+  } catch(e) {}
+
+  try {
+    const r = await fetch('file:///tmp/mark2-overlay-event.json?' + Date.now());
+    const text = await r.text();
+    if (text !== lastVolEvent) {
+      lastVolEvent = text;
+      const d = JSON.parse(text);
+      if (d.type === 'volume')  showVolume(parseInt(d.value));
+      if (d.type === 'status')  showStatus(d.value);
+    }
+  } catch(e) {}
+}
+
+// ── Init ──
+applyFace('idle');
+scheduleBlink();
+requestAnimationFrame(loop);
+setInterval(pollEvents, 200);
+setInterval(pollMPD, 3000);
+</script>
+</body>
+</html>
