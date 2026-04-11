@@ -232,20 +232,30 @@ enable_satellite_services() {
 
 install_kiosk_packages() {
     section "Installing kiosk and media packages"
+
+    # Minimal Wayland kiosk stack for Raspberry Pi OS Lite.
+    # labwc is a lightweight Wayland compositor - no full desktop needed.
+    # seatd provides seat management without a display/login manager.
     sudo apt-get install -y --no-install-recommends \
+        labwc \
+        wlr-randr \
+        seatd \
+        dbus-user-session \
+        xdg-user-dirs \
         chromium \
-        unclutter \
+        unclutter-xfixes \
         mpv \
         pipewire \
         pipewire-pulse \
         wireplumber \
-        xdotool \
-        wtype \
-        libgstreamer1.0-dev \
-        gstreamer1.0-plugins-good \
-        gstreamer1.0-plugins-bad \
-        gstreamer1.0-libav \
         gstreamer1.0-pipewire
+
+    # Enable seatd (required for labwc to access display hardware without root)
+    sudo systemctl enable seatd
+
+    # Add user to video and input groups (required for Wayland/seat access)
+    sudo usermod -aG video,input "$CURRENT_USER"
+    log "Added ${CURRENT_USER} to video and input groups"
 }
 
 configure_autologin() {
@@ -280,10 +290,10 @@ wlr-randr 2>/dev/null || true
 # For labwc/Wayland - disable dpms
 export WAYLAND_DISPLAY=\${WAYLAND_DISPLAY:-wayland-1}
 
-# Hide mouse cursor after 1 second of inactivity
-unclutter --timeout 1 &
+# Hide mouse cursor after 1 second of inactivity (Wayland)
+unclutter-xfixes --timeout 1 &
 
-# Disable screen saver / power saving
+# Disable screen saver / power saving (no-op on Wayland, kept for safety)
 xset s off 2>/dev/null || true
 xset -dpms 2>/dev/null || true
 xset s noblank 2>/dev/null || true
