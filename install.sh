@@ -40,42 +40,35 @@ config_load
 # RESUME SERVICE - set up auto-continue after reboot
 # =============================================================================
 
-RESUME_SERVICE="${SYSTEMD_USER_DIR}/mark2-install-resume.service"
-RESUME_MARKER="${MARK2_DIR}/install-resume-pending"
+BASH_PROFILE="${USER_HOME}/.bash_profile"
+RESUME_HOOK_MARKER="# mark2-install-resume"
 
 install_resume_hook() {
-    cat > "$RESUME_SERVICE" << EOF
-[Unit]
-Description=Mark II Assist - Resume installation after reboot
-After=network-online.target
-ConditionPathExists=${RESUME_MARKER}
+    # Add a notice to .bash_profile that shows on next SSH login
+    remove_resume_hook  # ensure no duplicate
+    cat >> "$BASH_PROFILE" << EOF
 
-[Service]
-Type=oneshot
-ExecStart=/bin/bash -c 'sleep 3 && bash ${SCRIPT_DIR}/install.sh --resume'
-ExecStartPost=/bin/rm -f ${RESUME_MARKER}
-StandardInput=tty
-TTYPath=/dev/tty1
-RemainAfterExit=yes
-
-[Install]
-WantedBy=default.target
+${RESUME_HOOK_MARKER}
+echo ""
+echo -e "\033[0;36m╔══════════════════════════════════════════╗\033[0m"
+echo -e "\033[0;36m║   Mark II installation paused            ║\033[0m"
+echo -e "\033[0;36m║                                          ║\033[0m"
+echo -e "\033[0;36m║   Hardware setup complete ✓              ║\033[0m"
+echo -e "\033[0;36m║   Reboot done ✓                          ║\033[0m"
+echo -e "\033[0;36m║                                          ║\033[0m"
+echo -e "\033[0;36m║   Run to continue:                       ║\033[0m"
+echo -e "\033[0;36m║     ./mark2-assist/install.sh --resume   ║\033[0m"
+echo -e "\033[0;36m╚══════════════════════════════════════════╝\033[0m"
+echo ""
 EOF
-    systemctl --user daemon-reload
-    systemctl --user enable mark2-install-resume.service
+    log "Resume notice added to ~/.bash_profile"
 }
 
 remove_resume_hook() {
-    systemctl --user disable mark2-install-resume.service 2>/dev/null || true
-    rm -f "$RESUME_SERVICE" "$RESUME_MARKER"
-    systemctl --user daemon-reload
-}
-
-arm_resume() {
-    # Called before reboot - marks that install should continue after boot
-    install_resume_hook
-    touch "$RESUME_MARKER"
-    log "Auto-resume armed - installation will continue after reboot"
+    if [ -f "$BASH_PROFILE" ]; then
+        # Remove everything from our marker to end of file
+        sed -i "/${RESUME_HOOK_MARKER}/,\$d" "$BASH_PROFILE"
+    fi
 }
 
 # =============================================================================
@@ -199,10 +192,10 @@ if ! progress_is_done "hardware"; then
         if bash "${SCRIPT_DIR}/mark2-hardware-setup.sh"; then
             progress_set "hardware" "done"
             echo ""
-            echo -e "${YELLOW}  Hardware setup complete. Rebooting to continue...${NC}"
+            echo -e "${YELLOW}  Hardware setup complete. Rebooting in 5 seconds...${NC}"
             echo ""
-            arm_resume
-            sleep 3
+            install_resume_hook
+            sleep 5
             sudo reboot
             exit 0
         else
