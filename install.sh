@@ -3,14 +3,11 @@
 # install.sh
 # Mark II Assist - Main installer
 #
-# Usage:
-#   ./install.sh              # Full guided install
-#   ./install.sh --resume     # Resume after reboot (called automatically)
+# All questions are asked upfront before any installation begins.
+# Installation then runs automatically without further interaction.
 #
-# Or run individual scripts directly:
-#   ./mark2-hardware-setup.sh
-#   ./mark2-satellite-setup.sh
-#   bash modules/snapcast.sh
+# Usage:
+#   ./install.sh
 # =============================================================================
 
 set -euo pipefail
@@ -24,11 +21,10 @@ MODULES_DIR="${SCRIPT_DIR}/modules"
 RESUME=false
 for arg in "$@"; do
     case "$arg" in
-        --resume) RESUME=true ;;  # kept for backwards compatibility
+        --resume) RESUME=true ;;
         --help|-h)
             echo "Usage: $0"
             echo "  Run without arguments for guided install."
-            echo "  The installer automatically detects progress and resumes."
             exit 0 ;;
     esac
 done
@@ -38,36 +34,31 @@ setup_paths
 config_load
 
 # =============================================================================
-# RESUME SERVICE - set up auto-continue after reboot
+# RESUME HOOK
 # =============================================================================
 
 BASH_PROFILE="${USER_HOME}/.bash_profile"
 RESUME_HOOK_MARKER="# mark2-install-resume"
 
 install_resume_hook() {
-    # Add a notice to .bash_profile that shows on next SSH login
-    remove_resume_hook  # ensure no duplicate
+    remove_resume_hook
     cat >> "$BASH_PROFILE" << EOF
 
 ${RESUME_HOOK_MARKER}
 echo ""
 echo -e "\033[0;36m╔══════════════════════════════════════════╗\033[0m"
 echo -e "\033[0;36m║   Mark II installation paused            ║\033[0m"
-echo -e "\033[0;36m║                                          ║\033[0m"
 echo -e "\033[0;36m║   Hardware setup complete ✓              ║\033[0m"
 echo -e "\033[0;36m║   Reboot done ✓                          ║\033[0m"
-echo -e "\033[0;36m║                                          ║\033[0m"
 echo -e "\033[0;36m║   Run to continue:                       ║\033[0m"
-echo -e "\033[0;36m║     ./mark2-assist/install.sh --resume   ║\033[0m"
+echo -e "\033[0;36m║     ./mark2-assist/install.sh            ║\033[0m"
 echo -e "\033[0;36m╚══════════════════════════════════════════╝\033[0m"
 echo ""
 EOF
-    log "Resume notice added to ~/.bash_profile"
 }
 
 remove_resume_hook() {
     if [ -f "$BASH_PROFILE" ]; then
-        # Remove everything from our marker to end of file
         sed -i "/${RESUME_HOOK_MARKER}/,\$d" "$BASH_PROFILE"
     fi
 }
@@ -101,10 +92,11 @@ print_banner() {
 # =============================================================================
 
 print_progress() {
-    local modules=("hardware" "satellite" "snapcast" "airplay" "screensaver" "leds" "mpd" "kdeconnect" "usb-audio" "overlay" "face" "mqtt-sensors")
+    local all=("hardware" "satellite" "snapcast" "airplay" "screensaver"
+               "leds" "mpd" "kdeconnect" "usb-audio" "overlay" "face" "mqtt-sensors")
     echo ""
     echo -e "${CYAN}  Installation progress:${NC}"
-    for m in "${modules[@]}"; do
+    for m in "${all[@]}"; do
         local status
         status=$(progress_get "$m")
         case "$status" in
@@ -118,6 +110,118 @@ print_progress() {
 }
 
 # =============================================================================
+# UPFRONT CONFIGURATION — all questions asked before installation starts
+# =============================================================================
+
+configure_upfront() {
+    # ── Step 1: Module selection ──
+    local defaults="screensaver leds overlay face mqtt-sensors"
+    local mod_list=("snapcast" "airplay" "screensaver" "leds" "mpd"
+                    "kdeconnect" "usb-audio" "overlay" "face" "mqtt-sensors")
+    local mod_desc=(
+        "Snapcast — synchronized multiroom audio"
+        "AirPlay — Mark II as AirPlay speaker"
+        "Screensaver — fullscreen clock + weather"
+        "LED ring — visual Wyoming feedback"
+        "MPD — local music player"
+        "KDE Connect — Android phone integration"
+        "USB audio — fallback if SJ201 fails"
+        "Volume overlay — on-screen status"
+        "Animated face — reacts to voice + music"
+        "MQTT sensors — publish status to HA"
+    )
+
+    local items=()
+    for i in "${!mod_list[@]}"; do
+        local m="${mod_list[$i]}"
+        local state="OFF"
+        if progress_is_done "$m"; then
+            state="ON"
+        elif echo "$defaults" | grep -qw "$m"; then
+            state="ON"
+        fi
+        items+=("$m" "${mod_desc[$i]}" "$state")
+    done
+
+    SELECTED_MODULES=$(whiptail --title "Mark II Assist — Select modules" \
+        --checklist "Choose what to install:\n(Space to toggle, Enter to confirm)" \
+        22 68 12 \
+        "${items[@]}" \
+        3>&1 1>&2 2>&3) || { warn "Cancelled"; exit 0; }
+    SELECTED_MODULES=$(echo "$SELECTED_MODULES" | tr -d '"')
+    export SELECTED_MODULES
+
+    # ── Step 2: Home Assistant URL ──
+    prompt_ha_url
+
+    # ── Step 3: HA token (only if screensaver selected) ──
+    if echo "$SELECTED_MODULES" | grep -qw "screensaver"; then
+        prompt_ha_token
+        prompt_ha_weather
+    fi
+
+    # ── Step 4: MQTT credentials (only if mqtt-sensors selected) ──
+    if echo "$SELECTED_MODULES" | grep -qw "mqtt-sensors"; then
+        config_load
+        MQTT_HOST="${MQTT_HOST:-}"
+        if [ -z "$MQTT_HOST" ]; then
+            MQTT_HOST=$(ask_input "MQTT broker host/IP" "192.168.1.100") \
+                || die "MQTT host required"
+            config_save "MQTT_HOST" "$MQTT_HOST"
+        else
+            log "Using saved MQTT host: ${MQTT_HOST}"
+        fi
+        MQTT_PORT="${MQTT_PORT:-1883}"
+        _p=$(ask_input "MQTT port" "$MQTT_PORT") && MQTT_PORT="${_p:-1883}"
+        config_save "MQTT_PORT" "$MQTT_PORT"
+        MQTT_USER="${MQTT_USER:-}"
+        if ask_yes_no "Does your MQTT broker require authentication?"; then
+            MQTT_USER=$(ask_input "MQTT username" "$MQTT_USER") || true
+            MQTT_PASS=$(ask_password "MQTT password") || true
+            config_save "MQTT_USER" "$MQTT_USER"
+            config_save "MQTT_PASS" "${MQTT_PASS:-}"
+        fi
+        export MQTT_HOST MQTT_PORT MQTT_USER
+    fi
+
+    # ── Step 5: Snapcast host (only if snapcast selected) ──
+    if echo "$SELECTED_MODULES" | grep -qw "snapcast"; then
+        config_load
+        SNAPCAST_HOST="${SNAPCAST_HOST:-}"
+        if [ -z "$SNAPCAST_HOST" ]; then
+            SNAPCAST_HOST=$(ask_input "Snapcast server host/IP" "192.168.1.100") \
+                || die "Snapcast host required"
+            config_save "SNAPCAST_HOST" "$SNAPCAST_HOST"
+        else
+            log "Using saved Snapcast host: ${SNAPCAST_HOST}"
+        fi
+        export SNAPCAST_HOST
+    fi
+
+    # ── Step 6: Confirmation summary ──
+    local summary="Ready to install:\n\n"
+    summary+="  Home Assistant: ${HA_URL}\n"
+    if progress_is_done "hardware"; then
+        summary+="  Hardware:       already done ✓\n"
+    else
+        summary+="  Hardware:       will install + reboot\n"
+    fi
+    if progress_is_done "satellite"; then
+        summary+="  Satellite/Kiosk: already done ✓\n"
+    else
+        summary+="  Satellite/Kiosk: will install\n"
+    fi
+    summary+="\n  Modules: $(echo "$SELECTED_MODULES" | tr ' ' ', ')\n"
+    summary+="\nInstallation will run without further prompts."
+
+    if ! whiptail --title "Mark II Assist — Confirm" \
+        --yesno "$summary" 22 68; then
+        echo "Cancelled."
+        exit 0
+    fi
+}
+
+# =============================================================================
 # MODULE RUNNER
 # =============================================================================
 
@@ -126,32 +230,18 @@ run_module() {
     local desc="$2"
     local script="${MODULES_DIR}/${name}.sh"
 
-    echo ""
-    echo -e "${CYAN}  ── ${desc}${NC}"
-
-    # If menu was shown, check if module was selected
-    if [ -n "$SELECTED_MODULES" ]; then
-        if ! echo "$SELECTED_MODULES" | grep -qw "$name"; then
-            progress_set "$name" "skipped"
-            log "Skipping ${name} (not selected)"
-            return
-        fi
+    if [ -n "$SELECTED_MODULES" ] && \
+       ! echo "$SELECTED_MODULES" | grep -qw "$name"; then
+        progress_set "$name" "skipped"
+        return
     fi
 
     if progress_is_done "$name"; then
-        echo -e "    ${GREEN}Already installed${NC}"
-        if ! ask_yes_no "  Reinstall ${name}?"; then
-            log "Skipping ${name} (already done)"
-            return
-        fi
-    elif [ -z "$SELECTED_MODULES" ]; then
-        if ! ask_yes_no "  Install?"; then
-            progress_set "$name" "skipped"
-            log "Skipping ${name}"
-            return
-        fi
+        log "${name} already installed — skipping"
+        return
     fi
 
+    section "${desc}"
     _log_write "----" "=== Starting module: ${name} ==="
     if MARK2_MODULE_CONFIRMED=1 bash "$script"; then
         progress_set "$name" "done"
@@ -167,90 +257,32 @@ run_module() {
 
 print_banner
 
-# Auto-detect if this is a resume after reboot
-if [ "$RESUME" = false ] && progress_is_done "hardware" && ! progress_is_done "satellite"; then
+# Auto-detect resume after reboot
+if [ "$RESUME" = false ] && \
+   progress_is_done "hardware" && ! progress_is_done "satellite"; then
     RESUME=true
 fi
 
 if [ "$RESUME" = true ]; then
     echo -e "${CYAN}  Resuming installation after reboot...${NC}"
     remove_resume_hook
-else
-    echo "  Repurpose your Mycroft Mark II as:"
-    echo "  · Wyoming voice satellite for Home Assistant"
-    echo "  · Home Assistant kiosk display"
-    echo "  · Multiroom audio endpoint"
-    echo ""
-fi
-
-print_progress
-
-if [ "$RESUME" = false ]; then
-    _answer=""
-    read -rp "  Continue installation? [Y/n]: " _answer
-    if [[ "${_answer,,}" == "n" ]]; then
-        echo "Cancelled."
-        exit 0
+    print_progress
+    # Re-use previously saved config, skip upfront questions
+    config_load
+    SELECTED_MODULES="${SELECTED_MODULES:-}"
+    # Re-load module selection from progress (all non-done, non-skipped = selected)
+    if [ -z "$SELECTED_MODULES" ]; then
+        SELECTED_MODULES="screensaver leds overlay face mqtt-sensors"
     fi
+else
+    print_progress
+    _ans=""
+    read -rp "  Continue installation? [Y/n]: " _ans
+    [[ "${_ans,,}" == "n" ]] && { echo "Cancelled."; exit 0; }
     echo ""
-fi
 
-# Collect HA URL up front so all modules can reuse it
-section "Configuration"
-prompt_ha_url
-
-# =============================================================================
-# MODULE SELECTION MENU
-# =============================================================================
-
-select_modules() {
-    # Default selections (pre-ticked)
-    local defaults="screensaver leds overlay face mqtt-sensors"
-
-    local items=()
-    local modules=("snapcast" "airplay" "screensaver" "leds" "mpd" "kdeconnect" "usb-audio" "overlay" "face")
-    local descs=(
-        "Snapcast — multiroom audio"
-        "AirPlay — Mark II as AirPlay speaker"
-        "Screensaver — clock + weather display"
-        "LED ring — visual Wyoming feedback"
-        "MPD — local music player"
-        "KDE Connect — Android phone integration"
-        "USB audio — fallback if SJ201 fails"
-        "Volume overlay — on-screen status"
-        "Animated face — reacts to Wyoming events"
-        "MQTT sensors — publish status to Home Assistant"
-    )
-
-    for i in "${!modules[@]}"; do
-        local m="${modules[$i]}"
-        local state="OFF"
-        if progress_is_done "$m"; then
-            state="ON"
-        elif echo "$defaults" | grep -qw "$m"; then
-            state="ON"
-        fi
-        items+=("$m" "${descs[$i]}" "$state")
-    done
-
-    SELECTED=$(whiptail --title "Mark II Assist — Optional Modules" \
-        --checklist "Select modules to install:\n(Space to toggle, Enter to confirm)" \
-        20 65 10 \
-        "${items[@]}" \
-        3>&1 1>&2 2>&3) || {
-        warn "Module selection cancelled — using defaults"
-        SELECTED="screensaver leds overlay"
-    }
-    # Strip quotes from whiptail output
-    SELECTED=$(echo "$SELECTED" | tr -d '"')
-    export SELECTED
-}
-
-# Only show menu if whiptail is available
-SELECTED_MODULES=""
-if command -v whiptail >/dev/null 2>&1 && [ -t 0 ]; then
-    select_modules
-    SELECTED_MODULES="$SELECTED"
+    # Ask everything upfront
+    configure_upfront
 fi
 
 # =============================================================================
@@ -258,38 +290,21 @@ fi
 # =============================================================================
 
 if progress_is_done "hardware"; then
+    log "Hardware already installed — skipping"
+else
     section "Step 1/3 — Hardware Drivers"
-    echo -e "  ${GREEN}Already completed.${NC}"
-    if ask_yes_no "  Re-run hardware setup?"; then
-        progress_set "hardware" ""
-    fi
-fi
-
-if ! progress_is_done "hardware"; then
-    section "Step 1/3 — Hardware Drivers"
-    echo "  Installs SJ201 audio drivers, VocalFusion kernel module,"
-    echo "  boot overlays, WirePlumber config and kernel watchdog."
-    echo "  A reboot is required after this step."
-    echo ""
-
-    if ask_yes_no "Run hardware setup?"; then
-        _log_write "----" "=== Starting: hardware ==="
-        if bash "${SCRIPT_DIR}/mark2-hardware-setup.sh"; then
-            progress_set "hardware" "done"
-            echo ""
-            echo -e "${YELLOW}  Hardware setup complete. Rebooting in 5 seconds...${NC}"
-            echo ""
-            install_resume_hook
-            sleep 5
-            sudo reboot
-            exit 0
-        else
-            progress_set "hardware" "failed"
-            warn "Hardware setup failed — check ${MARK2_LOG}"
-        fi
+    show_info "Starting hardware setup...\n\nThis will install SJ201 drivers and reboot." 8 60
+    _log_write "----" "=== Starting: hardware ==="
+    if bash "${SCRIPT_DIR}/mark2-hardware-setup.sh"; then
+        progress_set "hardware" "done"
+        show_info "Hardware setup complete!\n\nRebooting in 5 seconds to activate drivers." 8 60
+        install_resume_hook
+        sleep 5
+        sudo reboot
+        exit 0
     else
-        progress_set "hardware" "skipped"
-        warn "Skipping hardware setup"
+        progress_set "hardware" "failed"
+        warn "Hardware setup failed — check ${MARK2_LOG}"
     fi
 fi
 
@@ -298,30 +313,15 @@ fi
 # =============================================================================
 
 if progress_is_done "satellite"; then
+    log "Satellite/Kiosk already installed — skipping"
+else
     section "Step 2/3 — Wyoming Satellite + HA Kiosk"
-    echo -e "  ${GREEN}Already completed.${NC}"
-    if ask_yes_no "  Re-run satellite setup?"; then
-        progress_set "satellite" ""
-    fi
-fi
-
-if ! progress_is_done "satellite"; then
-    section "Step 2/3 — Wyoming Satellite + HA Kiosk"
-    echo "  Installs Wyoming voice satellite and openWakeWord."
-    echo "  Sets up Chromium kiosk showing Home Assistant."
-    echo ""
-
-    if ask_yes_no "Run satellite + kiosk setup?"; then
-        _log_write "----" "=== Starting: satellite ==="
-        if bash "${SCRIPT_DIR}/mark2-satellite-setup.sh"; then
-            progress_set "satellite" "done"
-        else
-            progress_set "satellite" "failed"
-            warn "Satellite setup failed — check ${MARK2_LOG}"
-        fi
+    _log_write "----" "=== Starting: satellite ==="
+    if bash "${SCRIPT_DIR}/mark2-satellite-setup.sh"; then
+        progress_set "satellite" "done"
     else
-        progress_set "satellite" "skipped"
-        warn "Skipping satellite setup"
+        progress_set "satellite" "failed"
+        warn "Satellite setup failed — check ${MARK2_LOG}"
     fi
 fi
 
@@ -330,38 +330,31 @@ fi
 # =============================================================================
 
 section "Step 3/3 — Optional Modules"
-echo "  Each module can be installed individually."
-echo "  Already completed modules will be skipped unless you choose to reinstall."
-echo ""
 
-run_module "snapcast"    "Snapcast client — synchronized multiroom audio"
-run_module "airplay"     "AirPlay receiver — Mark II as AirPlay speaker"
-run_module "screensaver" "Screensaver — fullscreen clock + weather"
-run_module "leds"        "LED ring control — visual Wyoming feedback"
-run_module "mpd"         "MPD — local music player (HA / Music Assistant)"
-run_module "kdeconnect"  "KDE Connect — Android phone integration"
-run_module "usb-audio"   "USB audio fallback — auto-switch if SJ201 fails"
-run_module "overlay"     "Volume overlay — on-screen status display"
-run_module "face"         "Animated face — reacts to Wyoming events"
-run_module "mqtt-sensors" "MQTT sensors — publish status to Home Assistant"
+run_module "snapcast"     "Snapcast — synchronized multiroom audio"
+run_module "airplay"      "AirPlay receiver"
+run_module "screensaver"  "Screensaver — clock + weather"
+run_module "leds"         "LED ring control"
+run_module "mpd"          "MPD — local music player"
+run_module "kdeconnect"   "KDE Connect — Android phone integration"
+run_module "usb-audio"    "USB audio fallback"
+run_module "overlay"      "Volume overlay"
+run_module "face"         "Animated face"
+run_module "mqtt-sensors" "MQTT sensors"
 
 # =============================================================================
 # DONE
 # =============================================================================
 
-echo ""
-echo -e "${CYAN}╔══════════════════════════════════════════╗${NC}"
-echo -e "${CYAN}║         Installation Complete!           ║${NC}"
-echo -e "${CYAN}╚══════════════════════════════════════════╝${NC}"
-echo ""
+clear
+print_banner
 print_progress
 
-log "All selected modules installed. Log: ${MARK2_LOG}"
+log "Installation complete. Log: ${MARK2_LOG}"
 echo ""
-echo "  Next steps:"
-echo "  1. Add Wyoming integration in Home Assistant:"
-echo "       Settings > Devices > Add Integration > Wyoming Protocol"
-echo "       Host: $(hostname -I | awk '{print $1}')   Port: 10700"
+echo "  Add Wyoming integration in Home Assistant:"
+echo "    Settings > Devices > Add Integration > Wyoming Protocol"
+echo "    Host: $(hostname -I | awk '{print $1}')   Port: 10700"
 echo ""
 echo "  Full documentation: https://github.com/andlo/mark2-assist"
 echo ""
