@@ -88,6 +88,8 @@ print_banner() {
     echo -e "${BLUE}  Welcome to the Mark II Assist installer${NC}"
     echo -e "${BLUE}  github.com/andlo/mark2-assist${NC}"
     echo ""
+    read -rp "  Press Enter to continue..." _
+    echo ""
 }
 
 # =============================================================================
