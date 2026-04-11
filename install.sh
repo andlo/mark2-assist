@@ -59,7 +59,10 @@ HOOKEOF
 
 remove_resume_hook() {
     if [ -f "$BASH_PROFILE" ]; then
-        sed -i "/${RESUME_HOOK_MARKER}/,\$d" "$BASH_PROFILE"
+        sed -i "/# mark2-install-resume/,\$d" "$BASH_PROFILE"
+        # Also clean up any stray fi/echo lines left from old hooks
+        sed -i '/^fi$/d' "$BASH_PROFILE"
+        sed -i '/^echo -e.*mark2\|╔\|╚\|║/d' "$BASH_PROFILE"
     fi
 }
 
