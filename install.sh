@@ -88,12 +88,11 @@ print_banner() {
     echo -e "${BLUE}  Welcome to the Mark II Assist installer${NC}"
     echo -e "${BLUE}  github.com/andlo/mark2-assist${NC}"
     echo ""
-    local answer
-    read -rp "  Continue installation? [Y/n]: " answer
-    if [[ "${answer,,}" == "n" ]]; then
-        echo "Cancelled."
-        exit 0
-    fi
+    echo -e "  Repurpose your Mycroft Mark II as:"
+    echo -e "  · Wyoming voice satellite for Home Assistant"
+    echo -e "  · Home Assistant kiosk display (animated face + HUD)"
+    echo -e "  · Multiroom audio endpoint (Snapcast + AirPlay)"
+    echo -e "  · MQTT sensor device"
     echo ""
 }
 
@@ -185,6 +184,16 @@ else
 fi
 
 print_progress
+
+if [ "$RESUME" = false ]; then
+    _answer=""
+    read -rp "  Continue installation? [Y/n]: " _answer
+    if [[ "${_answer,,}" == "n" ]]; then
+        echo "Cancelled."
+        exit 0
+    fi
+    echo ""
+fi
 
 # Collect HA URL up front so all modules can reuse it
 section "Configuration"
