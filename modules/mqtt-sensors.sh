@@ -48,7 +48,7 @@ else
 fi
 
 # Install paho-mqtt
-show_info "Installing MQTT bridge...\n\npaho-mqtt library and sensor bridge service." 8 55
+info "Installing paho-mqtt and sensor bridge service..."
 apt_install python3-pip
 pip3 install --quiet paho-mqtt --break-system-packages \
     >> "${MARK2_LOG}" 2>&1

@@ -121,7 +121,7 @@ detect_sj201_audio() {
 
 install_dependencies() {
     section "Installing dependencies"
-    show_info "Installing dependencies...\n\ngit, python3, alsa-utils, curl"
+    info "Installing dependencies..."
     apt_update
     apt_install \
         git python3 python3-venv python3-pip python3-dev \
@@ -130,14 +130,14 @@ install_dependencies() {
 
 install_wyoming_satellite() {
     section "Installing Wyoming Satellite"
-    show_info "Installing Wyoming Satellite...\n\nCloning repository and setting up Python venv.\nThis may take a few minutes." 10 60
+    info "Installing Wyoming Satellite (this may take a few minutes)..."
     git_clone_or_pull "https://github.com/rhasspy/wyoming-satellite.git" "$WYOMING_SAT_DIR"
     systemctl --user stop wyoming-satellite.service 2>/dev/null || true
     if [ -d "${WYOMING_SAT_DIR}/.venv" ]; then
-        show_info "Removing existing Wyoming Satellite venv..." 6 50
+        info "Removing existing Wyoming Satellite venv..."
         rm -rf "${WYOMING_SAT_DIR}/.venv"
     fi
-    show_info "Running Wyoming Satellite setup...\n\nDownloading dependencies, please wait." 8 60
+    info "Running Wyoming Satellite setup..."
     cd "$WYOMING_SAT_DIR"
     python3 script/setup >> "${MARK2_LOG}" 2>&1 || die "Wyoming Satellite setup failed — check ${MARK2_LOG}"
     log "Wyoming Satellite installed"
@@ -145,14 +145,14 @@ install_wyoming_satellite() {
 
 install_wyoming_openwakeword() {
     section "Installing Wyoming openWakeWord"
-    show_info "Installing Wyoming openWakeWord...\n\nCloning repository and downloading wake word models.\nThis may take several minutes." 10 60
+    info "Installing Wyoming openWakeWord (this may take a few minutes)..."
     git_clone_or_pull "https://github.com/rhasspy/wyoming-openwakeword.git" "$WYOMING_OWW_DIR"
     systemctl --user stop wyoming-openwakeword.service 2>/dev/null || true
     if [ -d "${WYOMING_OWW_DIR}/.venv" ]; then
-        show_info "Removing existing openWakeWord venv..." 6 50
+        info "Removing existing openWakeWord venv..."
         rm -rf "${WYOMING_OWW_DIR}/.venv"
     fi
-    show_info "Running openWakeWord setup...\n\nDownloading wake word models, please wait.\nThis may take several minutes." 10 60
+    info "Running openWakeWord setup (downloading models)..."
     cd "$WYOMING_OWW_DIR"
     python3 script/setup >> "${MARK2_LOG}" 2>&1 || die "openWakeWord setup failed — check ${MARK2_LOG}"
     log "openWakeWord installed"
@@ -228,7 +228,7 @@ enable_satellite_services() {
 
 install_kiosk_packages() {
     section "Installing kiosk and media packages"
-    show_info "Installing kiosk packages...\n\nlabwc, chromium, pipewire, wireplumber\nThis may take a few minutes." 10 60
+    info "Installing kiosk packages (labwc, chromium, pipewire)..."
     apt_install \
         labwc wlr-randr seatd dbus-user-session xdg-user-dirs \
         chromium unclutter-xfixes mpv \

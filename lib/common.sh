@@ -42,17 +42,13 @@ show_info() {
     fi
 }
 
-# --- Section header: whiptail infobox when called from installer,
-#     plain text otherwise ---
+# --- Section header for modules ---
 module_header() {
     local title="$1"
     local desc="${2:-}"
-    if [ "${MARK2_MODULE_CONFIRMED:-0}" = "1" ]; then
-        show_info "${title}...\n\n${desc}" 8 60
-    else
-        section "$title"
-        [ -n "$desc" ] && echo -e "  ${desc}\n"
-    fi
+    section "$title"
+    [ -n "$desc" ] && echo -e "  ${desc}"
+    echo ""
 }
 
 # --- Show whiptail message box (waits for OK) ---
