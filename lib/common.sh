@@ -53,6 +53,8 @@ show_msg() {
         echo -e "${BLUE}[INFO] ${msg}${NC}"
     fi
 }
+
+ask_yes_no() {
     local prompt="$1"
     if command -v whiptail >/dev/null 2>&1 && [ -t 0 ]; then
         whiptail --title "Mark II Assist" --yesno "$prompt" 8 60
