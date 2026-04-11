@@ -412,19 +412,22 @@ export WAYLAND_DISPLAY=${WAYLAND_DISPLAY:-wayland-0}
 export XDG_RUNTIME_DIR=/run/user/$(id -u)
 
 CONFIG="${HOME}/.config/mark2/config"
-HA_URL=""; HA_TOKEN=""
+HA_URL=""
 [ -f "$CONFIG" ] && source "$CONFIG"
 
-until curl -sf --max-time 3 "${HA_URL}" > /dev/null 2>&1; do
-    echo "Waiting for Home Assistant at ${HA_URL}..."; sleep 5
+# Wait for Wayland socket
+for i in $(seq 1 30); do
+    [ -S "/run/user/$(id -u)/wayland-0" ] && break; sleep 1
 done
 
-if [ -n "${HA_TOKEN}" ]; then
-    START_URL="${HA_URL}?auth_callback=1&code=${HA_TOKEN}&state=/"
-else
-    START_URL="${HA_URL}"
-fi
+# Remove stale singleton
+rm -f "${HOME}/.config/chromium-kiosk/Singleton"*
 
+until curl -sf --max-time 3 "${HA_URL}" > /dev/null 2>&1; do
+    sleep 3
+done
+
+# Auto-login via HA trusted_networks in configuration.yaml - no password needed
 exec chromium \
     --kiosk --noerrdialogs --disable-infobars --no-first-run \
     --disable-session-crashed-bubble --disable-component-update \
@@ -432,8 +435,9 @@ exec chromium \
     --enable-features=UseOzonePlatform \
     --autoplay-policy=no-user-gesture-required \
     --disable-background-timer-throttling \
+    --disable-dev-shm-usage --no-sandbox \
     --user-data-dir="${HOME}/.config/chromium-kiosk" \
-    "${START_URL}"
+    "${HA_URL}"
 SCRIPTEOF
     chmod +x "$KIOSK_SCRIPT"
     log "Created HA kiosk script: ${KIOSK_SCRIPT}"
