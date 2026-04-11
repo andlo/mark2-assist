@@ -529,3 +529,11 @@ echo ""
 print_ha_instructions
 echo "========================================"
 echo ""
+
+if [ "${MARK2_MODULE_CONFIRMED:-0}" != "1" ]; then
+    if ask_yes_no "Reboot now to apply all changes?"; then
+        log "Rebooting..."
+        sleep 2
+        sudo reboot
+    fi
+fi

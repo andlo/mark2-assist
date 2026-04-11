@@ -272,10 +272,15 @@ print_progress
 log "All selected modules installed. Log: ${MARK2_LOG}"
 echo ""
 echo "  Next steps:"
-echo "  1. Reboot:  sudo reboot"
-echo "  2. Add Wyoming integration in Home Assistant:"
+echo "  1. Add Wyoming integration in Home Assistant:"
 echo "       Settings > Devices > Add Integration > Wyoming Protocol"
 echo "       Host: $(hostname -I | awk '{print $1}')   Port: 10700"
 echo ""
 echo "  Full documentation: https://github.com/andlo/mark2-assist"
 echo ""
+
+if ask_yes_no "Reboot now to activate all installed services?"; then
+    log "Rebooting..."
+    sleep 2
+    sudo reboot
+fi
