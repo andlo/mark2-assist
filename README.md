@@ -290,4 +290,7 @@ See the `docs/` directory for detailed technical documentation:
 
 ## License
 
-MIT
+GPL-3.0 — see [LICENSE](LICENSE) for details.
+
+This project uses code adapted from [OpenVoiceOS/ovos-installer](https://github.com/OpenVoiceOS/ovos-installer)
+(Apache 2.0) for the SJ201 hardware setup routines.
