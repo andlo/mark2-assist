@@ -2,337 +2,440 @@
 <html>
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Mark II</title>
   <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
+    * { margin:0; padding:0; box-sizing:border-box; }
+    html, body { width:100%; height:100%; background:#000; overflow:hidden; font-family:system-ui,sans-serif; }
 
-    html, body {
-      width: 100%; height: 100%;
-      background: #0a0a0f;
-      overflow: hidden;
-      font-family: system-ui, sans-serif;
+    /* ── LAYERS (z-order) ── */
+    #ha-frame   { position:absolute; inset:0; width:100%; height:100%; border:none; z-index:1; transition:opacity 0.6s ease; }
+    #music-layer{ position:absolute; inset:0; z-index:2; pointer-events:none; opacity:0; transition:opacity 0.8s ease; }
+    #face-layer { position:absolute; inset:0; z-index:3; pointer-events:none; }
+    #hud-layer  { position:absolute; inset:0; z-index:4; pointer-events:none; }
+
+    /* ── MUSIC LAYER ── */
+    #coverart-bg {
+      position:absolute; inset:0;
+      background-size:cover; background-position:center;
+      transition:opacity 0.8s ease;
+    }
+    #coverart-blur {
+      position:absolute; inset:0;
+      background-size:cover; background-position:center;
+      filter:blur(40px) brightness(0.4);
+      transform:scale(1.1);
+    }
+    #coverart-img {
+      position:absolute; inset:0;
+      background-size:contain; background-position:center; background-repeat:no-repeat;
+    }
+    #music-gradient {
+      position:absolute; bottom:0; left:0; right:0; height:45%;
+      background:linear-gradient(transparent, rgba(0,0,0,0.92));
+    }
+    #track-info {
+      position:absolute; bottom:28px; left:32px; right:220px;
+    }
+    #track-title  { font-size:22px; font-weight:600; color:#fff; margin-bottom:6px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    #track-artist { font-size:15px; color:rgba(255,255,255,0.65); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+
+    /* Music visualizer bars (bottom of screen) */
+    #viz {
+      position:absolute; bottom:0; left:0; right:0; height:60px;
+      display:flex; align-items:flex-end; gap:2px; padding:0 4px;
+      opacity:0.35;
+    }
+    .viz-bar {
+      flex:1; background:rgba(180,200,255,0.8); border-radius:2px 2px 0 0;
+      height:4px; transition:height 0.08s ease;
     }
 
-    /* HA iframe - full screen background */
-    #ha-frame {
-      position: absolute;
-      inset: 0;
-      width: 100%; height: 100%;
-      border: none;
-      background: #0a0a0f;
-    }
-
-    /* HUD layer - transparent overlay on top of HA */
-    #hud {
-      position: absolute;
-      inset: 0;
-      pointer-events: none;
-      z-index: 10;
-    }
-
-    /* ── FACE ── */
+    /* ── FACE LAYER ── */
     #face-wrap {
-      position: absolute;
-      bottom: 24px; right: 24px;
-      width: 180px; height: 180px;
-      opacity: 0;
-      transition: opacity 0.5s ease;
+      position:absolute;
+      bottom:20px; right:20px;
+      width:160px; height:160px;
+      transform-origin:bottom right;
+      transition:width 0.5s cubic-bezier(0.34,1.56,0.64,1),
+                 height 0.5s cubic-bezier(0.34,1.56,0.64,1),
+                 bottom 0.5s ease, right 0.5s ease,
+                 opacity 0.4s ease;
+      opacity:0;
     }
-    #face-wrap.visible { opacity: 1; }
-    #face svg { width: 100%; height: 100%; }
-    .eye-w  { fill: #e8e8f0; }
-    .eye-p  { fill: #1a1a2e; }
-    .eyelid { fill: #0a0a0f; transition: height 0.35s ease; }
-    #mouth  { fill: none; stroke: #e8e8f0; stroke-width: 2.5; stroke-linecap: round; }
-    .blush  { fill: #ff6b8a; opacity: 0; transition: opacity 0.4s; }
-    .tdot   { fill: #6080ff; opacity: 0; transition: opacity 0.3s; }
-    #wmark  { fill: #6080ff; opacity: 0; transition: opacity 0.2s; font-size: 22px; font-weight: bold; text-anchor: middle; dominant-baseline: central; }
-    .brow   { stroke: #e8e8f0; stroke-width: 2.5; stroke-linecap: round; fill: none; opacity: 0; transition: opacity 0.3s; }
+    #face-wrap.visible  { opacity:1; }
+    #face-wrap.fullsize {
+      width:100vw; height:100vh;
+      bottom:0; right:0;
+    }
+    #face-wrap.music-mode {
+      width:180px; height:180px;
+      bottom:20px; right:20px;
+      opacity:0.9;
+    }
+    #face-svg { width:100%; height:100%; }
 
-    /* ── VOLUME BAR ── */
+    /* Face SVG elements */
+    .eye-w  { fill:#e8e8f0; transition:all 0.15s; }
+    .eye-p  { fill:#0d0d1a; transition:all 0.15s; }
+    .eyelid { fill:#000; transition:height 0.35s ease; }
+    #f-mouth{ fill:none; stroke:#e8e8f0; stroke-width:3; stroke-linecap:round; transition:d 0.15s ease; }
+    .blush  { fill:#ff5577; transition:opacity 0.4s; }
+    .tdot   { fill:#6080ff; opacity:0; transition:opacity 0.25s; }
+    #f-wmark{ fill:#6080ff; opacity:0; transition:opacity 0.2s; font-size:10%; font-weight:bold; text-anchor:middle; dominant-baseline:central; }
+    .f-brow { stroke:#e8e8f0; stroke-width:3; stroke-linecap:round; fill:none; opacity:0; transition:opacity 0.3s; }
+
+    /* ── HUD LAYER ── */
     #vol-bar {
-      position: absolute;
-      bottom: 24px; left: 50%;
-      transform: translateX(-50%);
-      background: rgba(15, 15, 30, 0.88);
-      border: 1px solid rgba(100, 120, 255, 0.2);
-      border-radius: 40px;
-      padding: 10px 20px;
-      display: flex; align-items: center; gap: 12px;
-      min-width: 220px;
-      opacity: 0;
-      transition: opacity 0.4s ease;
+      position:absolute; bottom:24px; left:50%; transform:translateX(-50%);
+      background:rgba(10,10,25,0.88); border:1px solid rgba(100,130,255,0.25);
+      border-radius:40px; padding:10px 22px;
+      display:flex; align-items:center; gap:12px; min-width:230px;
+      opacity:0; transition:opacity 0.35s;
     }
-    #vol-bar.visible { opacity: 1; }
-    #vol-icon { font-size: 16px; color: #9090c0; }
-    #vol-track {
-      flex: 1; height: 4px;
-      background: rgba(255,255,255,0.12);
-      border-radius: 2px; overflow: hidden;
-    }
-    #vol-fill {
-      height: 100%;
-      background: linear-gradient(90deg, #4060ff, #80a0ff);
-      border-radius: 2px;
-      transition: width 0.2s ease;
-      width: 0%;
-    }
-    #vol-pct { font-size: 13px; color: #6070a0; min-width: 30px; text-align: right; }
+    #vol-bar.visible { opacity:1; }
+    #vol-icon { font-size:15px; color:#8090c0; }
+    #vol-track { flex:1; height:4px; background:rgba(255,255,255,0.1); border-radius:2px; overflow:hidden; }
+    #vol-fill  { height:100%; background:linear-gradient(90deg,#4060ff,#80a0ff); border-radius:2px; transition:width 0.2s; width:0%; }
+    #vol-pct   { font-size:12px; color:#6070a0; min-width:28px; text-align:right; }
 
-    /* ── COVERART ── */
-    #coverart {
-      position: absolute;
-      bottom: 24px; left: 24px;
-      width: 160px; height: 160px;
-      border-radius: 12px;
-      background: rgba(15,15,30,0.6);
-      border: 1px solid rgba(100,120,255,0.15);
-      overflow: hidden;
-      opacity: 0;
-      transition: opacity 0.6s ease;
-    }
-    #coverart.visible { opacity: 1; }
-    #coverart img {
-      width: 100%; height: 100%;
-      object-fit: cover;
-    }
-    #coverart-info {
-      position: absolute;
-      bottom: 0; left: 0; right: 0;
-      padding: 8px 10px;
-      background: linear-gradient(transparent, rgba(0,0,0,0.75));
-    }
-    #track-title {
-      font-size: 11px; color: #e0e0f0;
-      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-      font-weight: 500;
-    }
-    #track-artist {
-      font-size: 10px; color: #8080b0;
-      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-    }
-
-    /* ── STATUS PILL ── */
     #status-pill {
-      position: absolute;
-      top: 20px; left: 50%;
-      transform: translateX(-50%);
-      background: rgba(15,15,30,0.88);
-      border: 1px solid rgba(100,120,255,0.25);
-      border-radius: 40px;
-      padding: 6px 18px;
-      font-size: 13px; color: #a0b0ff;
-      opacity: 0;
-      transition: opacity 0.3s ease;
-      white-space: nowrap;
+      position:absolute; top:20px; left:50%; transform:translateX(-50%);
+      background:rgba(10,10,25,0.88); border:1px solid rgba(100,130,255,0.25);
+      border-radius:40px; padding:7px 20px; font-size:13px; color:#a0b0ff;
+      opacity:0; transition:opacity 0.3s; white-space:nowrap;
     }
-    #status-pill.visible { opacity: 1; }
+    #status-pill.visible { opacity:1; }
   </style>
 </head>
 <body>
 
-<!-- Home Assistant -->
-<iframe id="ha-frame" src="%%HA_URL%%" allow="microphone; camera; autoplay"></iframe>
+<iframe id="ha-frame" src="%%HA_URL%%" allow="microphone;camera;autoplay"></iframe>
 
-<!-- HUD overlay -->
-<div id="hud">
-
-  <!-- Status pill (top center) -->
-  <div id="status-pill"></div>
-
-  <!-- Coverart (bottom left) -->
-  <div id="coverart">
-    <img id="coverart-img" src="" alt="">
-    <div id="coverart-info">
-      <div id="track-title"></div>
-      <div id="track-artist"></div>
-    </div>
+<div id="music-layer">
+  <div id="coverart-blur"></div>
+  <div id="coverart-img"></div>
+  <div id="music-gradient"></div>
+  <div id="track-info">
+    <div id="track-title"></div>
+    <div id="track-artist"></div>
   </div>
+  <div id="viz"></div>
+</div>
 
-  <!-- Volume bar (bottom center) -->
+<div id="face-layer">
+  <div id="face-wrap">
+    <svg id="face-svg" viewBox="0 0 200 200">
+      <g id="f-eye-l">
+        <ellipse class="eye-w" cx="65"  cy="95"  rx="26" ry="30"/>
+        <ellipse class="eye-p" id="f-puL" cx="65"  cy="98"  rx="13" ry="15"/>
+        <rect class="eyelid" id="f-lidL" x="39" y="65" width="52" height="20" rx="3"/>
+      </g>
+      <g id="f-eye-r">
+        <ellipse class="eye-w" cx="135" cy="95"  rx="26" ry="30"/>
+        <ellipse class="eye-p" id="f-puR" cx="135" cy="98"  rx="13" ry="15"/>
+        <rect class="eyelid" id="f-lidR" x="109" y="65" width="52" height="20" rx="3"/>
+      </g>
+      <path class="f-brow" id="f-browL" d="M45 63 Q65 54 83 63"/>
+      <path class="f-brow" id="f-browR" d="M117 63 Q135 54 155 63"/>
+      <ellipse class="blush" id="f-blL" cx="36"  cy="118" rx="16" ry="9" opacity="0"/>
+      <ellipse class="blush" id="f-blR" cx="164" cy="118" rx="16" ry="9" opacity="0"/>
+      <path id="f-mouth" d="M 78 142 Q 100 152 122 142"/>
+      <circle class="tdot" id="f-d1" cx="85"  cy="162" r="5"/>
+      <circle class="tdot" id="f-d2" cx="100" cy="162" r="5"/>
+      <circle class="tdot" id="f-d3" cx="115" cy="162" r="5"/>
+      <text id="f-wmark" x="100" y="34">!</text>
+    </svg>
+  </div>
+</div>
+
+<div id="hud-layer">
+  <div id="status-pill"></div>
   <div id="vol-bar">
     <span id="vol-icon">🔊</span>
     <div id="vol-track"><div id="vol-fill"></div></div>
     <span id="vol-pct">--</span>
   </div>
-
-  <!-- Animated face (bottom right) -->
-  <div id="face-wrap">
-    <svg id="face" viewBox="0 0 180 180">
-      <g id="eye-l">
-        <ellipse class="eye-w" cx="58" cy="86" rx="23" ry="26"/>
-        <ellipse class="eye-p" id="puL" cx="58" cy="89" rx="11" ry="13"/>
-        <rect class="eyelid" id="lidL" x="35" y="60" width="46" height="18" rx="3"/>
-      </g>
-      <g id="eye-r">
-        <ellipse class="eye-w" cx="122" cy="86" rx="23" ry="26"/>
-        <ellipse class="eye-p" id="puR" cx="122" cy="89" rx="11" ry="13"/>
-        <rect class="eyelid" id="lidR" x="99" y="60" width="46" height="18" rx="3"/>
-      </g>
-      <path class="brow" id="browL" d="M40 59 Q58 51 74 59"/>
-      <path class="brow" id="browR" d="M106 59 Q122 51 140 59"/>
-      <ellipse class="blush" id="blL" cx="34" cy="106" rx="14" ry="8"/>
-      <ellipse class="blush" id="blR" cx="146" cy="106" rx="14" ry="8"/>
-      <path id="mouth" d="M 70 128 Q 90 136 110 128"/>
-      <circle class="tdot" id="d1" cx="77"  cy="145" r="4"/>
-      <circle class="tdot" id="d2" cx="90"  cy="145" r="4"/>
-      <circle class="tdot" id="d3" cx="103" cy="145" r="4"/>
-      <text id="wmark" x="90" y="30">!</text>
-    </svg>
-  </div>
-
 </div>
 
 <script>
-const HA_URL    = '%%HA_URL%%';
-const MPD_HOST  = '%%MPD_HOST%%';   // hostname or IP of this device
-const MPD_PORT  = 6600;
+// ── Config ──
+const HA_URL   = '%%HA_URL%%';
 
-// ── Element refs ──
+// ── Elements ──
+const haFrame    = document.getElementById('ha-frame');
+const musicLayer = document.getElementById('music-layer');
 const faceWrap   = document.getElementById('face-wrap');
-const lidL       = document.getElementById('lidL');
-const lidR       = document.getElementById('lidR');
-const puL        = document.getElementById('puL');
-const puR        = document.getElementById('puR');
-const browL      = document.getElementById('browL');
-const browR      = document.getElementById('browR');
-const blL        = document.getElementById('blL');
-const blR        = document.getElementById('blR');
-const mouth      = document.getElementById('mouth');
-const d1         = document.getElementById('d1');
-const d2         = document.getElementById('d2');
-const d3         = document.getElementById('d3');
-const wmark      = document.getElementById('wmark');
-const volBar     = document.getElementById('vol-bar');
-const volFill    = document.getElementById('vol-fill');
-const volPct     = document.getElementById('vol-pct');
-const volIcon    = document.getElementById('vol-icon');
-const coverart   = document.getElementById('coverart');
+const coverBlur  = document.getElementById('coverart-blur');
 const coverImg   = document.getElementById('coverart-img');
 const trackTitle = document.getElementById('track-title');
 const trackArtist= document.getElementById('track-artist');
-const statusPill = document.getElementById('status-pill');
+const vizEl      = document.getElementById('viz');
+const f = {
+  lidL:  document.getElementById('f-lidL'),
+  lidR:  document.getElementById('f-lidR'),
+  puL:   document.getElementById('f-puL'),
+  puR:   document.getElementById('f-puR'),
+  browL: document.getElementById('f-browL'),
+  browR: document.getElementById('f-browR'),
+  blL:   document.getElementById('f-blL'),
+  blR:   document.getElementById('f-blR'),
+  mouth: document.getElementById('f-mouth'),
+  d1:    document.getElementById('f-d1'),
+  d2:    document.getElementById('f-d2'),
+  d3:    document.getElementById('f-d3'),
+  wmark: document.getElementById('f-wmark'),
+};
+const volBar   = document.getElementById('vol-bar');
+const volFill  = document.getElementById('vol-fill');
+const volPct   = document.getElementById('vol-pct');
+const volIcon  = document.getElementById('vol-icon');
+const pill     = document.getElementById('status-pill');
 
-// ── Face state definitions ──
-const FACE = {
-  idle:   { lid:18, pry:10, m:'M 72 128 Q 90 131 108 128', bl:0, brow:0, wake:0 },
-  wake:   { lid:0,  pry:15, m:'M 68 125 Q 90 133 112 125', bl:0, brow:0, wake:1 },
-  listen: { lid:0,  pry:14, m:'M 70 127 Q 90 134 110 127', bl:0, brow:0, wake:0 },
-  think:  { lid:6,  pry:11, m:'M 72 130 Q 90 127 108 130', bl:0, brow:0, wake:0 },
-  speak:  { lid:0,  pry:13, m:'M 68 126 Q 90 140 112 126', bl:.4, brow:0, wake:0 },
-  error:  { lid:8,  pry:10, m:'M 70 136 Q 90 126 110 136', bl:0, brow:1, wake:0 },
+// ── App state ──
+const STATE = { idle:'idle', wake:'wake', listen:'listen', think:'think', speak:'speak', error:'error' };
+let wyomingState = 'idle';
+let musicPlaying = false;
+let musicAmplitude = 0;   // 0-1 from audio analyser
+let musicBass = 0;        // 0-1 bass energy for eye reactions
+
+// ── Face definitions ──
+const FACE_DEF = {
+  idle:   { lid:20, pry:10, m:'M 80 142 Q 100 146 120 142', bl:0, brow:0, wake:0 },
+  wake:   { lid:0,  pry:17, m:'M 76 139 Q 100 150 124 139', bl:0, brow:0, wake:1 },
+  listen: { lid:0,  pry:16, m:'M 78 141 Q 100 150 122 141', bl:0, brow:0, wake:0 },
+  think:  { lid:7,  pry:12, m:'M 80 144 Q 100 140 120 144', bl:0, brow:0, wake:0 },
+  speak:  { lid:0,  pry:15, m:'M 76 140 Q 100 156 124 140', bl:.4, brow:0, wake:0 },
+  error:  { lid:9,  pry:11, m:'M 78 150 Q 100 140 122 150', bl:0, brow:1, wake:0 },
 };
 const SPEAK_M = [
-  'M 68 126 Q 90 140 112 126',
-  'M 70 127 Q 90 134 110 127',
-  'M 68 126 Q 90 143 112 126',
-  'M 71 127 Q 90 135 109 127',
+  'M 76 140 Q 100 158 124 140',
+  'M 78 141 Q 100 150 122 141',
+  'M 76 140 Q 100 162 124 140',
+  'M 79 141 Q 100 152 121 141',
 ];
 
-let curFace = 'idle';
-let wanderAngle = 0;
-let dotStep = 0, speakStep = 0;
-let thinkAcc = 0, speakAcc = 0, wanderAcc = 0, lastTs = 0;
-let blinkTimer, faceHideTimer;
+function applyFaceDef(s) {
+  const d = FACE_DEF[s] || FACE_DEF.idle;
+  f.lidL.setAttribute('height', d.lid);
+  f.lidR.setAttribute('height', d.lid);
+  f.puL.setAttribute('ry', d.pry);
+  f.puR.setAttribute('ry', d.pry);
+  f.mouth.setAttribute('d', d.m);
+  f.blL.style.opacity = d.bl;
+  f.blR.style.opacity = d.bl;
+  f.browL.style.opacity = d.brow;
+  f.browR.style.opacity = d.brow;
+  f.wmark.style.opacity = d.wake;
+}
 
-function applyFace(s) {
-  const d = FACE[s] || FACE.idle;
-  lidL.setAttribute('height', d.lid);
-  lidR.setAttribute('height', d.lid);
-  puL.setAttribute('ry', d.pry);
-  puR.setAttribute('ry', d.pry);
-  mouth.setAttribute('d', d.m);
-  blL.style.opacity = d.bl;
-  blR.style.opacity = d.bl;
-  browL.style.opacity = d.brow;
-  browR.style.opacity = d.brow;
-  wmark.style.opacity = d.wake;
+// ── Screen layout states ──
+// 'ha'      = HA full screen, face hidden
+// 'wyoming' = face full screen, HA faded
+// 'music'   = coverart full screen, face small in corner
+// 'both'    = coverart behind, face full (wyoming during music)
+
+function applyLayout(layout) {
+  switch(layout) {
+    case 'ha':
+      haFrame.style.opacity    = '1';
+      musicLayer.style.opacity = '0';
+      faceWrap.className       = '';
+      break;
+
+    case 'wyoming':
+      haFrame.style.opacity    = '0.12';
+      musicLayer.style.opacity = '0';
+      faceWrap.className       = 'visible fullsize';
+      break;
+
+    case 'music':
+      haFrame.style.opacity    = '0';
+      musicLayer.style.opacity = '1';
+      faceWrap.className       = 'visible music-mode';
+      break;
+
+    case 'both':
+      haFrame.style.opacity    = '0';
+      musicLayer.style.opacity = '0.35';
+      faceWrap.className       = 'visible fullsize';
+      break;
+  }
+}
+
+function updateLayout() {
+  const active = wyomingState !== 'idle';
+  if (active && musicPlaying) { applyLayout('both');    return; }
+  if (active)                  { applyLayout('wyoming'); return; }
+  if (musicPlaying)            { applyLayout('music');   return; }
+  applyLayout('ha');
+}
+
+// ── Wyoming face state ──
+let faceHideTimer, blinkTimer;
+let wanderAngle=0, dotStep=0, speakStep=0;
+let thinkAcc=0, speakAcc=0, wanderAcc=0, lastTs=0;
+
+function setWyomingState(s) {
+  wyomingState = s;
+  clearTimeout(faceHideTimer);
+  applyFaceDef(s);
+
+  if (s !== 'listen') {
+    f.puL.setAttribute('cx', 65);  f.puR.setAttribute('cx', 135);
+    f.puL.setAttribute('cy', 98);  f.puR.setAttribute('cy', 98);
+  }
+  if (s === 'wake') setTimeout(() => { f.wmark.style.opacity='0'; }, 700);
+
+  if (s === 'idle') {
+    faceHideTimer = setTimeout(() => updateLayout(), 5000);
+  }
+  updateLayout();
 }
 
 function blink() {
-  lidL.setAttribute('height', 26);
-  lidR.setAttribute('height', 26);
+  f.lidL.setAttribute('height', 30); f.lidR.setAttribute('height', 30);
   setTimeout(() => {
-    const d = FACE[curFace] || FACE.idle;
-    lidL.setAttribute('height', d.lid);
-    lidR.setAttribute('height', d.lid);
+    const d = FACE_DEF[wyomingState]||FACE_DEF.idle;
+    f.lidL.setAttribute('height', d.lid); f.lidR.setAttribute('height', d.lid);
   }, 110);
 }
-
 function scheduleBlink() {
   clearTimeout(blinkTimer);
   blinkTimer = setTimeout(() => {
-    if (['idle','listen','wake'].includes(curFace)) blink();
+    if (['idle','listen','wake'].includes(wyomingState)) blink();
     scheduleBlink();
-  }, 2500 + Math.random() * 3000);
+  }, 2000 + Math.random()*3500);
 }
 
-function setFace(s) {
-  if (s === curFace) return;
-  curFace = s;
-  clearTimeout(faceHideTimer);
+// ── Music audio analysis ──
+let audioCtx, analyser, source, vizBars=[];
+const VIZ_BARS = 48;
 
-  if (s === 'idle') {
-    faceHideTimer = setTimeout(() => faceWrap.classList.remove('visible'), 4000);
-  } else {
-    faceWrap.classList.add('visible');
+function setupViz() {
+  vizEl.innerHTML = '';
+  vizBars = [];
+  for (let i=0; i<VIZ_BARS; i++) {
+    const b = document.createElement('div');
+    b.className = 'viz-bar';
+    vizEl.appendChild(b);
+    vizBars.push(b);
   }
+}
 
-  applyFace(s);
+async function connectAudioStream(streamUrl) {
+  try {
+    if (audioCtx) { audioCtx.close(); }
+    audioCtx = new AudioContext();
+    analyser = audioCtx.createAnalyser();
+    analyser.fftSize = 256;
+    analyser.smoothingTimeConstant = 0.75;
 
-  if (s !== 'listen') {
-    puL.setAttribute('cx', 58); puR.setAttribute('cx', 122);
-    puL.setAttribute('cy', 89); puR.setAttribute('cy', 89);
+    const resp = await fetch(streamUrl);
+    const mediaSource = audioCtx.createMediaStreamSource(
+      await resp.body.getReader().read().then(() => new MediaStream())
+    );
+  } catch(e) {
+    // Stream connect failed - use simulated data
+    simulateAudio();
   }
-  if (s === 'wake') setTimeout(() => { wmark.style.opacity = '0'; }, 600);
+}
+
+// Simulate audio energy when real stream unavailable
+let simPhase = 0;
+function simulateAudio() {
+  setInterval(() => {
+    simPhase += 0.08;
+    musicAmplitude = 0.3 + Math.sin(simPhase) * 0.2 + Math.random() * 0.15;
+    musicBass      = 0.2 + Math.abs(Math.sin(simPhase * 0.5)) * 0.4;
+  }, 80);
+}
+
+function updateViz() {
+  if (!musicPlaying) return;
+  // Update visualizer bars with music amplitude
+  for (let i=0; i<vizBars.length; i++) {
+    const freq = i / vizBars.length;
+    const wave = Math.sin(simPhase * 2 + freq * Math.PI * 3) * 0.5 + 0.5;
+    const h = Math.max(4, wave * musicAmplitude * 52);
+    vizBars[i].style.height = h + 'px';
+  }
+}
+
+// ── Face music reactions ──
+function applyMusicToFace() {
+  if (!musicPlaying || wyomingState !== 'idle') return;
+
+  // Mouth opens with amplitude
+  const openAmount = musicAmplitude * 22;
+  const cy = 145 + openAmount * 0.3;
+  f.mouth.setAttribute('d',
+    `M 78 140 Q 100 ${140 + openAmount} 122 140`
+  );
+
+  // Pupils enlarge/contract with bass
+  const pr = 11 + musicBass * 6;
+  f.puL.setAttribute('ry', pr); f.puR.setAttribute('ry', pr);
+
+  // Blink on strong bass hits
+  if (musicBass > 0.85 && Math.random() < 0.08) blink();
+
+  // Subtle blush when music is loud
+  const bl = Math.max(0, musicAmplitude - 0.5) * 0.6;
+  f.blL.style.opacity = bl; f.blR.style.opacity = bl;
 }
 
 // ── Animation loop ──
 function loop(ts) {
   const dt = ts - lastTs; lastTs = ts;
 
-  if (curFace === 'think') {
+  if (wyomingState === 'think') {
     thinkAcc += dt;
-    if (thinkAcc > 400) {
-      [d1,d2,d3].forEach((d,i) => d.style.opacity = i === dotStep ? '1' : '0.2');
-      dotStep = (dotStep + 1) % 3; thinkAcc = 0;
+    if (thinkAcc > 380) {
+      [f.d1,f.d2,f.d3].forEach((d,i) => d.style.opacity = i===dotStep ? '1':'0.15');
+      dotStep = (dotStep+1)%3; thinkAcc = 0;
     }
   } else {
-    d1.style.opacity = d2.style.opacity = d3.style.opacity = '0';
+    f.d1.style.opacity = f.d2.style.opacity = f.d3.style.opacity = '0';
     thinkAcc = 0;
   }
 
-  if (curFace === 'speak') {
+  if (wyomingState === 'speak') {
     speakAcc += dt;
-    if (speakAcc > 175) {
-      mouth.setAttribute('d', SPEAK_M[speakStep % SPEAK_M.length]);
+    if (speakAcc > 160) {
+      f.mouth.setAttribute('d', SPEAK_M[speakStep % SPEAK_M.length]);
       speakStep++; speakAcc = 0;
     }
   }
 
-  if (curFace === 'listen') {
+  if (wyomingState === 'listen') {
     wanderAcc += dt;
     if (wanderAcc > 30) {
       wanderAngle += 0.04;
-      const dx = Math.sin(wanderAngle) * 3;
-      const dy = Math.cos(wanderAngle * 0.7) * 2;
-      puL.setAttribute('cx', 58 + dx); puR.setAttribute('cx', 122 + dx);
-      puL.setAttribute('cy', 89 + dy); puR.setAttribute('cy', 89 + dy);
+      const dx = Math.sin(wanderAngle)*3.5, dy = Math.cos(wanderAngle*0.7)*2;
+      f.puL.setAttribute('cx', 65+dx); f.puR.setAttribute('cx', 135+dx);
+      f.puL.setAttribute('cy', 98+dy); f.puR.setAttribute('cy', 98+dy);
       wanderAcc = 0;
     }
+  }
+
+  if (musicPlaying && wyomingState === 'idle') {
+    simPhase += 0.025;
+    musicAmplitude = 0.25 + Math.sin(simPhase*2.1)*0.2 + Math.sin(simPhase*3.7)*0.1 + Math.random()*0.08;
+    musicBass      = Math.max(0, Math.sin(simPhase*1.3)*0.6 + 0.2);
+    applyMusicToFace();
+    updateViz();
   }
 
   requestAnimationFrame(loop);
 }
 
-// ── Volume bar ──
+// ── Volume ──
 let volHideTimer;
 function showVolume(pct) {
   const v = Math.max(0, Math.min(100, pct));
-  volFill.style.width = v + '%';
-  volPct.textContent = v + '%';
-  volIcon.textContent = v === 0 ? '🔇' : v < 40 ? '🔉' : '🔊';
+  volFill.style.width = v+'%';
+  volPct.textContent  = v+'%';
+  volIcon.textContent = v===0 ? '🔇' : v<40 ? '🔉' : '🔊';
   volBar.classList.add('visible');
   clearTimeout(volHideTimer);
   volHideTimer = setTimeout(() => volBar.classList.remove('visible'), 3000);
@@ -340,77 +443,95 @@ function showVolume(pct) {
 
 // ── Status pill ──
 let pillHideTimer;
-function showStatus(text, ms = 4000) {
-  statusPill.textContent = text;
-  statusPill.classList.add('visible');
+function showStatus(text, ms=4000) {
+  pill.textContent = text;
+  pill.classList.add('visible');
   clearTimeout(pillHideTimer);
-  if (ms > 0) pillHideTimer = setTimeout(() => statusPill.classList.remove('visible'), ms);
+  if (ms>0) pillHideTimer = setTimeout(() => pill.classList.remove('visible'), ms);
 }
 
-// ── Coverart (polls MPD HTTP stream info via local proxy) ──
-// MPD albumart is fetched via a small helper file written by mpd-watcher.sh
+// ── Music state ──
 let lastTrack = '';
-async function pollMPD() {
-  try {
-    const r = await fetch('file:///tmp/mark2-mpd-state.json?' + Date.now());
-    const d = await r.json();
-
-    if (d.state === 'play') {
-      const track = (d.title || '') + (d.artist || '');
-      if (track !== lastTrack) {
-        lastTrack = track;
-        trackTitle.textContent  = d.title  || 'Unknown track';
-        trackArtist.textContent = d.artist || d.album || '';
-        if (d.coverart) {
-          coverImg.src = d.coverart;
-          coverart.classList.add('visible');
-        } else {
-          coverart.classList.remove('visible');
-        }
-      }
-    } else {
-      if (lastTrack !== '') {
-        lastTrack = '';
-        coverart.classList.remove('visible');
+function setMusicState(d) {
+  if (d.state === 'play') {
+    const track = (d.title||'')+(d.artist||'');
+    if (track !== lastTrack) {
+      lastTrack = track;
+      trackTitle.textContent  = d.title  || 'Unknown track';
+      trackArtist.textContent = d.artist || d.album || '';
+      if (d.coverart) {
+        coverBlur.style.backgroundImage = `url(${d.coverart})`;
+        coverImg.style.backgroundImage  = `url(${d.coverart})`;
+      } else {
+        coverBlur.style.backgroundImage = 'none';
+        coverImg.style.backgroundImage  = 'none';
       }
     }
-  } catch(e) {
-    coverart.classList.remove('visible');
+    if (!musicPlaying) {
+      musicPlaying = true;
+      setupViz();
+      updateLayout();
+      // Show face in music-mode
+      if (wyomingState === 'idle') {
+        faceWrap.className = 'visible music-mode';
+        applyFaceDef('idle');
+      }
+    }
+  } else {
+    if (musicPlaying) {
+      musicPlaying = false;
+      lastTrack = '';
+      musicAmplitude = 0; musicBass = 0;
+      applyFaceDef(wyomingState);
+      updateLayout();
+    }
   }
 }
 
-// ── Event polling (Wyoming face states + volume) ──
-let lastFaceEvent = '', lastVolEvent = '';
-async function pollEvents() {
+// ── Event polling ──
+let lastFaceEvt='', lastVolEvt='', lastMpdEvt='';
+async function poll() {
+  // Wyoming / face events
   try {
-    const r = await fetch('file:///tmp/mark2-face-event.json?' + Date.now());
-    const text = await r.text();
-    if (text !== lastFaceEvent) {
-      lastFaceEvent = text;
-      const d = JSON.parse(text);
-      if (d.state) setFace(d.state);
+    const r = await fetch('file:///tmp/mark2-face-event.json?'+Date.now());
+    const t = await r.text();
+    if (t !== lastFaceEvt) {
+      lastFaceEvt = t;
+      const d = JSON.parse(t);
+      if (d.state) setWyomingState(d.state);
       if (d.status) showStatus(d.status);
     }
   } catch(e) {}
 
+  // Volume events
   try {
-    const r = await fetch('file:///tmp/mark2-overlay-event.json?' + Date.now());
-    const text = await r.text();
-    if (text !== lastVolEvent) {
-      lastVolEvent = text;
-      const d = JSON.parse(text);
-      if (d.type === 'volume')  showVolume(parseInt(d.value));
-      if (d.type === 'status')  showStatus(d.value);
+    const r = await fetch('file:///tmp/mark2-overlay-event.json?'+Date.now());
+    const t = await r.text();
+    if (t !== lastVolEvt) {
+      lastVolEvt = t;
+      const d = JSON.parse(t);
+      if (d.type==='volume') showVolume(parseInt(d.value));
+      if (d.type==='status') showStatus(d.value);
+    }
+  } catch(e) {}
+
+  // MPD state
+  try {
+    const r = await fetch('file:///tmp/mark2-mpd-state.json?'+Date.now());
+    const t = await r.text();
+    if (t !== lastMpdEvt) {
+      lastMpdEvt = t;
+      setMusicState(JSON.parse(t));
     }
   } catch(e) {}
 }
 
 // ── Init ──
-applyFace('idle');
+setupViz();
+applyFaceDef('idle');
 scheduleBlink();
 requestAnimationFrame(loop);
-setInterval(pollEvents, 200);
-setInterval(pollMPD, 3000);
+setInterval(poll, 200);
 </script>
 </body>
 </html>
