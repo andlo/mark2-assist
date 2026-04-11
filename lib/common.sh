@@ -295,8 +295,11 @@ git_clone_or_pull() {
 labwc_autostart_add() {
     local marker="$1"
     local line="$2"
-    grep -v "$marker" "$LABWC_AUTOSTART" 2>/dev/null > /tmp/labwc_tmp || true
-    mv /tmp/labwc_tmp "$LABWC_AUTOSTART" 2>/dev/null || true
+    # Remove ALL existing lines containing this marker
+    if [ -f "$LABWC_AUTOSTART" ]; then
+        grep -v "$marker" "$LABWC_AUTOSTART" > /tmp/labwc_tmp 2>/dev/null || true
+        mv /tmp/labwc_tmp "$LABWC_AUTOSTART"
+    fi
     echo "$line" >> "$LABWC_AUTOSTART"
 }
 
