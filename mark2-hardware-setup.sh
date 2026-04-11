@@ -188,6 +188,28 @@ configure_boot_config() {
         echo "enable_uart=1" | sudo tee -a "$BOOT_CONFIG" > /dev/null
     fi
 
+    # Enable SPI (required for xvf3510-flash to access /dev/spidev0.0)
+    if grep -q "^#dtparam=spi=on" "$BOOT_CONFIG"; then
+        sudo sed -i 's/^#dtparam=spi=on/dtparam=spi=on/' "$BOOT_CONFIG"
+        log "  Enabled: dtparam=spi=on (was commented out)"
+    elif ! grep -q "^dtparam=spi=on" "$BOOT_CONFIG"; then
+        echo "dtparam=spi=on" | sudo tee -a "$BOOT_CONFIG" > /dev/null
+        log "  Added: dtparam=spi=on"
+    else
+        log "  Already present: dtparam=spi=on"
+    fi
+
+    # Enable I2C (required for SJ201 LED and TAS5806 amp init)
+    if grep -q "^#dtparam=i2c_arm=on" "$BOOT_CONFIG"; then
+        sudo sed -i 's/^#dtparam=i2c_arm=on/dtparam=i2c_arm=on/' "$BOOT_CONFIG"
+        log "  Enabled: dtparam=i2c_arm=on (was commented out)"
+    elif ! grep -q "^dtparam=i2c_arm=on" "$BOOT_CONFIG"; then
+        echo "dtparam=i2c_arm=on" | sudo tee -a "$BOOT_CONFIG" > /dev/null
+        log "  Added: dtparam=i2c_arm=on"
+    else
+        log "  Already present: dtparam=i2c_arm=on"
+    fi
+
     # Add dtoverlay lines for SJ201, buttons and PWM fan
     for overlay in sj201 sj201-buttons-overlay sj201-rev10-pwm-fan-overlay; do
         overlay_line="dtoverlay=${overlay}${PI5_SUFFIX}"
