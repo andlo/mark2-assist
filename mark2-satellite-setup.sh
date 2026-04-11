@@ -348,7 +348,9 @@ EOF
 
 # Start labwc Wayland compositor on tty1 (kiosk mode)
 if [ -z "${WAYLAND_DISPLAY:-}" ] && [ "$(tty)" = "/dev/tty1" ]; then
-    exec labwc
+    export XDG_RUNTIME_DIR=/run/user/$(id -u)
+    export XDG_SESSION_TYPE=wayland
+    labwc
 fi
 EOF
         log "labwc autostart added to ~/.bash_profile"
@@ -454,15 +456,9 @@ EOF
     <gap>0</gap>
   </core>
   <windowRules>
-    <!-- HUD overlay: always on top, no decorations, no focus steal -->
     <windowRule identifier="hud.html" matchType="substring">
-      <action name="AlwaysOnTop"/>
-      <action name="Decoration" decoration="none"/>
+      <action name="ToggleAlwaysOnTop"/>
       <skipTaskbar>yes</skipTaskbar>
-    </windowRule>
-    <!-- HA kiosk: full screen, no decorations -->
-    <windowRule identifier="chromium" matchType="substring">
-      <action name="Decoration" decoration="none"/>
     </windowRule>
   </windowRules>
 </labwc_config>
