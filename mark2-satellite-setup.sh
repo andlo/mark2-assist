@@ -417,7 +417,7 @@ exec chromium \\
     --enable-features=UseOzonePlatform \\
     --autoplay-policy=no-user-gesture-required \\
     --disable-background-timer-throttling \\
-    --disk-cache-dir=/dev/null \\
+    --user-data-dir=${USER_HOME}/.config/chromium-kiosk \\
     "${HA_URL}"
 EOF
     chmod +x "$KIOSK_SCRIPT"
