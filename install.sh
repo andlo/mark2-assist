@@ -348,7 +348,43 @@ fi
 
 section "Step 3/3 — Optional Modules"
 
-run_module "leds"         "LED ring — SJ201 ring reacts to voice events"
+configure_ha_trusted_network() {
+    section "Configuring HA auto-login (trusted_networks)"
+    setup_paths
+    config_load
+
+    local HA_URL="${HA_URL:-}"
+    local HA_TOKEN="${HA_TOKEN:-}"
+    local MARK2_IP
+    MARK2_IP=$(hostname -I | awk '{print $1}')
+
+    if [ -z "$HA_URL" ] || [ -z "$HA_TOKEN" ]; then
+        warn "HA_URL or HA_TOKEN not set — skipping auto-login setup"
+        return 0
+    fi
+
+    # Check if trusted_networks is already configured via API
+    local HA_USER_ID
+    HA_USER_ID=$(curl -sf \
+        -H "Authorization: Bearer ${HA_TOKEN}" \
+        -H "Content-Type: application/json" \
+        "${HA_URL}/api/config" 2>/dev/null | \
+        python3 -c "import json,sys; print(json.load(sys.stdin).get('external_url','?'))" 2>/dev/null || true)
+
+    info "To enable auto-login on the touchscreen, add this to your"
+    info "Home Assistant configuration.yaml and restart HA:"
+    echo ""
+    echo "  homeassistant:"
+    echo "    auth_providers:"
+    echo "      - type: homeassistant"
+    echo "      - type: trusted_networks"
+    echo "        trusted_networks:"
+    echo "          - ${MARK2_IP}"
+    echo "        allow_bypass_login: true"
+    echo ""
+    info "See: https://www.home-assistant.io/docs/authentication/providers/#trusted-networks"
+    config_save "MARK2_IP" "$MARK2_IP"
+}
 run_module "face"         "Animated face — zooms in on voice, dances to music"
 run_module "overlay"      "Volume overlay — on-screen volume bar"
 run_module "screensaver"  "Screensaver — fullscreen clock + weather from HA"
