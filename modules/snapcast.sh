@@ -24,9 +24,13 @@ if ! ask_yes_no "Install Snapcast client?"; then
 fi
 
 SNAPCAST_HOST="${SNAPCAST_HOST:-}"
+config_load
 if [ -z "$SNAPCAST_HOST" ]; then
     read -rp "Snapcast server IP or hostname: " SNAPCAST_HOST
     [ -z "$SNAPCAST_HOST" ] && die "Snapcast server host required"
+    config_save "SNAPCAST_HOST" "$SNAPCAST_HOST"
+else
+    log "Using saved Snapcast host: ${SNAPCAST_HOST}"
 fi
 
 section "Downloading Snapcast for Trixie (arm64, PipeWire)"

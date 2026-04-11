@@ -25,14 +25,9 @@ if ! ask_yes_no "Install clock/weather screensaver?"; then
     exit 0
 fi
 
-HA_URL="${HA_URL:-}"
-HA_TOKEN="${HA_TOKEN:-}"
-HA_WEATHER_ENTITY="${HA_WEATHER_ENTITY:-weather.home}"
-
-[ -z "$HA_URL" ]   && read -rp "Home Assistant URL (e.g. http://192.168.1.100:8123): " HA_URL
-[ -z "$HA_TOKEN" ] && read -rp "HA Long-Lived Access Token: " HA_TOKEN
-read -rp "Weather entity [weather.home]: " _W
-[ -n "$_W" ] && HA_WEATHER_ENTITY="$_W"
+prompt_ha_url
+prompt_ha_token
+prompt_ha_weather
 
 sudo apt-get install -y --no-install-recommends \
     swayidle \
