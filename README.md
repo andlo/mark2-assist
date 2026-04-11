@@ -1,4 +1,4 @@
-# Mycroft Mark II Setup Scripts
+# Mycroft Mark II Assist
 
 Complete setup suite for repurposing a Mycroft Mark II as a:
 - Wyoming Voice Satellite for Home Assistant
@@ -6,7 +6,7 @@ Complete setup suite for repurposing a Mycroft Mark II as a:
 - Multiroom audio endpoint (Snapcast + AirPlay)
 - Full media player (MPD + Music Assistant)
 
-Built for **Raspberry Pi OS Trixie (Debian 13)** — the current latest image.
+Built for **Raspberry Pi OS Lite Trixie (Debian 13)** — the current latest image.
 Converted from the OpenVoiceOS ovos-installer Ansible roles and extended with
 additional integrations.
 
@@ -25,28 +25,46 @@ The Mycroft Mark II contains:
 
 ## Prerequisites
 
-1. Flash **Raspberry Pi OS Trixie (64-bit)** to a USB 3.0 stick
+1. Flash **Raspberry Pi OS Lite Trixie (64-bit)** to a USB 3.0 stick
    - Use Raspberry Pi Imager
+   - Select: Raspberry Pi OS Lite (64-bit)
    - Plug USB into the **top-left blue USB 3.0 port** on Mark II
 2. Enable SSH during flashing (Raspberry Pi Imager > Advanced Options)
 3. Boot Mark II and SSH in:
    ```bash
    ssh pi@<mark2-ip-address>
    ```
-4. Clone or copy this folder to the Mark II:
+4. Clone this repo to the Mark II:
    ```bash
-   scp -r mark2-setup/ pi@<mark2-ip>:~/
+   git clone https://github.com/andlo/mark2-assist.git
+   cd mark2-assist
    ```
 
 ---
 
-## Installation Order
+## Quick Install
+
+Run the installer for a guided setup:
+
+```bash
+./install.sh
+```
+
+The installer walks through all steps in order and prompts for each optional module.
+
+To skip hardware setup (already done + rebooted):
+```bash
+./install.sh --skip-hardware
+```
+
+---
+
+## Manual Installation
 
 ### Step 1 — Hardware Drivers (required)
 
 ```bash
-chmod +x ~/mark2-setup/*.sh
-~/mark2-setup/mark2-hardware-setup.sh
+./mark2-hardware-setup.sh
 sudo reboot
 ```
 
@@ -56,18 +74,19 @@ sudo reboot
 - Copies DTBO overlays to `/boot/firmware/overlays`
 - Configures `config.txt` (uart, sj201, buttons, touchscreen)
 - Creates Python venv for SJ201 firmware flash
-- Downloads SJ201 firmware and init scripts
+- Installs SJ201 firmware and init scripts from `assets/`
 - Creates and enables `sj201.service`
 - Configures WirePlumber audio profile
+- Installs kernel watchdog (auto-rebuilds VocalFusion after kernel updates)
 
-**Reboot is required** before running further scripts.
+**Reboot is required** before continuing.
 
 ---
 
 ### Step 2 — Wyoming Satellite + Kiosk (required for voice + display)
 
 ```bash
-~/mark2-setup/mark2-satellite-setup.sh
+./mark2-satellite-setup.sh
 ```
 
 **Prompts for:**
@@ -77,10 +96,9 @@ sudo reboot
 - Installs Wyoming Satellite + openWakeWord
 - Auto-detects SJ201 audio device
 - Creates `wyoming-satellite.service` + `wyoming-openwakeword.service`
-- Installs Chromium in kiosk mode showing Home Assistant
-- Configures labwc autostart (Trixie Wayland compositor)
-- Disables screen blanking
-- Installs MPV + PipeWire for media playback
+- Installs minimal Wayland kiosk stack (labwc, seatd, Chromium)
+- Opens Home Assistant in fullscreen kiosk mode
+- Configures PipeWire for audio playback
 - Enables auto-login to graphical session
 
 **After running — add Wyoming integration in Home Assistant:**
@@ -94,38 +112,24 @@ Default wake word: **"ok nabu"**
 
 ---
 
-### Step 3 — Extra Audio Services (optional)
+### Step 3 — Optional Modules
+
+Each module is a standalone script in `modules/` and can be run individually:
 
 ```bash
-~/mark2-setup/mark2-extras-setup.sh
+bash modules/<module>.sh
 ```
 
-Each module is prompted individually:
-
-| Module | What it does |
-|--------|-------------|
-| **Snapcast client** | Synchronized multiroom audio endpoint. Requires a Snapcast server on your network. Mark II appears as media player in HA Snapcast integration. |
-| **AirPlay receiver** | Shairport-sync. Mark II appears as AirPlay speaker. Works on Trixie with minor caveats (AirPlay 1 only). |
-| **Screensaver** | Fullscreen clock + weather from HA. Activates after 2 min idle, touch to dismiss. Requires HA long-lived access token. |
-
----
-
-### Step 4 — Advanced Features (optional)
-
-```bash
-~/mark2-setup/mark2-advanced-setup.sh
-```
-
-Each module is prompted individually:
-
-| Module | What it does |
-|--------|-------------|
-| **LED ring control** | SJ201 LED ring shows Wyoming status. Idle=off, wake word=pulse blue, listening=solid blue, thinking=spin cyan, speaking=green, error=red. |
-| **Kernel watchdog** | Auto-rebuilds VocalFusion driver after kernel updates. Weekly safe apt upgrade cron job. |
-| **KDE Connect** | Pair Android phone with Mark II. Share notifications, control media, sync clipboard. |
-| **MPD** | Local music player. Integrates with HA, Music Assistant, and Snapcast. HTTP stream on port 8000. |
-| **USB audio fallback** | Auto-switches to USB DAC/speaker if SJ201 fails at boot. Includes `mark2-audio-switch` command. |
-| **Volume overlay** | Transparent on-screen overlay showing volume level and Wyoming status. Auto-hides after 3 seconds. |
+| Module | Script | What it does |
+|--------|--------|-------------|
+| **Snapcast client** | `modules/snapcast.sh` | Synchronized multiroom audio. Mark II appears as media player in HA Snapcast integration. |
+| **AirPlay receiver** | `modules/airplay.sh` | Shairport-sync. Mark II appears as AirPlay speaker (AirPlay 1). |
+| **Screensaver** | `modules/screensaver.sh` | Fullscreen clock + weather from HA. Activates after 2 min idle, touch to dismiss. |
+| **LED ring control** | `modules/leds.sh` | SJ201 LED ring shows Wyoming status. Idle=off, wake=pulse blue, listen=solid blue, think=spin cyan, speak=green, error=red. |
+| **MPD** | `modules/mpd.sh` | Local music player. Integrates with HA, Music Assistant, and Snapcast. HTTP stream on port 8000. |
+| **KDE Connect** | `modules/kdeconnect.sh` | Pair Android phone with Mark II. Share notifications, control media, sync clipboard. |
+| **USB audio fallback** | `modules/usb-audio.sh` | Auto-switches to USB DAC/speaker if SJ201 fails at boot. Includes `mark2-audio-switch` command. |
+| **Volume overlay** | `modules/overlay.sh` | Transparent on-screen overlay showing volume and Wyoming status. Auto-hides after 3 seconds. |
 
 ---
 
@@ -147,8 +151,8 @@ Settings > Add-ons > Music Assistant
 ```
 
 Mark II will appear as a player target via:
-- **MPD** at `<mark2-ip>:6600` (if installed in step 4)
-- **Snapcast** client (if installed in step 3)
+- **MPD** at `<mark2-ip>:6600` (if installed)
+- **Snapcast** client (if installed)
 - **Wyoming** media player (HA native)
 
 Docs: https://music-assistant.io/integration/ha/
@@ -205,14 +209,12 @@ aplay -l
 
 **Touchscreen shows blank/black:**
 ```bash
-# Check Chromium kiosk service
 systemctl --user status ha-kiosk
 journalctl --user -u ha-kiosk -f
 ```
 
 **Kernel update broke audio:**
 ```bash
-# Run manually
 sudo ~/.config/mark2/rebuild-vocalfusion.sh
 sudo reboot
 ```
@@ -220,13 +222,40 @@ sudo reboot
 **AirPlay not visible:**
 ```bash
 systemctl --user status shairport-sync
-# Check avahi is running
 sudo systemctl status avahi-daemon
 ```
 
 ---
 
-## Script Sources
+## Repository Structure
+
+```
+install.sh                  # Guided installer (runs all steps in order)
+mark2-hardware-setup.sh     # Hardware drivers + kernel watchdog
+mark2-satellite-setup.sh    # Wyoming satellite + Wayland kiosk
+modules/                    # Optional feature modules (each standalone)
+    snapcast.sh
+    airplay.sh
+    screensaver.sh
+    leds.sh
+    mpd.sh
+    kdeconnect.sh
+    usb-audio.sh
+    overlay.sh
+lib/
+    common.sh               # Shared functions sourced by all scripts
+assets/                     # Vendored firmware and scripts
+    xvf3510-flash
+    app_xvf3510_int_spi_boot_v4_2_0.bin
+    init_tas5806.py
+templates/                  # HTML templates for kiosk UI
+    screensaver.html
+    overlay.html
+```
+
+---
+
+## Sources
 
 - Hardware drivers: Converted from [OpenVoiceOS ovos-installer](https://github.com/OpenVoiceOS/ovos-installer) Ansible roles
 - Wyoming Satellite: [rhasspy/wyoming-satellite](https://github.com/rhasspy/wyoming-satellite)
@@ -240,7 +269,6 @@ sudo systemctl status avahi-daemon
 ## Notes
 
 - All scripts are **idempotent** — safe to run multiple times
-- Scripts tested against Raspberry Pi OS Trixie (Debian 13, October 2025+)
+- Tested against Raspberry Pi OS Lite Trixie (Debian 13, October 2025+)
 - Bookworm (Debian 12) is also supported with minor differences
-- These scripts are **not** affiliated with Mycroft AI, OpenVoiceOS, or Anthropic
-- Always verify scripts before running on production hardware
+- Not affiliated with Mycroft AI, OpenVoiceOS, or Anthropic
