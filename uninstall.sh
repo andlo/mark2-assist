@@ -58,6 +58,7 @@ USER_SERVICES=(
     mark2-leds
     mark2-led-events
     mark2-face-bridge
+    mark2-face-events
     mark2-volume-monitor
     mark2-mqtt-bridge
     mark2-mpd-watcher

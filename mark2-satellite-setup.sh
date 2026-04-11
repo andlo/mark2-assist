@@ -65,8 +65,8 @@ SYSTEMD_USER_DIR="${USER_HOME}/.config/systemd/user"
 # Home Assistant URL - will prompt if empty
 HA_URL="${HA_URL:-}"
 
-# Wyoming satellite name (shown in HA)
-SATELLITE_NAME="${SATELLITE_NAME:-Mark II}"
+# Wyoming satellite name (shown in HA) - defaults to hostname
+SATELLITE_NAME="${SATELLITE_NAME:-$(hostname)}"
 
 # Wake word - options: ok_nabu, hey_mycroft, alexa, hey_jarvis
 WAKE_WORD="${WAKE_WORD:-ok_nabu}"
@@ -217,7 +217,88 @@ EOF
     log "Created wyoming-satellite.service"
 }
 
-enable_satellite_services() {
+install_face_event_bridge() {
+    section "Installing face event bridge"
+
+    # Writes Wyoming satellite state to /tmp/mark2-face-event.json
+    # so the HUD face animation always works regardless of LED module
+    BRIDGE_SCRIPT="${MARK2_DIR}/face-event-bridge.py"
+    mkdir -p "$MARK2_DIR"
+
+    cat > "$BRIDGE_SCRIPT" << 'PYEOF'
+#!/usr/bin/env python3
+"""
+Wyoming satellite event bridge.
+Monitors wyoming-satellite journal and writes face state to
+/tmp/mark2-face-event.json for the HUD to read.
+"""
+import subprocess
+import json
+import os
+import re
+import time
+
+OUT = "/tmp/mark2-face-event.json"
+
+STATE_MAP = {
+    "detecting":  "idle",
+    "detected":   "wake",
+    "recording":  "listen",
+    "processing": "think",
+    "synthesizing": "think",
+    "playing":    "speak",
+    "done":       "idle",
+    "error":      "error",
+    "muted":      "idle",
+    "StreamingStarted": "listen",
+    "StreamingStopped": "idle",
+    "RunSatellite": "idle",
+}
+
+def write_state(state):
+    tmp = OUT + ".tmp"
+    with open(tmp, "w") as f:
+        json.dump({"state": state, "ts": time.time()}, f)
+    os.replace(tmp, OUT)
+
+def main():
+    write_state("idle")
+    cmd = ["journalctl", "--user", "-u", "wyoming-satellite",
+           "-f", "-n", "0", "--output=cat"]
+    proc = subprocess.Popen(cmd, stdout=subprocess.PIPE,
+                             stderr=subprocess.DEVNULL, text=True)
+    for line in proc.stdout:
+        line = line.strip()
+        for key, state in STATE_MAP.items():
+            if key.lower() in line.lower():
+                write_state(state)
+                break
+
+if __name__ == "__main__":
+    main()
+PYEOF
+    chmod +x "$BRIDGE_SCRIPT"
+
+    cat > "${SYSTEMD_USER_DIR}/mark2-face-events.service" << EOF
+[Unit]
+Description=Mark II face event bridge (Wyoming → HUD)
+After=wyoming-satellite.service
+Wants=wyoming-satellite.service
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 ${BRIDGE_SCRIPT}
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=default.target
+EOF
+
+    systemctl --user daemon-reload
+    systemctl --user enable mark2-face-events.service
+    log "Face event bridge installed"
+}
     section "Enabling Wyoming services"
     systemctl --user daemon-reload
     systemctl --user enable wyoming-openwakeword.service
@@ -504,8 +585,9 @@ echo ""
 echo "========================================"
 echo "  Mark II Wyoming Satellite + Kiosk"
 echo "  User:          ${CURRENT_USER}"
+echo "  Hostname:      $(hostname)"
+echo "  Satellite name:$(hostname) (shown in HA)"
 echo "  Wake word:     ${WAKE_WORD}"
-echo "  Satellite:     ${SATELLITE_NAME}"
 echo "========================================"
 echo ""
 
@@ -517,6 +599,7 @@ install_wyoming_openwakeword
 create_openwakeword_service
 create_satellite_service
 enable_satellite_services
+install_face_event_bridge
 install_kiosk_packages
 configure_autologin
 configure_screen_no_blank
