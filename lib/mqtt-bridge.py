@@ -73,8 +73,8 @@ def discovery_payload(sensor_id, name, icon, unit=None, device_class=None,
     base = f"mark2/{dev_id}"
 
     payload = {
-        "name":           name,
-        "unique_id":      f"mark2_{dev_id}_{sensor_id}",
+        "name":           f"{dev_name} {name}",
+        "unique_id":      f"{dev_id}_{sensor_id}",
         "state_topic":    f"{base}/state",
         "value_template": value_template or f"{{{{ value_json.{sensor_id} }}}}",
         "icon":           icon,
@@ -265,7 +265,7 @@ class Mark2Bridge:
         for args in SENSORS:
             sid = args[0]
             payload = discovery_payload(*args)
-            topic = f"homeassistant/sensor/mark2_{self.dev_id}_{sid}/config"
+            topic = f"homeassistant/sensor/{self.dev_id}_{sid}/config"
             self.client.publish(topic, json.dumps(payload), retain=True)
             print(f"[MQTT] Discovery: {sid}")
 
