@@ -343,15 +343,28 @@ EOF
 
     # Start labwc automatically when logging in on tty1
     BASH_PROFILE="${USER_HOME}/.bash_profile"
+    # Startup wrapper called by labwc -s
+    STARTUP_SCRIPT="${USER_HOME}/startup.sh"
+    cat > "$STARTUP_SCRIPT" << 'EOF'
+#!/bin/bash
+exec >> /tmp/mark2-startup.log 2>&1
+echo "[$(date)] startup.sh called by labwc"
+/home/pi/kiosk.sh &
+sleep 3
+/home/pi/hud.sh &
+EOF
+    chmod +x "$STARTUP_SCRIPT"
+    log "Created startup.sh"
+
     if ! grep -q "labwc" "$BASH_PROFILE" 2>/dev/null; then
         cat >> "$BASH_PROFILE" << 'EOF'
 
-# Start labwc Wayland compositor on tty1 (kiosk mode)
+# Start labwc on tty1
 if [ -z "${WAYLAND_DISPLAY:-}" ] && [ "$(tty)" = "/dev/tty1" ]; then
     export XDG_RUNTIME_DIR=/run/user/$(id -u)
     export XDG_SESSION_TYPE=wayland
     export WAYLAND_DISPLAY=wayland-0
-    labwc
+    labwc -s /home/pi/startup.sh
 fi
 EOF
         log "labwc autostart added to ~/.bash_profile"
