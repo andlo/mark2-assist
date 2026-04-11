@@ -267,9 +267,19 @@ fi
 
 if [ "$RESUME" = true ]; then
     print_progress
-    whiptail --title "Mark II Assist — Resuming" \
-        --yesno "Resuming installation after reboot.\n\nHardware drivers installed ✓\nReboot complete ✓\n\nReady to continue with:\n  · Wyoming Satellite + Kiosk\n  · Selected optional modules\n\nContinue?" \
-        18 60 || { echo "Cancelled."; exit 0; }
+    echo -e "${CYAN}  Resuming installation after reboot.${NC}"
+    echo ""
+    echo -e "  ${GREEN}✓${NC} Hardware drivers installed"
+    echo -e "  ${GREEN}✓${NC} Reboot complete"
+    echo ""
+    echo "  Ready to continue with:"
+    echo "  · Wyoming Satellite + Kiosk"
+    echo "  · Selected optional modules"
+    echo ""
+    _ans=""
+    read -rp "  Continue installation? [Y/n]: " _ans
+    [[ "${_ans,,}" == "n" ]] && { echo "Cancelled."; exit 0; }
+    echo ""
     remove_resume_hook
     config_load
     SELECTED_MODULES="${SELECTED_MODULES:-screensaver leds overlay face mqtt-sensors}"
