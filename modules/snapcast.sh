@@ -26,8 +26,9 @@ fi
 SNAPCAST_HOST="${SNAPCAST_HOST:-}"
 config_load
 if [ -z "$SNAPCAST_HOST" ]; then
-    read -rp "Snapcast server IP or hostname: " SNAPCAST_HOST
-    [ -z "$SNAPCAST_HOST" ] && die "Snapcast server host required"
+    SNAPCAST_HOST=$(ask_input "Snapcast server host/IP" "192.168.1.100") \
+        || die "Snapcast host required"
+    [ -z "$SNAPCAST_HOST" ] && die "Snapcast host required"
     config_save "SNAPCAST_HOST" "$SNAPCAST_HOST"
 else
     log "Using saved Snapcast host: ${SNAPCAST_HOST}"

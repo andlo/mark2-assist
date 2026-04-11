@@ -40,25 +40,23 @@ config_load
 # MQTT host
 MQTT_HOST="${MQTT_HOST:-}"
 if [ -z "$MQTT_HOST" ]; then
-    read -rp "MQTT broker host/IP (e.g. 192.168.1.100): " MQTT_HOST
+    MQTT_HOST=$(ask_input "MQTT broker host/IP" "192.168.1.100") \
+        || die "MQTT host required"
     [ -z "$MQTT_HOST" ] && die "MQTT host required"
     config_save "MQTT_HOST" "$MQTT_HOST"
 else
     log "Using saved MQTT host: ${MQTT_HOST}"
 fi
 
-# MQTT port
 MQTT_PORT="${MQTT_PORT:-1883}"
-read -rp "MQTT port [${MQTT_PORT}]: " _PORT
-[ -n "$_PORT" ] && MQTT_PORT="$_PORT"
+_PORT=$(ask_input "MQTT port" "$MQTT_PORT") && MQTT_PORT="${_PORT:-1883}"
 config_save "MQTT_PORT" "$MQTT_PORT"
 
-# MQTT credentials (optional)
 MQTT_USER="${MQTT_USER:-}"
 MQTT_PASS="${MQTT_PASS:-}"
 if ask_yes_no "Does your MQTT broker require authentication?"; then
-    read -rp "MQTT username: " MQTT_USER
-    read -rsp "MQTT password: " MQTT_PASS; echo
+    MQTT_USER=$(ask_input "MQTT username" "$MQTT_USER") || true
+    MQTT_PASS=$(ask_password "MQTT password") || true
     config_save "MQTT_USER" "$MQTT_USER"
     config_save "MQTT_PASS" "$MQTT_PASS"
 fi

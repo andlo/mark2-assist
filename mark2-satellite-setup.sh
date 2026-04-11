@@ -80,12 +80,12 @@ WYOMING_OWW_DIR="${USER_HOME}/wyoming-openwakeword"
 # =============================================================================
 
 prompt_ha_url() {
-    # Uses common.sh: loads saved URL from config or prompts and saves it
     setup_paths
     config_load
     if [ -z "${HA_URL:-}" ]; then
-        read -rp "Enter your Home Assistant URL (e.g. http://192.168.1.100:8123): " HA_URL
-        [ -z "$HA_URL" ] && die "Home Assistant URL is required for kiosk mode"
+        HA_URL=$(ask_input "Home Assistant URL" "http://192.168.1.100:8123") \
+            || die "Home Assistant URL is required"
+        [ -z "$HA_URL" ] && die "Home Assistant URL is required"
         config_save "HA_URL" "$HA_URL"
     else
         log "Using saved Home Assistant URL: ${HA_URL}"

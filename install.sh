@@ -77,12 +77,24 @@ remove_resume_hook() {
 # =============================================================================
 
 print_banner() {
-    echo ""
-    echo -e "${CYAN}╔══════════════════════════════════════════╗${NC}"
-    echo -e "${CYAN}║       Mark II Assist - Installer         ║${NC}"
-    echo -e "${CYAN}║  github.com/andlo/mark2-assist           ║${NC}"
-    echo -e "${CYAN}╚══════════════════════════════════════════╝${NC}"
-    echo ""
+    if command -v whiptail >/dev/null 2>&1 && [ -t 0 ]; then
+        whiptail --title "Mark II Assist" --msgbox \
+"Repurpose your Mycroft Mark II as:
+
+  · Wyoming voice satellite for Home Assistant
+  · Home Assistant kiosk display
+  · Multiroom audio endpoint
+  · MQTT sensor device
+
+github.com/andlo/mark2-assist" 16 60
+    else
+        echo ""
+        echo -e "${CYAN}╔══════════════════════════════════════════╗${NC}"
+        echo -e "${CYAN}║       Mark II Assist - Installer         ║${NC}"
+        echo -e "${CYAN}║  github.com/andlo/mark2-assist           ║${NC}"
+        echo -e "${CYAN}╚══════════════════════════════════════════╝${NC}"
+        echo ""
+    fi
 }
 
 # =============================================================================
@@ -174,7 +186,7 @@ fi
 
 print_progress
 
-if [ "$RESUME" = false ] && ! ask_yes_no "Ready to begin?"; then
+if [ "$RESUME" = false ] && ! ask_yes_no "Ready to begin installation?"; then
     echo "Cancelled."
     exit 0
 fi

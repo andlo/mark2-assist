@@ -31,9 +31,45 @@ _log_write() {
 }
 
 ask_yes_no() {
-    local answer
-    read -rp "${1} [y/N]: " answer
-    [[ "${answer,,}" == "y" ]]
+    local prompt="$1"
+    if command -v whiptail >/dev/null 2>&1 && [ -t 0 ]; then
+        whiptail --title "Mark II Assist" --yesno "$prompt" 8 60
+        return $?
+    else
+        local answer
+        read -rp "${prompt} [y/N]: " answer
+        [[ "${answer,,}" == "y" ]]
+    fi
+}
+
+ask_input() {
+    # ask_input "Prompt text" "default value"
+    local prompt="$1"
+    local default="${2:-}"
+    if command -v whiptail >/dev/null 2>&1 && [ -t 0 ]; then
+        local result
+        result=$(whiptail --title "Mark II Assist" \
+            --inputbox "$prompt" 10 65 "$default" \
+            3>&1 1>&2 2>&3) || return 1
+        echo "$result"
+    else
+        local answer
+        read -rp "${prompt} [${default}]: " answer
+        echo "${answer:-$default}"
+    fi
+}
+
+ask_password() {
+    local prompt="$1"
+    if command -v whiptail >/dev/null 2>&1 && [ -t 0 ]; then
+        whiptail --title "Mark II Assist" \
+            --passwordbox "$prompt" 10 65 \
+            3>&1 1>&2 2>&3
+    else
+        local answer
+        read -rsp "${prompt}: " answer; echo
+        echo "$answer"
+    fi
 }
 
 # --- Used by modules to skip their own prompt when called from install.sh ---
@@ -133,7 +169,8 @@ config_save() {
 prompt_ha_url() {
     config_load
     if [ -z "${HA_URL:-}" ]; then
-        read -rp "Home Assistant URL (e.g. http://192.168.1.100:8123): " HA_URL
+        HA_URL=$(ask_input "Home Assistant URL" "http://192.168.1.100:8123") \
+            || die "Home Assistant URL is required"
         [ -z "$HA_URL" ] && die "Home Assistant URL is required"
         config_save "HA_URL" "$HA_URL"
     else
@@ -146,7 +183,8 @@ prompt_ha_url() {
 prompt_ha_token() {
     config_load
     if [ -z "${HA_TOKEN:-}" ]; then
-        read -rp "HA Long-Lived Access Token: " HA_TOKEN
+        HA_TOKEN=$(ask_password "HA Long-Lived Access Token") \
+            || die "HA token is required"
         [ -z "$HA_TOKEN" ] && die "HA token is required"
         config_save "HA_TOKEN" "$HA_TOKEN"
     else
@@ -159,7 +197,8 @@ prompt_ha_token() {
 prompt_ha_weather() {
     config_load
     if [ -z "${HA_WEATHER_ENTITY:-}" ]; then
-        read -rp "HA weather entity [weather.home]: " HA_WEATHER_ENTITY
+        HA_WEATHER_ENTITY=$(ask_input "HA weather entity" "weather.home") \
+            || true
         HA_WEATHER_ENTITY="${HA_WEATHER_ENTITY:-weather.home}"
         config_save "HA_WEATHER_ENTITY" "$HA_WEATHER_ENTITY"
     else
