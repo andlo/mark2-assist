@@ -1,14 +1,19 @@
 # Mycroft Mark II Assist
 
-Complete setup suite for repurposing a Mycroft Mark II as a:
-- Wyoming Voice Satellite for Home Assistant
-- Home Assistant kiosk display (touchscreen)
-- Multiroom audio endpoint (Snapcast + AirPlay)
-- Full media player (MPD + Music Assistant)
+Repurpose your Mycroft Mark II as a smart Home Assistant satellite — with voice control, animated kiosk display, multiroom audio, and MQTT sensor integration.
 
-Built for **Raspberry Pi OS Lite Trixie (Debian 13)** — the current latest image.
-Converted from the OpenVoiceOS ovos-installer Ansible roles and extended with
-additional integrations.
+Built for **Raspberry Pi OS Lite Trixie (Debian 13)**.
+
+---
+
+## What it does
+
+- **Wyoming voice satellite** — wake word detection, speech-to-text, TTS response via Home Assistant Assist
+- **Animated kiosk display** — touchscreen shows HA dashboard with an animated face that reacts to voice events, music playback with cover art, and a content display API for showing images and text from HA
+- **Multiroom audio** — Snapcast client and/or AirPlay receiver
+- **Local music player** — MPD with Music Assistant and HTTP stream support
+- **MQTT sensors** — publishes Wyoming state, MPD state/track, CPU temp, and more to HA via auto-discovery
+- **LED ring** — SJ201 LED ring follows voice assistant state
 
 ---
 
@@ -16,8 +21,7 @@ additional integrations.
 
 The Mycroft Mark II contains:
 - Raspberry Pi CM4
-- SJ201 daughterboard with XMOS XVF-3510 audio frontend
-- 6-mic array + stereo speakers + LED ring
+- SJ201 daughterboard with XMOS XVF-3510 audio frontend (6-mic array, stereo speakers, LED ring)
 - 4.3" DSI touchscreen
 - GPIO buttons
 
@@ -43,46 +47,34 @@ The Mycroft Mark II contains:
 
 ## Installation
 
-Run the installer:
-
 ```bash
 ./install.sh
 ```
 
-The installer is fully guided and handles everything automatically:
+The installer is fully guided:
 
-1. **Collects configuration** — Home Assistant URL and token are entered once and reused by all modules
-2. **Hardware setup** — installs SJ201 drivers and reboots automatically
-3. **Resume after reboot** — SSH back in and the installer reminds you to continue:
-   ```
-   ╔══════════════════════════════════════════╗
-   ║   Mark II installation paused            ║
-   ║   Hardware setup complete ✓              ║
-   ║   Reboot done ✓                          ║
-   ║   Run to continue:                       ║
-   ║     ./mark2-assist/install.sh            ║
-   ╚══════════════════════════════════════════╝
-   ```
-   The installer automatically detects progress and resumes where it left off.
-4. **Wyoming satellite + kiosk** — installs voice satellite and Home Assistant kiosk display
-5. **Module selection** — a menu lets you choose optional modules (screensaver, LED ring, Snapcast, etc.)
-6. **Final reboot** — prompted when everything is done
+1. Asks for Home Assistant URL (saved and reused by all modules)
+2. Runs hardware setup and **reboots automatically**
+3. On next SSH login a reminder appears — run `./install.sh` to continue
+4. Installs Wyoming satellite + Wayland kiosk
+5. Shows a **module selection menu** (whiptail checklist) with sensible defaults pre-selected
+6. Prompts for reboot when done
+
+All configuration is saved to `~/.config/mark2/config` and reused — you only enter your HA URL, token, and MQTT credentials once.
+
+Progress is tracked in `~/.config/mark2/install-progress` so re-running the installer skips already-completed steps.
 
 ### Running individual modules later
 
-Each module can be run standalone at any time:
-
 ```bash
 bash modules/snapcast.sh
-bash modules/leds.sh
+bash modules/mqtt-sensors.sh
 # etc.
 ```
 
 ---
 
 ## Manual Installation
-
-If you prefer to run steps individually:
 
 ### Step 1 — Hardware Drivers (required)
 
@@ -91,28 +83,65 @@ If you prefer to run steps individually:
 sudo reboot
 ```
 
-Installs SJ201 audio drivers, VocalFusion kernel module, boot overlays, WirePlumber config, SPI/I2C configuration, and kernel watchdog (auto-rebuilds driver after kernel updates).
+Installs SJ201 audio drivers, VocalFusion kernel module, boot overlays, SPI/I2C, WirePlumber config, and a kernel watchdog that auto-rebuilds the driver after kernel updates.
 
-### Step 2 — Wyoming Satellite + Kiosk (required for voice + display)
+### Step 2 — Wyoming Satellite + Kiosk (required)
 
 ```bash
 ./mark2-satellite-setup.sh
 ```
 
-Installs Wyoming voice satellite, openWakeWord, Chromium kiosk, labwc Wayland compositor, PipeWire, and configures auto-login.
+Installs Wyoming satellite, openWakeWord, Chromium kiosk (served from `~/.config/mark2-kiosk/kiosk.html`), labwc Wayland compositor, PipeWire, and configures getty auto-login.
 
 ### Step 3 — Optional Modules
 
 | Module | Script | What it does |
 |--------|--------|-------------|
-| **Snapcast client** | `modules/snapcast.sh` | Synchronized multiroom audio. Mark II appears as media player in HA Snapcast integration. |
-| **AirPlay receiver** | `modules/airplay.sh` | Shairport-sync. Mark II appears as AirPlay speaker (AirPlay 1). |
-| **Screensaver** | `modules/screensaver.sh` | Fullscreen clock + weather from HA. Activates after 2 min idle, touch to dismiss. |
-| **LED ring control** | `modules/leds.sh` | SJ201 LED ring shows Wyoming status. Idle=off, wake=pulse blue, listen=solid blue, think=spin cyan, speak=green, error=red. |
-| **MPD** | `modules/mpd.sh` | Local music player. Integrates with HA, Music Assistant, and Snapcast. HTTP stream on port 8000. |
-| **KDE Connect** | `modules/kdeconnect.sh` | Pair Android phone with Mark II. Share notifications, control media, sync clipboard. |
-| **USB audio fallback** | `modules/usb-audio.sh` | Auto-switches to USB DAC/speaker if SJ201 fails at boot. Includes `mark2-audio-switch` command. |
-| **Volume overlay** | `modules/overlay.sh` | Transparent on-screen overlay showing volume and Wyoming status. Auto-hides after 3 seconds. |
+| **Snapcast** | `modules/snapcast.sh` | Synchronized multiroom audio endpoint |
+| **AirPlay** | `modules/airplay.sh` | Mark II as AirPlay speaker (AirPlay 1) |
+| **Screensaver** | `modules/screensaver.sh` | Fullscreen clock + weather from HA, activates after 2 min idle |
+| **LED ring** | `modules/leds.sh` | SJ201 LED ring follows Wyoming state |
+| **MPD** | `modules/mpd.sh` | Local music player, HTTP stream on port 8000 |
+| **KDE Connect** | `modules/kdeconnect.sh` | Android phone integration |
+| **USB audio fallback** | `modules/usb-audio.sh` | Auto-switch to USB DAC if SJ201 fails |
+| **Volume overlay** | `modules/overlay.sh` | On-screen volume indicator |
+| **Animated face** | `modules/face.sh` | Animated robot face reacting to voice events and music |
+| **MQTT sensors** | `modules/mqtt-sensors.sh` | Publish device status to HA via MQTT auto-discovery |
+
+---
+
+## Kiosk Display
+
+The touchscreen runs a single Chromium window (`kiosk.html`) with layered content:
+
+- **Home Assistant** — shown full screen when nothing else is happening
+- **Animated face** — zooms in from the bottom-right corner during voice interaction, shrinks back when idle
+- **Music mode** — cover art fills the screen when MPD plays, the face stays small in the corner and reacts to the music
+- **Voice over music** — if Wyoming activates during music playback, the face zooms to full screen over the dimmed cover art
+- **Volume bar** — pops up in the bottom center on volume change, auto-hides after 3 seconds
+- **Content panel** — a dedicated layer for displaying images and text pushed from a HA integration (see [HA Integration](HA_INTEGRATION.md))
+
+---
+
+## MQTT Sensors
+
+When the `mqtt-sensors` module is installed, these sensors appear automatically in HA:
+
+| Sensor | Entity ID example | Description |
+|--------|-------------------|-------------|
+| Wyoming state | `sensor.nabu_1_wyoming_state` | idle / listening / speaking / thinking |
+| MPD state | `sensor.nabu_1_mpd_state` | playing / paused / stopped |
+| MPD track | `sensor.nabu_1_mpd_track` | Current track title |
+| MPD artist | `sensor.nabu_1_mpd_artist` | Current artist |
+| MPD volume | `sensor.nabu_1_mpd_volume` | 0–100 |
+| CPU temperature | `sensor.nabu_1_cpu_temp` | °C |
+| CPU usage | `sensor.nabu_1_cpu_usage` | % |
+| Memory usage | `sensor.nabu_1_memory_usage` | % |
+| Disk usage | `sensor.nabu_1_disk_usage` | % |
+
+Entity IDs are based on the device hostname, so multiple Mark II devices each get unique sensors.
+
+Requires: MQTT broker (Mosquitto HA addon) with MQTT integration enabled in HA.
 
 ---
 
@@ -121,8 +150,7 @@ Installs Wyoming voice satellite, openWakeWord, Chromium kiosk, labwc Wayland co
 Add Wyoming integration in Home Assistant:
 ```
 Settings > Devices & Services > Add Integration > Wyoming Protocol
-Host: <Mark II IP address>
-Port: 10700
+Host: <Mark II IP>   Port: 10700
 ```
 
 Default wake word: **"ok nabu"**
@@ -131,43 +159,40 @@ Default wake word: **"ok nabu"**
 
 ## Music Assistant
 
-Music Assistant runs as a **Home Assistant addon** (not on Mark II).
-
+Runs as a HA addon (not on Mark II itself):
 ```
 Settings > Add-ons > Music Assistant
 ```
 
-Mark II will appear as a player target via MPD (port 6600), Snapcast, or Wyoming media player.
-
-Docs: https://music-assistant.io/integration/ha/
+Mark II appears as a player target via MPD (port 6600), Snapcast, or Wyoming media player.
 
 ---
 
 ## Useful Commands
 
 ```bash
-# Check all Mark II services
+# Service status
 systemctl --user status wyoming-satellite wyoming-openwakeword sj201
 
-# View Wyoming logs
+# Logs
 journalctl --user -u wyoming-satellite -f
-
-# View install log
 cat ~/.config/mark2/install.log
 
-# Test LED ring (if LED module installed)
+# LED ring test
 echo "listen" | socat - UNIX-CONNECT:/tmp/mark2-leds.sock
+echo "speak"  | socat - UNIX-CONNECT:/tmp/mark2-leds.sock
+echo "idle"   | socat - UNIX-CONNECT:/tmp/mark2-leds.sock
 
-# Switch audio output manually (if USB fallback installed)
+# Audio
 mark2-audio-switch list
-
-# Show overlay (if volume overlay installed)
 mark2-overlay volume 75
-
-# MPD control (if MPD installed)
 mpc status
 
-# Manual VocalFusion rebuild (after kernel update)
+# Show content on kiosk screen
+echo '{"action":"show","title":"Hello","text":"World","duration":10}' \
+  > /tmp/mark2-content.json
+
+# Kernel driver rebuild
 sudo ~/.config/mark2/rebuild-vocalfusion.sh
 ```
 
@@ -180,14 +205,17 @@ sudo ~/.config/mark2/rebuild-vocalfusion.sh
 systemctl --user status sj201.service
 journalctl --user -u sj201 --no-pager
 aplay -l
+ls /dev/spidev*   # should show /dev/spidev0.0
 ```
 
 **Wyoming not discovered in HA:**
-- Check Mark II IP: `hostname -I`
-- Verify service is running: `systemctl --user status wyoming-satellite`
-- Check HA firewall allows port 10700
+```bash
+hostname -I
+systemctl --user status wyoming-satellite
+# Check HA firewall allows port 10700
+```
 
-**Touchscreen shows blank/black:**
+**Touchscreen blank:**
 ```bash
 systemctl --user status ha-kiosk
 journalctl --user -u ha-kiosk -f
@@ -195,8 +223,7 @@ journalctl --user -u ha-kiosk -f
 
 **Kernel update broke audio:**
 ```bash
-sudo ~/.config/mark2/rebuild-vocalfusion.sh
-sudo reboot
+sudo ~/.config/mark2/rebuild-vocalfusion.sh && sudo reboot
 ```
 
 **AirPlay not visible:**
@@ -205,7 +232,7 @@ systemctl --user status shairport-sync
 sudo systemctl status avahi-daemon
 ```
 
-**Something failed during install:**
+**Install failed:**
 ```bash
 cat ~/.config/mark2/install.log
 ```
@@ -215,34 +242,42 @@ cat ~/.config/mark2/install.log
 ## Repository Structure
 
 ```
-install.sh                  # Guided installer (auto-detects progress, resumes after reboot)
-mark2-hardware-setup.sh     # Hardware drivers + SPI/I2C + kernel watchdog
-mark2-satellite-setup.sh    # Wyoming satellite + Wayland kiosk
-modules/                    # Optional feature modules (each standalone)
-    snapcast.sh
-    airplay.sh
-    screensaver.sh
-    leds.sh
-    mpd.sh
-    kdeconnect.sh
-    usb-audio.sh
-    overlay.sh
+install.sh                    # Guided installer (auto-resume, progress tracking)
+mark2-hardware-setup.sh       # SJ201 drivers, SPI/I2C, kernel watchdog
+mark2-satellite-setup.sh      # Wyoming satellite, Wayland kiosk, PipeWire
+modules/
+    snapcast.sh               # Snapcast multiroom audio client
+    airplay.sh                # AirPlay receiver (shairport-sync)
+    screensaver.sh            # Clock + weather screensaver
+    leds.sh                   # SJ201 LED ring control
+    mpd.sh                    # MPD music player
+    kdeconnect.sh             # KDE Connect phone integration
+    usb-audio.sh              # USB audio fallback
+    overlay.sh                # Volume overlay
+    face.sh                   # Animated face display
+    mqtt-sensors.sh           # MQTT sensor bridge
 lib/
-    common.sh               # Shared functions, config persistence, progress tracking
-assets/                     # Vendored firmware and scripts
-    xvf3510-flash
-    app_xvf3510_int_spi_boot_v4_2_0.bin
-    init_tas5806.py
-templates/                  # HTML templates for kiosk UI
-    screensaver.html
-    overlay.html
+    common.sh                 # Shared functions, config, progress tracking
+    mpd-watcher.py            # Polls MPD, writes cover art + track info
+    mqtt-bridge.py            # MQTT auto-discovery sensor publisher
+assets/
+    xvf3510-flash             # SPI flash tool (vendored)
+    app_xvf3510_int_spi_boot_v4_2_0.bin  # XVF3510 firmware (vendored)
+    init_tas5806.py           # TAS5806 amplifier init (vendored)
+templates/
+    kiosk.html                # Main kiosk page (HA iframe + HUD + face)
+    screensaver.html          # Clock + weather screensaver
+    overlay.html              # Volume overlay (standalone)
+    face.html                 # Animated face (standalone)
+docs/
+    HA_INTEGRATION.md         # Spec for companion HA integration
 ```
 
 ---
 
 ## Sources
 
-- Hardware drivers: Converted from [OpenVoiceOS ovos-installer](https://github.com/OpenVoiceOS/ovos-installer) Ansible roles
+- Hardware drivers: [OpenVoiceOS ovos-installer](https://github.com/OpenVoiceOS/ovos-installer) Ansible roles
 - Wyoming Satellite: [rhasspy/wyoming-satellite](https://github.com/rhasspy/wyoming-satellite)
 - openWakeWord: [rhasspy/wyoming-openwakeword](https://github.com/rhasspy/wyoming-openwakeword)
 - VocalFusion driver: [OpenVoiceOS/VocalFusionDriver](https://github.com/OpenVoiceOS/VocalFusionDriver)
@@ -253,7 +288,7 @@ templates/                  # HTML templates for kiosk UI
 
 ## Notes
 
-- All scripts are **idempotent** — safe to run multiple times
+- All scripts are idempotent — safe to run multiple times
 - Tested against Raspberry Pi OS Lite Trixie (Debian 13, October 2025+)
-- Bookworm (Debian 12) is also supported with minor differences
+- Bookworm (Debian 12) supported with minor differences
 - Not affiliated with Mycroft AI, OpenVoiceOS, or Anthropic
