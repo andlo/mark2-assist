@@ -26,15 +26,14 @@ The Mycroft Mark II contains:
 ## Prerequisites
 
 1. Flash **Raspberry Pi OS Lite Trixie (64-bit)** to a USB 3.0 stick
-   - Use Raspberry Pi Imager
-   - Select: Raspberry Pi OS Lite (64-bit)
+   - Use Raspberry Pi Imager — select Raspberry Pi OS Lite (64-bit)
+   - Enable SSH and set username/password in Advanced Options
    - Plug USB into the **top-left blue USB 3.0 port** on Mark II
-2. Enable SSH during flashing (Raspberry Pi Imager > Advanced Options)
-3. Boot Mark II and SSH in:
+2. Boot Mark II and SSH in:
    ```bash
    ssh pi@<mark2-ip-address>
    ```
-4. Clone this repo to the Mark II:
+3. Clone this repo:
    ```bash
    git clone https://github.com/andlo/mark2-assist.git
    cd mark2-assist
@@ -42,24 +41,48 @@ The Mycroft Mark II contains:
 
 ---
 
-## Quick Install
+## Installation
 
-Run the installer for a guided setup:
+Run the installer:
 
 ```bash
 ./install.sh
 ```
 
-The installer walks through all steps in order and prompts for each optional module.
+The installer is fully guided and handles everything automatically:
 
-To skip hardware setup (already done + rebooted):
+1. **Collects configuration** — Home Assistant URL and token are entered once and reused by all modules
+2. **Hardware setup** — installs SJ201 drivers and reboots automatically
+3. **Resume after reboot** — SSH back in and the installer reminds you to continue:
+   ```
+   ╔══════════════════════════════════════════╗
+   ║   Mark II installation paused            ║
+   ║   Hardware setup complete ✓              ║
+   ║   Reboot done ✓                          ║
+   ║   Run to continue:                       ║
+   ║     ./mark2-assist/install.sh            ║
+   ╚══════════════════════════════════════════╝
+   ```
+   The installer automatically detects progress and resumes where it left off.
+4. **Wyoming satellite + kiosk** — installs voice satellite and Home Assistant kiosk display
+5. **Module selection** — a menu lets you choose optional modules (screensaver, LED ring, Snapcast, etc.)
+6. **Final reboot** — prompted when everything is done
+
+### Running individual modules later
+
+Each module can be run standalone at any time:
+
 ```bash
-./install.sh --skip-hardware
+bash modules/snapcast.sh
+bash modules/leds.sh
+# etc.
 ```
 
 ---
 
 ## Manual Installation
+
+If you prefer to run steps individually:
 
 ### Step 1 — Hardware Drivers (required)
 
@@ -68,20 +91,7 @@ To skip hardware setup (already done + rebooted):
 sudo reboot
 ```
 
-**What it does:**
-- Installs kernel headers and build tools
-- Clones and builds VocalFusion sound card driver (SJ201/XMOS XVF-3510)
-- Copies DTBO overlays to `/boot/firmware/overlays`
-- Configures `config.txt` (uart, sj201, buttons, touchscreen)
-- Creates Python venv for SJ201 firmware flash
-- Installs SJ201 firmware and init scripts from `assets/`
-- Creates and enables `sj201.service`
-- Configures WirePlumber audio profile
-- Installs kernel watchdog (auto-rebuilds VocalFusion after kernel updates)
-
-**Reboot is required** before continuing.
-
----
+Installs SJ201 audio drivers, VocalFusion kernel module, boot overlays, WirePlumber config, SPI/I2C configuration, and kernel watchdog (auto-rebuilds driver after kernel updates).
 
 ### Step 2 — Wyoming Satellite + Kiosk (required for voice + display)
 
@@ -89,36 +99,9 @@ sudo reboot
 ./mark2-satellite-setup.sh
 ```
 
-**Prompts for:**
-- Home Assistant URL (e.g. `http://192.168.1.100:8123`)
-
-**What it does:**
-- Installs Wyoming Satellite + openWakeWord
-- Auto-detects SJ201 audio device
-- Creates `wyoming-satellite.service` + `wyoming-openwakeword.service`
-- Installs minimal Wayland kiosk stack (labwc, seatd, Chromium)
-- Opens Home Assistant in fullscreen kiosk mode
-- Configures PipeWire for audio playback
-- Enables auto-login to graphical session
-
-**After running — add Wyoming integration in Home Assistant:**
-```
-Settings > Devices & Services > Add Integration > Wyoming Protocol
-Host: <Mark II IP address>
-Port: 10700
-```
-
-Default wake word: **"ok nabu"**
-
----
+Installs Wyoming voice satellite, openWakeWord, Chromium kiosk, labwc Wayland compositor, PipeWire, and configures auto-login.
 
 ### Step 3 — Optional Modules
-
-Each module is a standalone script in `modules/` and can be run individually:
-
-```bash
-bash modules/<module>.sh
-```
 
 | Module | Script | What it does |
 |--------|--------|-------------|
@@ -133,11 +116,16 @@ bash modules/<module>.sh
 
 ---
 
-### Final reboot
+## After Installation
 
-```bash
-sudo reboot
+Add Wyoming integration in Home Assistant:
 ```
+Settings > Devices & Services > Add Integration > Wyoming Protocol
+Host: <Mark II IP address>
+Port: 10700
+```
+
+Default wake word: **"ok nabu"**
 
 ---
 
@@ -145,51 +133,13 @@ sudo reboot
 
 Music Assistant runs as a **Home Assistant addon** (not on Mark II).
 
-Install in HA:
 ```
 Settings > Add-ons > Music Assistant
 ```
 
-Mark II will appear as a player target via:
-- **MPD** at `<mark2-ip>:6600` (if installed)
-- **Snapcast** client (if installed)
-- **Wyoming** media player (HA native)
+Mark II will appear as a player target via MPD (port 6600), Snapcast, or Wyoming media player.
 
 Docs: https://music-assistant.io/integration/ha/
----
-
-## Fan Control
-
-The Mark II has a PWM-controlled fan on the SJ201 board.
-**Fan control is fully automatic — no extra configuration needed.**
-
-The `sj201-rev10-pwm-fan-overlay.dtbo` file (installed by `mark2-hardware-setup.sh`)
-configures the Linux kernel's thermal management to control the fan via hardware PWM on GPIO 13.
-
-| CPU Temperature | Fan state |
-|----------------|-----------|
-| Below 40°C | Off |
-| 40°C | Low speed |
-| 50°C | Medium speed |
-| 55°C | High speed |
-| 60°C+ | Full speed |
-
-Temperature thresholds can be tuned via kernel command line parameters
-(see `sj201-rev10-pwm-fan-overlay.dts` in the VocalFusion repo for parameter names).
-
-**Note:** The PWM fan overlay is only present on Mark II Rev10 (production units).
-Early Dev Kit units (Rev6) do not have a fan and the overlay will simply have no effect.
-
-To verify the fan is working:
-```bash
-# Check thermal zones
-cat /sys/class/thermal/thermal_zone0/temp
-
-# Check fan cooling state (0=off, 4=full)
-cat /sys/class/thermal/cooling_device*/cur_state 2>/dev/null || echo "Fan device not found"
-```
-
-
 
 ---
 
@@ -202,24 +152,20 @@ systemctl --user status wyoming-satellite wyoming-openwakeword sj201
 # View Wyoming logs
 journalctl --user -u wyoming-satellite -f
 
+# View install log
+cat ~/.config/mark2/install.log
+
 # Test LED ring (if LED module installed)
 echo "listen" | socat - UNIX-CONNECT:/tmp/mark2-leds.sock
-echo "speak"  | socat - UNIX-CONNECT:/tmp/mark2-leds.sock
-echo "idle"   | socat - UNIX-CONNECT:/tmp/mark2-leds.sock
 
 # Switch audio output manually (if USB fallback installed)
 mark2-audio-switch list
-mark2-audio-switch sj201
-mark2-audio-switch usb
 
 # Show overlay (if volume overlay installed)
 mark2-overlay volume 75
-mark2-overlay status "Hello!"
 
 # MPD control (if MPD installed)
 mpc status
-mpc volume 80
-mpc play
 
 # Manual VocalFusion rebuild (after kernel update)
 sudo ~/.config/mark2/rebuild-vocalfusion.sh
@@ -259,13 +205,18 @@ systemctl --user status shairport-sync
 sudo systemctl status avahi-daemon
 ```
 
+**Something failed during install:**
+```bash
+cat ~/.config/mark2/install.log
+```
+
 ---
 
 ## Repository Structure
 
 ```
-install.sh                  # Guided installer (runs all steps in order)
-mark2-hardware-setup.sh     # Hardware drivers + kernel watchdog
+install.sh                  # Guided installer (auto-detects progress, resumes after reboot)
+mark2-hardware-setup.sh     # Hardware drivers + SPI/I2C + kernel watchdog
 mark2-satellite-setup.sh    # Wyoming satellite + Wayland kiosk
 modules/                    # Optional feature modules (each standalone)
     snapcast.sh
@@ -277,7 +228,7 @@ modules/                    # Optional feature modules (each standalone)
     usb-audio.sh
     overlay.sh
 lib/
-    common.sh               # Shared functions sourced by all scripts
+    common.sh               # Shared functions, config persistence, progress tracking
 assets/                     # Vendored firmware and scripts
     xvf3510-flash
     app_xvf3510_int_spi_boot_v4_2_0.bin

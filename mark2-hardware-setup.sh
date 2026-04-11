@@ -124,16 +124,12 @@ create_directories() {
 }
 
 install_kernel_headers() {
-    log "Updating apt and installing kernel headers..."
+    log "Installing kernel headers and build tools..."
     sudo chmod 1777 /tmp
-    sudo apt-get update -qq
-    sudo apt-get install -y --no-install-recommends \
-        "${KERNEL_HEADERS_PKG}" \
-        build-essential \
-        git \
-        python3-venv \
-        python3-pip \
-        python3-dev
+    apt_update
+    apt_install \
+        "${KERNEL_HEADERS_PKG}" build-essential git \
+        python3-venv python3-pip python3-dev
 }
 
 update_eeprom() {
@@ -152,15 +148,16 @@ update_eeprom() {
 }
 
 build_vocalfusion_driver() {
-    log "Cloning VocalFusion driver repository..."
+    info "Cloning VocalFusion driver..."
     sudo git clone --quiet https://github.com/OpenVoiceOS/VocalFusionDriver "$VOCALFUSION_SRC" 2>/dev/null \
         || (cd "$VOCALFUSION_SRC" && sudo git pull --quiet)
 
-    log "Building vocalfusion-soundcard.ko kernel module..."
+    info "Building vocalfusion-soundcard.ko kernel module..."
     CPU_COUNT=$(nproc)
     (cd "$VOCALFUSION_DRIVER_DIR" && sudo make -j"$CPU_COUNT" \
-        KDIR="/lib/modules/${KERNEL_VERSION}/build" all) \
-        || die "Kernel module build failed. Are kernel headers correctly installed?"
+        KDIR="/lib/modules/${KERNEL_VERSION}/build" all \
+        >> "${MARK2_LOG}" 2>&1) \
+        || die "Kernel module build failed — check ${MARK2_LOG}"
 
     log "Copying kernel module..."
     sudo cp "${VOCALFUSION_DRIVER_DIR}/${VOCALFUSION_MODULE}.ko" "$MODULE_PATH"
@@ -252,10 +249,8 @@ setup_sj201_venv() {
 
     if python3 -c "import sys; exit(0 if sys.version_info >= (3,13) else 1)" 2>/dev/null; then
         warn "Python 3.13+ detected (Trixie) - using --system-site-packages for GPIO compatibility"
-        sudo apt-get install -y --no-install-recommends \
-            python3-rpi-lgpio \
-            python3-smbus2 \
-            python3-libgpiod 2>/dev/null || warn "Some system GPIO packages not available - continuing"
+        apt_install python3-rpi-lgpio python3-smbus2 python3-libgpiod 2>/dev/null || \
+            warn "Some system GPIO packages not available - continuing"
         python3 -m venv --system-site-packages "$SJ201_VENV"
     else
         python3 -m venv "$SJ201_VENV"

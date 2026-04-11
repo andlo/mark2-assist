@@ -120,68 +120,37 @@ detect_sj201_audio() {
 
 install_dependencies() {
     section "Installing dependencies"
-    sudo apt-get update -qq
-    sudo apt-get install -y --no-install-recommends \
-        git \
-        python3 \
-        python3-venv \
-        python3-pip \
-        python3-dev \
-        alsa-utils \
-        curl \
-        wget \
-        unzip
+    apt_update
+    apt_install \
+        git python3 python3-venv python3-pip python3-dev \
+        alsa-utils curl wget unzip
 }
 
 install_wyoming_satellite() {
     section "Installing Wyoming Satellite"
-
-    if [ -d "$WYOMING_SAT_DIR" ]; then
-        log "Wyoming Satellite already cloned - pulling latest..."
-        (cd "$WYOMING_SAT_DIR" && git pull --quiet)
-    else
-        git clone --quiet https://github.com/rhasspy/wyoming-satellite.git "$WYOMING_SAT_DIR"
-        log "Cloned wyoming-satellite"
-    fi
-
-    # Stop any running instance before touching the venv
+    git_clone_or_pull "https://github.com/rhasspy/wyoming-satellite.git" "$WYOMING_SAT_DIR"
     systemctl --user stop wyoming-satellite.service 2>/dev/null || true
-
-    # Remove broken venv if it exists
     if [ -d "${WYOMING_SAT_DIR}/.venv" ]; then
-        log "Removing existing venv to ensure clean setup..."
+        info "Removing existing venv..."
         rm -rf "${WYOMING_SAT_DIR}/.venv"
     fi
-
-    log "Running Wyoming Satellite setup..."
+    info "Running Wyoming Satellite setup (may take a while)..."
     cd "$WYOMING_SAT_DIR"
-    python3 script/setup
+    python3 script/setup >> "${MARK2_LOG}" 2>&1 || die "Wyoming Satellite setup failed — check ${MARK2_LOG}"
     log "Wyoming Satellite installed"
 }
 
 install_wyoming_openwakeword() {
     section "Installing Wyoming openWakeWord"
-
-    if [ -d "$WYOMING_OWW_DIR" ]; then
-        log "Wyoming openWakeWord already cloned - pulling latest..."
-        (cd "$WYOMING_OWW_DIR" && git pull --quiet)
-    else
-        git clone --quiet https://github.com/rhasspy/wyoming-openwakeword.git "$WYOMING_OWW_DIR"
-        log "Cloned wyoming-openwakeword"
-    fi
-
-    # Stop any running instance before touching the venv
+    git_clone_or_pull "https://github.com/rhasspy/wyoming-openwakeword.git" "$WYOMING_OWW_DIR"
     systemctl --user stop wyoming-openwakeword.service 2>/dev/null || true
-
-    # Remove broken venv if it exists (avoids "Text file busy" error)
     if [ -d "${WYOMING_OWW_DIR}/.venv" ]; then
-        log "Removing existing venv to ensure clean setup..."
+        info "Removing existing venv..."
         rm -rf "${WYOMING_OWW_DIR}/.venv"
     fi
-
-    log "Running openWakeWord setup (downloads models - may take a while)..."
+    info "Running openWakeWord setup (downloads models - may take a while)..."
     cd "$WYOMING_OWW_DIR"
-    python3 script/setup
+    python3 script/setup >> "${MARK2_LOG}" 2>&1 || die "openWakeWord setup failed — check ${MARK2_LOG}"
     log "openWakeWord installed"
 }
 
@@ -255,30 +224,13 @@ enable_satellite_services() {
 
 install_kiosk_packages() {
     section "Installing kiosk and media packages"
-
-    # Minimal Wayland kiosk stack for Raspberry Pi OS Lite.
-    # labwc is a lightweight Wayland compositor - no full desktop needed.
-    # seatd provides seat management without a display/login manager.
-    sudo apt-get install -y --no-install-recommends \
-        labwc \
-        wlr-randr \
-        seatd \
-        dbus-user-session \
-        xdg-user-dirs \
-        chromium \
-        unclutter-xfixes \
-        mpv \
-        pipewire \
-        pipewire-pulse \
-        wireplumber \
-        gstreamer1.0-pipewire
-
-    # Enable seatd (required for labwc to access display hardware without root)
-    sudo systemctl enable seatd
-
-    # Add user to video and input groups (required for Wayland/seat access)
+    apt_install \
+        labwc wlr-randr seatd dbus-user-session xdg-user-dirs \
+        chromium unclutter-xfixes mpv \
+        pipewire pipewire-pulse wireplumber gstreamer1.0-pipewire
+    sudo systemctl enable seatd >> "${MARK2_LOG}" 2>&1
     sudo usermod -aG video,input "$CURRENT_USER"
-    log "Added ${CURRENT_USER} to video and input groups"
+    log "Kiosk packages installed, ${CURRENT_USER} added to video+input groups"
 }
 
 configure_autologin() {

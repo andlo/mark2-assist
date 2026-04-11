@@ -192,7 +192,34 @@ progress_is_done() {
     [ "$(progress_get "$module")" = "done" ]
 }
 
-# --- Add line to labwc autostart (idempotent) ---
+# --- Quiet apt install - output goes to log, errors shown on screen ---
+apt_install() {
+    info "Installing: $*"
+    if ! sudo apt-get install -y --no-install-recommends "$@" \
+        >> "${MARK2_LOG:-/tmp/mark2-install.log}" 2>&1; then
+        warn "apt install failed for: $*"
+        warn "Check log for details: ${MARK2_LOG:-/tmp/mark2-install.log}"
+        return 1
+    fi
+}
+
+apt_update() {
+    info "Updating package lists..."
+    sudo apt-get update -qq >> "${MARK2_LOG:-/tmp/mark2-install.log}" 2>&1 || true
+}
+
+# --- Quiet git clone/pull ---
+git_clone_or_pull() {
+    local url="$1"
+    local dir="$2"
+    if [ -d "$dir" ]; then
+        info "Updating $(basename "$dir")..."
+        (cd "$dir" && git pull --quiet >> "${MARK2_LOG:-/tmp/mark2-install.log}" 2>&1)
+    else
+        info "Cloning $(basename "$dir")..."
+        git clone --quiet "$url" "$dir" >> "${MARK2_LOG:-/tmp/mark2-install.log}" 2>&1
+    fi
+}
 labwc_autostart_add() {
     local marker="$1"
     local line="$2"

@@ -24,10 +24,11 @@ MODULES_DIR="${SCRIPT_DIR}/modules"
 RESUME=false
 for arg in "$@"; do
     case "$arg" in
-        --resume) RESUME=true ;;
+        --resume) RESUME=true ;;  # kept for backwards compatibility
         --help|-h)
-            echo "Usage: $0 [--resume]"
-            echo "  --resume   Resume after reboot (set up automatically)"
+            echo "Usage: $0"
+            echo "  Run without arguments for guided install."
+            echo "  The installer automatically detects progress and resumes."
             exit 0 ;;
     esac
 done
@@ -117,13 +118,22 @@ run_module() {
     echo ""
     echo -e "${CYAN}  ── ${desc}${NC}"
 
+    # If menu was shown, check if module was selected
+    if [ -n "$SELECTED_MODULES" ]; then
+        if ! echo "$SELECTED_MODULES" | grep -qw "$name"; then
+            progress_set "$name" "skipped"
+            log "Skipping ${name} (not selected)"
+            return
+        fi
+    fi
+
     if progress_is_done "$name"; then
-        echo -e "    ${GREEN}Already installed${NC} — reinstall?"
+        echo -e "    ${GREEN}Already installed${NC}"
         if ! ask_yes_no "  Reinstall ${name}?"; then
             log "Skipping ${name} (already done)"
             return
         fi
-    else
+    elif [ -z "$SELECTED_MODULES" ]; then
         if ! ask_yes_no "  Install?"; then
             progress_set "$name" "skipped"
             log "Skipping ${name}"
@@ -146,6 +156,11 @@ run_module() {
 
 print_banner
 
+# Auto-detect if this is a resume after reboot
+if [ "$RESUME" = false ] && progress_is_done "hardware" && ! progress_is_done "satellite"; then
+    RESUME=true
+fi
+
 if [ "$RESUME" = true ]; then
     echo -e "${CYAN}  Resuming installation after reboot...${NC}"
     remove_resume_hook
@@ -167,6 +182,59 @@ fi
 # Collect HA URL up front so all modules can reuse it
 section "Configuration"
 prompt_ha_url
+
+# =============================================================================
+# MODULE SELECTION MENU
+# =============================================================================
+
+select_modules() {
+    # Default selections (pre-ticked)
+    local defaults="screensaver leds overlay"
+
+    # Build whiptail checklist
+    local items=()
+    local modules=("snapcast" "airplay" "screensaver" "leds" "mpd" "kdeconnect" "usb-audio" "overlay")
+    local descs=(
+        "Snapcast — multiroom audio"
+        "AirPlay — Mark II as AirPlay speaker"
+        "Screensaver — clock + weather display"
+        "LED ring — visual Wyoming feedback"
+        "MPD — local music player"
+        "KDE Connect — Android phone integration"
+        "USB audio — fallback if SJ201 fails"
+        "Volume overlay — on-screen status"
+    )
+
+    for i in "${!modules[@]}"; do
+        local m="${modules[$i]}"
+        local state="OFF"
+        if progress_is_done "$m"; then
+            state="ON"
+        elif echo "$defaults" | grep -qw "$m"; then
+            state="ON"
+        fi
+        items+=("$m" "${descs[$i]}" "$state")
+    done
+
+    SELECTED=$(whiptail --title "Mark II Assist — Optional Modules" \
+        --checklist "Select modules to install:\n(Space to toggle, Enter to confirm)" \
+        20 65 10 \
+        "${items[@]}" \
+        3>&1 1>&2 2>&3) || {
+        warn "Module selection cancelled — using defaults"
+        SELECTED="screensaver leds overlay"
+    }
+    # Strip quotes from whiptail output
+    SELECTED=$(echo "$SELECTED" | tr -d '"')
+    export SELECTED
+}
+
+# Only show menu if whiptail is available
+SELECTED_MODULES=""
+if command -v whiptail >/dev/null 2>&1 && [ -t 0 ]; then
+    select_modules
+    SELECTED_MODULES="$SELECTED"
+fi
 
 # =============================================================================
 # STEP 1: HARDWARE
