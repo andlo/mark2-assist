@@ -226,12 +226,12 @@ configure_boot_config() {
         log "  Added: dtoverlay=rpi-backlight"
     fi
 
-    # Touchscreen display overlay (Mark II uses fkms not kms)
-    # Remove vc4-kms-v3d if present
-    sudo sed -i '/^dtoverlay=vc4-kms-v3d$/d' "$BOOT_CONFIG" 2>/dev/null || true
-    if ! grep -q "^dtoverlay=vc4-fkms-v3d$" "$BOOT_CONFIG"; then
-        echo "dtoverlay=vc4-fkms-v3d" | sudo tee -a "$BOOT_CONFIG" > /dev/null
-        log "  Added: dtoverlay=vc4-fkms-v3d (touchscreen)"
+    # Remove vc4-fkms-v3d if present (deprecated on Trixie/kernel 6.x)
+    sudo sed -i '/^dtoverlay=vc4-fkms-v3d$/d' "$BOOT_CONFIG" 2>/dev/null || true
+    sudo sed -i '/^disable_fw_kms_setup/d' "$BOOT_CONFIG" 2>/dev/null || true
+    if ! grep -q "^dtoverlay=vc4-kms-v3d$" "$BOOT_CONFIG"; then
+        echo "dtoverlay=vc4-kms-v3d" | sudo tee -a "$BOOT_CONFIG" > /dev/null
+        log "  Added: dtoverlay=vc4-kms-v3d (touchscreen/display)"
     fi
 }
 
