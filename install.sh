@@ -88,7 +88,12 @@ print_banner() {
     echo -e "${BLUE}  Welcome to the Mark II Assist installer${NC}"
     echo -e "${BLUE}  github.com/andlo/mark2-assist${NC}"
     echo ""
-    read -rp "  Press Enter to continue..." _
+    local answer
+    read -rp "  Continue installation? [Y/n]: " answer
+    if [[ "${answer,,}" == "n" ]]; then
+        echo "Cancelled."
+        exit 0
+    fi
     echo ""
 }
 
@@ -180,11 +185,6 @@ else
 fi
 
 print_progress
-
-if [ "$RESUME" = false ] && ! ask_yes_no "Ready to begin installation?"; then
-    echo "Cancelled."
-    exit 0
-fi
 
 # Collect HA URL up front so all modules can reuse it
 section "Configuration"
