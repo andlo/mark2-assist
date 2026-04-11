@@ -74,6 +74,7 @@ WAKE_WORD="${WAKE_WORD:-ok_nabu}"
 # Install paths
 WYOMING_SAT_DIR="${USER_HOME}/wyoming-satellite"
 WYOMING_OWW_DIR="${USER_HOME}/wyoming-openwakeword"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 # =============================================================================
 # FUNCTIONS
@@ -271,7 +272,6 @@ EOF
 configure_kiosk() {
     section "Configuring Chromium kiosk"
 
-    SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
     TEMPLATE_DIR="${SCRIPT_DIR}/templates"
     KIOSK_DIR="${USER_HOME}/.config/mark2-kiosk"
     mkdir -p "$KIOSK_DIR"
