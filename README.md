@@ -1,21 +1,66 @@
 # mark2-assist
 
-Setup suite for running Mycroft Mark II as a Home Assistant voice satellite with touchscreen kiosk display.
+**Turn a Mycroft Mark II into a Home Assistant voice satellite with touchscreen kiosk display.**
 
-## What it does
+mark2-assist installs everything needed to use a Mark II as a fully featured HA voice satellite:
+Wyoming Protocol integration, wake word detection, touchscreen HA dashboard, LED ring feedback,
+animated face, volume overlay, screensaver, MQTT sensors, and optional audio streaming.
 
-- **Wyoming voice satellite** — Mark II works as a fully featured voice assistant satellite in Home Assistant using Wyoming Protocol and openWakeWord
-- **Touchscreen kiosk** — DSI touchscreen shows your HA dashboard on boot, full screen, no browser UI
-- **LED ring** — SJ201 LED ring reacts to wake word, listening, speaking, and errors
-- **Animated face** — OLED-style face overlay that reacts to voice states and dances to music
-- **MQTT sensors** — publishes Wyoming state, MPD playback, CPU temp, memory, and disk usage to HA
-- **Optional audio** — Snapcast multiroom, AirPlay, MPD local music player
-- **Optional extras** — KDE Connect (Android phone integration), USB audio fallback
+No cloud. No Mycroft. No OVOS. Pure Home Assistant local voice.
+
+---
 
 ## Hardware
 
-- Mycroft Mark II (Raspberry Pi 4B + SJ201 audio board + Waveshare 4.3" DSI touchscreen)
-- Raspberry Pi OS Lite **Trixie** (Debian 13, 64-bit)
+| Component | Details |
+|-----------|---------|
+| Base board | Mycroft Mark II carrier board |
+| Compute | Raspberry Pi 4 Model B (2 GB or 4 GB RAM) |
+| Audio | SJ201 board (XMOS XVF-3510 mic array + TAS5806 amp) |
+| Display | Waveshare 4.3" 800×480 DSI touchscreen |
+| OS | Raspberry Pi OS Lite **Trixie** (Debian 13, 64-bit) |
+| Kernel | 6.x (vc4-kms-v3d, not fkms) |
+
+> **Note:** Pi 5 is partially supported (separate SJ201 overlays exist) but untested.
+
+---
+
+## What gets installed
+
+### Core (always installed)
+- **SJ201 hardware driver** — VocalFusion kernel module, XVF-3510 firmware flash, TAS5806 amp init, WirePlumber profile
+- **Wyoming satellite** — Voice satellite using [wyoming-satellite](https://github.com/rhasspy/wyoming-satellite) + [wyoming-openwakeword](https://github.com/rhasspy/wyoming-openwakeword)
+- **Touchscreen kiosk** — Weston Wayland compositor + Chromium in kiosk mode showing your HA dashboard
+- **Face event bridge** — Monitors Wyoming states, writes `/tmp/mark2-face-event.json` for HUD overlays
+
+### Optional modules (choose during install)
+| Module | What it does |
+|--------|-------------|
+| **leds** | SJ201 LED ring reacts to wake/listen/speak/error/idle states |
+| **face** | Animated face overlay — zooms in on voice, dances to music |
+| **overlay** | On-screen volume bar — appears on volume change, auto-hides |
+| **screensaver** | Fullscreen clock + live weather from HA, activates after 2 min idle |
+| **mqtt-sensors** | Publishes Wyoming state, MPD playback, CPU/memory/disk/temp to HA via MQTT |
+| **snapcast** | Snapcast multiroom audio endpoint |
+| **airplay** | AirPlay 1 speaker via shairport-sync |
+| **mpd** | Local music player (works with Music Assistant in HA) |
+| **kdeconnect** | Android phone integration — notifications, media control |
+| **usb-audio** | Fallback audio device if SJ201 fails at boot |
+
+---
+
+## Prerequisites
+
+Before running the installer you need:
+
+1. **Raspberry Pi OS Lite Trixie** (64-bit) flashed to SD card via [Raspberry Pi Imager](https://www.raspberrypi.com/software/)
+   - Enable SSH and set username/password in Imager advanced settings
+2. **SSH access** to the device on your local network
+3. **Home Assistant** running on your local network
+4. **HA Long-Lived Access Token** — for MQTT sensors and screensaver
+   - In HA: Profile (bottom left) → Long-Lived Access Tokens → Create token
+
+---
 
 ## Quick start
 
@@ -25,30 +70,22 @@ cd mark2-assist
 ./install.sh
 ```
 
-The installer guides you through everything. It reboots once mid-way through hardware setup, then resumes automatically.
+The installer will:
+1. Ask all questions upfront (HA URL, token, MQTT credentials, which modules to install)
+2. Run hardware setup and reboot automatically
+3. Resume after reboot and install Wyoming satellite + kiosk
+4. Install your chosen optional modules
+5. Reboot to the finished system
 
-## What you need before installing
-
-- Raspberry Pi OS Lite Trixie flashed to SD card (use Raspberry Pi Imager)
-- SSH enabled and network connected
-- Your Home Assistant URL (e.g. `http://192.168.1.100:8123`)
-- A Home Assistant long-lived access token (for MQTT sensors and screensaver)
-
-## Installation steps
-
-The installer runs in three phases:
-
-1. **Hardware setup** — SJ201 audio drivers, SPI/I2C, display overlay, kernel watchdog → reboots
-2. **Satellite + kiosk** — Wyoming satellite, openWakeWord, Chromium kiosk, labwc Wayland, PipeWire
-3. **Optional modules** — choose what you want from a menu
-
-Total install time: approximately 20–30 minutes depending on network speed.
+Total time: **20–40 minutes** depending on network speed.
 
 ---
 
 ## Auto-login on the touchscreen
 
-After installation, the touchscreen shows your Home Assistant dashboard. The first time it opens, HA shows a login screen. To enable **automatic login without a keyboard**, add the following to your Home Assistant `configuration.yaml`:
+After installation the touchscreen shows your HA dashboard and prompts for login.
+To enable **automatic login without a keyboard**, add the following to your HA
+`configuration.yaml` and restart HA:
 
 ```yaml
 homeassistant:
@@ -56,139 +93,198 @@ homeassistant:
     - type: homeassistant
     - type: trusted_networks
       trusted_networks:
-        - 192.168.65.37  # Replace with your Mark II's IP address
+        - 192.168.1.x        # Replace with your Mark II's exact IP address
+      trusted_users:
+        192.168.1.x:         # Same IP as above
+          - YOUR_USER_ID     # Find in HA: Settings → People → click user → ID in URL
       allow_bypass_login: true
 ```
 
-Then restart Home Assistant (Settings → System → Restart).
+**How to find your user ID:**
+In HA go to Settings → People → click your user. The URL ends with
+`/config/users/edit/abc123def456` — that last part is your user ID.
 
-**How to find your Mark II's IP address:**
-
+**How to find Mark II's IP:**
 ```bash
 hostname -I
 ```
 
 **How to edit configuration.yaml in HA:**
-
-The easiest way is via **Studio Code Server** add-on in HA, or via **File Editor** add-on.
+Use the Studio Code Server add-on or File Editor add-on.
 Navigate to `/config/configuration.yaml` and add the block above.
 
-After restarting HA, the touchscreen will log in automatically on every boot — no keyboard needed.
+After restarting HA and rebooting Mark II, the dashboard loads automatically — no keyboard needed.
 
-> **Note:** `allow_bypass_login: true` means anyone on your local network who knows the IP can access HA without a password. This is fine for a trusted home network. If you need more security, add specific `trusted_users` — see [HA docs](https://www.home-assistant.io/docs/authentication/providers/#trusted-networks).
+> **Security note:** `allow_bypass_login: true` grants passwordless access from that specific IP.
+> Using the exact device IP (not a whole subnet like `192.168.1.0/24`) limits this to your
+> Mark II only. Always keep `- type: homeassistant` as the first provider so you can still
+> log in from other devices with a password.
 
 ---
 
 ## Adding Mark II to Home Assistant
 
-After installation, add the Wyoming integration in HA:
+After installation add the Wyoming integration in HA:
 
 1. Settings → Devices & Services → Add Integration
 2. Search for **Wyoming Protocol**
 3. Host: `<Mark II IP address>` — Port: `10700`
 
-Mark II will appear as **Nabu-1** (or your hostname) and is ready to use as a voice satellite.
+Mark II will appear as your **hostname** (e.g. `Nabu-1`) and is immediately ready
+to use as an Assist satellite. Say your wake word to test it.
 
 ---
 
 ## Wake word
 
-Default wake word is **"Ok Nabu"**. Available options:
+Default wake word is **"Ok Nabu"**.
 
-| Wake word | Say |
-|-----------|-----|
+| Option | What to say |
+|--------|-------------|
 | `ok_nabu` | "Ok Nabu" |
 | `hey_mycroft` | "Hey Mycroft" |
 | `alexa` | "Alexa" |
 | `hey_jarvis` | "Hey Jarvis" |
 
-To change wake word, edit `/home/pi/.config/systemd/user/wyoming-satellite.service` and change `--wake-word-name`.
+To change the wake word after installation:
+```bash
+nano ~/.config/systemd/user/wyoming-satellite.service
+# Edit the --wake-word-name value
+systemctl --user daemon-reload
+systemctl --user restart wyoming-satellite
+```
 
 ---
 
-## Optional modules
+## Keeping the system updated
 
-| Module | What it does |
-|--------|-------------|
-| **leds** | SJ201 LED ring reacts to wake/listen/speak/error states |
-| **face** | Animated face overlay — zooms in on voice, reacts to music |
-| **overlay** | On-screen volume bar, auto-hides after 3 seconds |
-| **screensaver** | Fullscreen clock + weather from HA, activates after 2 min idle |
-| **mqtt-sensors** | Publishes Wyoming state, MPD, CPU/memory/disk to HA via MQTT |
-| **snapcast** | Synchronized multiroom audio endpoint |
-| **airplay** | Mark II as AirPlay 1 speaker |
-| **mpd** | Local music player (works with Music Assistant) |
-| **kdeconnect** | Android phone integration — notifications, media control |
-| **usb-audio** | Fallback audio device if SJ201 fails at boot |
+### System packages
+```bash
+sudo apt update && sudo apt upgrade
+```
+
+A safe weekly update also runs automatically every Sunday at 03:00 via cron.
+After any kernel update the VocalFusion audio driver is automatically rebuilt
+by `mark2-vocalfusion-watchdog.service` before the next boot — no manual action needed.
+
+### mark2-assist scripts
+```bash
+cd ~/mark2-assist
+git pull
+```
+
+Re-run the relevant setup script to apply changes:
+```bash
+./mark2-satellite-setup.sh   # Update kiosk/Wyoming configuration
+./mark2-hardware-setup.sh    # Update hardware/driver configuration (rare)
+```
+
+Individual modules can be re-run at any time:
+```bash
+bash modules/leds.sh
+bash modules/mqtt-sensors.sh
+# etc.
+```
+
+### Wyoming satellite and openWakeWord
+```bash
+cd ~/wyoming-satellite && git pull && python3 script/setup
+cd ~/wyoming-openwakeword && git pull && python3 script/setup
+systemctl --user restart wyoming-satellite wyoming-openwakeword
+```
+
+---
+
+## Uninstalling
+
+```bash
+cd ~/mark2-assist
+./uninstall.sh
+```
+
+This removes:
+- All mark2-assist systemd user services (Wyoming, kiosk, LEDs, face, overlay, MQTT, etc.)
+- Installed packages (Chromium, weston, snapcast, shairport-sync, mpd, etc.)
+- Configuration files in `~/.config/mark2/`, `~/.config/mark2-kiosk/`, etc.
+- Weston/labwc autostart from `~/.bash_profile`
+- Auto-login getty override in `/etc/systemd/system/getty@tty1.service.d/`
+
+It does **not** remove:
+- The VocalFusion kernel module (rebooting clears it from memory; `.ko` file stays)
+- Boot overlay entries in `/boot/firmware/config.txt` (remove manually if needed)
+- The `~/wyoming-satellite` and `~/wyoming-openwakeword` directories
+- The mark2-assist git repository itself
 
 ---
 
 ## Troubleshooting
 
 **Touchscreen is black after boot**
-
-Check that the Waveshare overlay is loaded:
 ```bash
 grep vc4-kms-dsi-waveshare /boot/firmware/config.txt
+# Should show: dtoverlay=vc4-kms-dsi-waveshare-800x480
+# If missing: ./mark2-hardware-setup.sh && sudo reboot
 ```
-Should show `dtoverlay=vc4-kms-dsi-waveshare-800x480`. If missing, run `mark2-hardware-setup.sh` again.
 
 **Wyoming satellite not showing in HA**
-
-Check the service status:
 ```bash
 systemctl --user status wyoming-satellite
-```
-If it shows errors, check the log:
-```bash
 journalctl --user -u wyoming-satellite -n 30
 ```
 
-**Voice commands not working**
-
-Check that openWakeWord is running:
+**Test microphone directly**
 ```bash
-systemctl --user status wyoming-openwakeword
-```
-Test the microphone:
-```bash
-arecord -D plughw:CARD=sj201,DEV=1 -r 16000 -c 1 -f S16_LE -d 3 /tmp/test.wav && aplay /tmp/test.wav
+arecord -D plughw:CARD=sj201,DEV=1 -r 16000 -c 1 -f S16_LE -d 3 /tmp/test.wav
+aplay /tmp/test.wav
 ```
 
-**HA dashboard shows "Unable to connect"**
-
-This usually means `trusted_networks` is not configured in HA. See the auto-login section above.
+**HA dashboard shows login screen instead of auto-login**
+- Verify trusted_networks is configured in `configuration.yaml` (see above)
+- Verify the IP in config matches Mark II's actual IP exactly (not a subnet)
+- Restart HA after any configuration.yaml change
 
 **Kiosk not starting after reboot**
-
-Check the kiosk log:
 ```bash
-cat /tmp/mark2-kiosk.log
+cat /tmp/mark2-startup.log
+cat /tmp/weston.log
+```
+
+**Check all service statuses**
+```bash
+systemctl --user status wyoming-satellite wyoming-openwakeword sj201 mark2-face-events
 ```
 
 ---
 
-## File locations
+## File locations reference
 
-| File | Purpose |
+| Path | Purpose |
 |------|---------|
-| `~/.config/mark2/config` | Saved configuration (HA URL, token, etc.) |
+| `~/.config/mark2/config` | Saved install configuration (HA URL, token, MQTT credentials) |
 | `~/.config/mark2/install.log` | Full installation log |
-| `~/.config/labwc/autostart` | Wayland compositor autostart |
-| `~/kiosk.sh` | HA kiosk launcher |
-| `~/startup.sh` | labwc startup script |
+| `~/.config/mark2/install-progress` | Tracks which install steps have completed (for resume after reboot) |
+| `~/startup.sh` | Weston startup script — called by weston `--` flag, launches kiosk + hud |
+| `~/kiosk.sh` | HA Chromium kiosk launcher — waits for HA then opens in kiosk mode |
+| `~/hud.sh` | HUD overlay launcher — face animation + volume bar on top of kiosk |
+| `~/.config/mark2-kiosk/hud.html` | HUD overlay HTML template |
+| `/tmp/mark2-startup.log` | Weston startup runtime log (recreated each boot) |
 | `/tmp/mark2-kiosk.log` | Kiosk runtime log |
-| `/tmp/mark2-startup.log` | Startup script log |
+| `/tmp/weston.log` | Weston Wayland compositor log |
+| `/tmp/mark2-face-event.json` | Current Wyoming state written by face-event bridge for HUD |
+| `/tmp/mark2-leds.sock` | Unix socket — send state strings to control LED ring |
 
 ---
 
-## Uninstall
+## Documentation
 
-```bash
-./uninstall.sh
-```
+See the `docs/` directory for detailed technical documentation:
 
-This removes all services, packages, and configuration installed by mark2-assist.
+- [`docs/HISTORY.md`](docs/HISTORY.md) — History of Mark II, Mycroft, OVOS and HA Assist
+- [`docs/INSTALL_SH.md`](docs/INSTALL_SH.md) — Install script architecture and flow
+- [`docs/HARDWARE_SETUP.md`](docs/HARDWARE_SETUP.md) — Hardware setup technical deep dive
+- [`docs/SATELLITE_SETUP.md`](docs/SATELLITE_SETUP.md) — Wyoming satellite setup deep dive
+- [`docs/MODULES.md`](docs/MODULES.md) — All optional modules documented in detail
+- [`docs/HA_INTEGRATION.md`](docs/HA_INTEGRATION.md) — HA companion integration spec
 
 ---
 
