@@ -1,0 +1,28 @@
+name: ShellCheck
+
+on:
+  push:
+    branches: [ main, dev ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  shellcheck:
+    name: ShellCheck
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install ShellCheck
+        run: sudo apt-get install -y shellcheck
+
+      - name: Run ShellCheck on all scripts
+        run: |
+          echo "Running ShellCheck..."
+          find . -name "*.sh" -not -path "./.git/*" | sort | while read -r file; do
+            echo "Checking: $file"
+            shellcheck -S warning "$file"
+          done
+          echo "All scripts passed ShellCheck."

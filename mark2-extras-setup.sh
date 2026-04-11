@@ -1,4 +1,7 @@
 #!/bin/bash
+
+# shellcheck source=lib/common.sh
+source "$(dirname "$0")/lib/common.sh"
 # =============================================================================
 # mark2-extras-setup.sh
 # Mycroft Mark II - Extra audio services + screensaver
