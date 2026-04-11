@@ -41,10 +41,10 @@ BASH_PROFILE="${USER_HOME}/.bash_profile"
 RESUME_HOOK_MARKER="# mark2-install-resume"
 
 install_resume_hook() {
-    remove_resume_hook
-    cat >> "$BASH_PROFILE" << EOF
+    remove_resume_hook  # ensure no duplicate
+    cat >> "$BASH_PROFILE" << 'HOOKEOF'
 
-${RESUME_HOOK_MARKER}
+# mark2-install-resume
 echo ""
 echo -e "\033[0;36m╔══════════════════════════════════════════╗\033[0m"
 echo -e "\033[0;36m║   Mark II installation paused            ║\033[0m"
@@ -54,7 +54,7 @@ echo -e "\033[0;36m║   Run to continue:                       ║\033[0m"
 echo -e "\033[0;36m║     ./mark2-assist/install.sh            ║\033[0m"
 echo -e "\033[0;36m╚══════════════════════════════════════════╝\033[0m"
 echo ""
-EOF
+HOOKEOF
 }
 
 remove_resume_hook() {
