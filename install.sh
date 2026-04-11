@@ -92,8 +92,11 @@ print_banner() {
 # =============================================================================
 
 print_progress() {
-    local all=("hardware" "satellite" "snapcast" "airplay" "screensaver"
-               "leds" "mpd" "kdeconnect" "usb-audio" "overlay" "face" "mqtt-sensors")
+    local all=("hardware" "satellite"
+               "leds" "face" "overlay" "screensaver"
+               "mqtt-sensors"
+               "snapcast" "airplay" "mpd"
+               "kdeconnect" "usb-audio")
     echo ""
     echo -e "${CYAN}  Installation progress:${NC}"
     for m in "${all[@]}"; do
@@ -116,19 +119,21 @@ print_progress() {
 configure_upfront() {
     # ── Step 1: Module selection ──
     local defaults="screensaver leds overlay face mqtt-sensors"
-    local mod_list=("snapcast" "airplay" "screensaver" "leds" "mpd"
-                    "kdeconnect" "usb-audio" "overlay" "face" "mqtt-sensors")
+    local mod_list=("leds" "face" "overlay" "screensaver"
+                    "mqtt-sensors"
+                    "snapcast" "airplay" "mpd"
+                    "kdeconnect" "usb-audio")
     local mod_desc=(
-        "Snapcast — synchronized multiroom audio"
-        "AirPlay — Mark II as AirPlay speaker"
-        "Screensaver — fullscreen clock + weather"
-        "LED ring — visual Wyoming feedback"
-        "MPD — local music player"
-        "KDE Connect — Android phone integration"
-        "USB audio — fallback if SJ201 fails"
-        "Volume overlay — on-screen status"
-        "Animated face — reacts to voice + music"
-        "MQTT sensors — publish status to HA"
+        "── Display ──  LED ring — SJ201 ring reacts to wake/listen/speak/error"
+        "── Display ──  Animated face — zooms in on voice, dances to music"
+        "── Display ──  Volume overlay — on-screen volume bar, auto-hides"
+        "── Display ──  Screensaver — fullscreen clock + weather from HA"
+        "── HA ───────  MQTT sensors — Wyoming state, MPD, CPU temp to HA"
+        "── Audio ────  Snapcast — synchronized multiroom audio endpoint"
+        "── Audio ────  AirPlay — Mark II as AirPlay 1 speaker"
+        "── Audio ────  MPD — local music player (Music Assistant / HA)"
+        "── Extra ────  KDE Connect — Android phone notifications + media"
+        "── Extra ────  USB audio — auto-fallback if SJ201 fails at boot"
     )
 
     local items=()
@@ -145,7 +150,7 @@ configure_upfront() {
 
     SELECTED_MODULES=$(whiptail --title "Mark II Assist — Select modules" \
         --checklist "Choose what to install:\n(Space to toggle, Enter to confirm)" \
-        22 68 12 \
+        24 72 12 \
         "${items[@]}" \
         3>&1 1>&2 2>&3) || { warn "Cancelled"; exit 0; }
     SELECTED_MODULES=$(echo "$SELECTED_MODULES" | tr -d '"')
@@ -340,16 +345,16 @@ fi
 
 section "Step 3/3 — Optional Modules"
 
-run_module "snapcast"     "Snapcast — synchronized multiroom audio"
-run_module "airplay"      "AirPlay receiver"
-run_module "screensaver"  "Screensaver — clock + weather"
-run_module "leds"         "LED ring control"
-run_module "mpd"          "MPD — local music player"
-run_module "kdeconnect"   "KDE Connect — Android phone integration"
-run_module "usb-audio"    "USB audio fallback"
-run_module "overlay"      "Volume overlay"
-run_module "face"         "Animated face"
-run_module "mqtt-sensors" "MQTT sensors"
+run_module "leds"         "LED ring — SJ201 ring reacts to voice events"
+run_module "face"         "Animated face — zooms in on voice, dances to music"
+run_module "overlay"      "Volume overlay — on-screen volume bar"
+run_module "screensaver"  "Screensaver — fullscreen clock + weather from HA"
+run_module "mqtt-sensors" "MQTT sensors — publish Wyoming/MPD/system state to HA"
+run_module "snapcast"     "Snapcast — synchronized multiroom audio endpoint"
+run_module "airplay"      "AirPlay — Mark II as AirPlay 1 speaker"
+run_module "mpd"          "MPD — local music player (Music Assistant / HA)"
+run_module "kdeconnect"   "KDE Connect — Android phone notifications + media"
+run_module "usb-audio"    "USB audio — auto-fallback if SJ201 fails at boot"
 
 # =============================================================================
 # DONE
