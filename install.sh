@@ -90,7 +90,7 @@ print_banner() {
 # =============================================================================
 
 print_progress() {
-    local modules=("hardware" "satellite" "snapcast" "airplay" "screensaver" "leds" "mpd" "kdeconnect" "usb-audio" "overlay" "face")
+    local modules=("hardware" "satellite" "snapcast" "airplay" "screensaver" "leds" "mpd" "kdeconnect" "usb-audio" "overlay" "face" "mqtt-sensors")
     echo ""
     echo -e "${CYAN}  Installation progress:${NC}"
     for m in "${modules[@]}"; do
@@ -203,6 +203,7 @@ select_modules() {
         "USB audio — fallback if SJ201 fails"
         "Volume overlay — on-screen status"
         "Animated face — reacts to Wyoming events"
+        "MQTT sensors — publish status to Home Assistant"
     )
 
     for i in "${!modules[@]}"; do
@@ -325,7 +326,8 @@ run_module "mpd"         "MPD — local music player (HA / Music Assistant)"
 run_module "kdeconnect"  "KDE Connect — Android phone integration"
 run_module "usb-audio"   "USB audio fallback — auto-switch if SJ201 fails"
 run_module "overlay"     "Volume overlay — on-screen status display"
-run_module "face"        "Animated face — reacts to Wyoming events"
+run_module "face"         "Animated face — reacts to Wyoming events"
+run_module "mqtt-sensors" "MQTT sensors — publish status to Home Assistant"
 
 # =============================================================================
 # DONE

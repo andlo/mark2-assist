@@ -13,6 +13,37 @@
     #face-layer { position:absolute; inset:0; z-index:3; pointer-events:none; }
     #hud-layer  { position:absolute; inset:0; z-index:4; pointer-events:none; }
 
+    /* ── CONTENT PANEL (for HA integration - images, weather, etc.) ── */
+    #content-layer {
+      position:absolute; inset:0; z-index:6; pointer-events:none;
+      display:flex; align-items:center; justify-content:center;
+      opacity:0; transition:opacity 0.6s ease;
+    }
+    #content-layer.visible { opacity:1; pointer-events:all; }
+    #content-card {
+      background:rgba(8,8,20,0.94);
+      border:1px solid rgba(100,130,255,0.2);
+      border-radius:16px; padding:24px 28px;
+      max-width:88%; max-height:85%;
+      display:flex; flex-direction:column; gap:14px;
+      overflow:hidden;
+    }
+    #content-image {
+      width:100%; max-height:280px;
+      object-fit:contain; border-radius:10px; display:none;
+    }
+    #content-image.visible { display:block; }
+    #content-title  { font-size:19px; font-weight:600; color:#e0e8ff; line-height:1.3; display:none; }
+    #content-title.visible  { display:block; }
+    #content-text   { font-size:14px; color:rgba(200,210,255,0.82); line-height:1.65; display:none; }
+    #content-text.visible   { display:block; }
+    #content-dismiss {
+      align-self:flex-end; font-size:12px; color:#505080;
+      padding:5px 14px; border-radius:20px;
+      border:1px solid #303060; background:transparent;
+      cursor:pointer; pointer-events:all;
+    }
+
     /* ── MUSIC LAYER ── */
     #coverart-bg {
       position:absolute; inset:0;
@@ -148,6 +179,16 @@
     <span id="vol-icon">🔊</span>
     <div id="vol-track"><div id="vol-fill"></div></div>
     <span id="vol-pct">--</span>
+  </div>
+</div>
+
+<!-- Content panel: receives display commands from HA integration -->
+<div id="content-layer">
+  <div id="content-card">
+    <img id="content-image" src="" alt="">
+    <div id="content-title"></div>
+    <div id="content-text"></div>
+    <button id="content-dismiss" onclick="dismissContent()">Luk</button>
   </div>
 </div>
 
@@ -544,12 +585,73 @@ async function poll() {
   } catch(e) {}
 }
 
+// ── Content display (for HA integration) ──
+const contentLayer   = document.getElementById('content-layer');
+const contentImage   = document.getElementById('content-image');
+const contentTitle   = document.getElementById('content-title');
+const contentText    = document.getElementById('content-text');
+let contentHideTimer;
+let lastContentEvt = '';
+
+function showContent(d) {
+  // d = { type, title, text, image_url, image_data, duration }
+  contentImage.classList.remove('visible');
+  contentTitle.classList.remove('visible');
+  contentText.classList.remove('visible');
+
+  if (d.image_url || d.image_data) {
+    contentImage.src = d.image_data || d.image_url;
+    contentImage.classList.add('visible');
+  }
+  if (d.title) {
+    contentTitle.textContent = d.title;
+    contentTitle.classList.add('visible');
+  }
+  if (d.text) {
+    contentText.textContent = d.text;
+    contentText.classList.add('visible');
+  }
+
+  contentLayer.classList.add('visible');
+  clearTimeout(contentHideTimer);
+
+  // Auto-dismiss after duration (default 15s, 0 = manual only)
+  const dur = (d.duration !== undefined ? d.duration : 15) * 1000;
+  if (dur > 0) {
+    contentHideTimer = setTimeout(dismissContent, dur);
+  }
+}
+
+function dismissContent() {
+  clearTimeout(contentHideTimer);
+  contentLayer.classList.remove('visible');
+}
+
+// Expose globally so HA integration can call via URL hash or postMessage
+window.mark2ShowContent  = showContent;
+window.mark2DismissContent = dismissContent;
+
+// Poll /tmp/mark2-content.json written by HA integration or mark2-content command
+async function pollContent() {
+  try {
+    const r = await fetch('file:///tmp/mark2-content.json?' + Date.now());
+    const t = await r.text();
+    if (t !== lastContentEvt) {
+      lastContentEvt = t;
+      const d = JSON.parse(t);
+      if (d.action === 'show')    showContent(d);
+      if (d.action === 'dismiss') dismissContent();
+    }
+  } catch(e) {}
+}
+
 // ── Init ──
 setupViz();
 applyFaceDef('idle');
 scheduleBlink();
 requestAnimationFrame(loop);
 setInterval(poll, 200);
+setInterval(pollContent, 500);
 </script>
 </body>
 </html>
