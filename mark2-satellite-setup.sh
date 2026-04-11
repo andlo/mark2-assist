@@ -93,7 +93,6 @@ prompt_ha_url() {
     fi
     export HA_URL
 }
-
 detect_sj201_audio() {
     section "Detecting SJ201 audio device"
 
@@ -299,6 +298,8 @@ EOF
     systemctl --user enable mark2-face-events.service
     log "Face event bridge installed"
 }
+
+enable_satellite_services() {
     section "Enabling Wyoming services"
     systemctl --user daemon-reload
     systemctl --user enable wyoming-openwakeword.service
