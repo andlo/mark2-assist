@@ -283,14 +283,37 @@ install_kiosk_packages() {
 
 configure_autologin() {
     section "Configuring auto-login"
-    # Enable auto-login for graphical session via raspi-config noninteractive
-    if command -v raspi-config >/dev/null 2>&1; then
-        sudo raspi-config nonint do_boot_behaviour B4 2>/dev/null || \
-            warn "raspi-config auto-login failed - please enable manually via raspi-config > Boot Options > Desktop Autologin"
+
+    # On RPi OS Lite with labwc we do NOT use raspi-config/lightdm.
+    # Instead we configure getty to auto-login on tty1, and labwc
+    # starts automatically from ~/.bash_profile when on tty1.
+
+    # Auto-login on tty1 via getty override
+    GETTY_OVERRIDE_DIR="/etc/systemd/system/getty@tty1.service.d"
+    sudo mkdir -p "$GETTY_OVERRIDE_DIR"
+    sudo tee "${GETTY_OVERRIDE_DIR}/autologin.conf" > /dev/null << EOF
+[Service]
+ExecStart=
+ExecStart=-/sbin/agetty --autologin ${CURRENT_USER} --noclear %I \$TERM
+EOF
+    log "Auto-login on tty1 configured for ${CURRENT_USER}"
+
+    # Start labwc automatically when logging in on tty1
+    BASH_PROFILE="${USER_HOME}/.bash_profile"
+    if ! grep -q "labwc" "$BASH_PROFILE" 2>/dev/null; then
+        cat >> "$BASH_PROFILE" << 'EOF'
+
+# Start labwc Wayland compositor on tty1 (kiosk mode)
+if [ -z "${WAYLAND_DISPLAY:-}" ] && [ "$(tty)" = "/dev/tty1" ]; then
+    exec labwc
+fi
+EOF
+        log "labwc autostart added to ~/.bash_profile"
     else
-        warn "raspi-config not found - please enable graphical auto-login manually"
+        log "labwc autostart already in ~/.bash_profile"
     fi
-    log "Auto-login configured"
+
+    sudo systemctl daemon-reload
 }
 
 configure_kiosk() {
