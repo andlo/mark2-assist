@@ -294,7 +294,7 @@ else
     section "Step 1/3 — Hardware Drivers"
     show_info "Starting hardware setup...\n\nThis will install SJ201 drivers and reboot." 8 60
     _log_write "----" "=== Starting: hardware ==="
-    if bash "${SCRIPT_DIR}/mark2-hardware-setup.sh"; then
+    if MARK2_MODULE_CONFIRMED=1 bash "${SCRIPT_DIR}/mark2-hardware-setup.sh"; then
         progress_set "hardware" "done"
         show_info "Hardware setup complete!\n\nRebooting in 5 seconds to activate drivers." 8 60
         install_resume_hook
@@ -316,7 +316,7 @@ if progress_is_done "satellite"; then
 else
     section "Step 2/3 — Wyoming Satellite + HA Kiosk"
     _log_write "----" "=== Starting: satellite ==="
-    if bash "${SCRIPT_DIR}/mark2-satellite-setup.sh"; then
+    if MARK2_MODULE_CONFIRMED=1 bash "${SCRIPT_DIR}/mark2-satellite-setup.sh"; then
         progress_set "satellite" "done"
     else
         progress_set "satellite" "failed"
