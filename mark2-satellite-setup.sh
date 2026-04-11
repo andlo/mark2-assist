@@ -144,6 +144,15 @@ install_wyoming_satellite() {
         log "Cloned wyoming-satellite"
     fi
 
+    # Stop any running instance before touching the venv
+    systemctl --user stop wyoming-satellite.service 2>/dev/null || true
+
+    # Remove broken venv if it exists
+    if [ -d "${WYOMING_SAT_DIR}/.venv" ]; then
+        log "Removing existing venv to ensure clean setup..."
+        rm -rf "${WYOMING_SAT_DIR}/.venv"
+    fi
+
     log "Running Wyoming Satellite setup..."
     cd "$WYOMING_SAT_DIR"
     python3 script/setup
@@ -159,6 +168,15 @@ install_wyoming_openwakeword() {
     else
         git clone --quiet https://github.com/rhasspy/wyoming-openwakeword.git "$WYOMING_OWW_DIR"
         log "Cloned wyoming-openwakeword"
+    fi
+
+    # Stop any running instance before touching the venv
+    systemctl --user stop wyoming-openwakeword.service 2>/dev/null || true
+
+    # Remove broken venv if it exists (avoids "Text file busy" error)
+    if [ -d "${WYOMING_OWW_DIR}/.venv" ]; then
+        log "Removing existing venv to ensure clean setup..."
+        rm -rf "${WYOMING_OWW_DIR}/.venv"
     fi
 
     log "Running openWakeWord setup (downloads models - may take a while)..."
