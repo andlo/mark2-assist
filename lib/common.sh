@@ -38,7 +38,20 @@ show_info() {
     if command -v whiptail >/dev/null 2>&1 && [ -t 0 ]; then
         whiptail --title "Mark II Assist" --infobox "$msg" "$height" "$width"
     else
-        echo -e "${BLUE}[....] ${msg}${NC}"
+        echo -e "${BLUE}[INFO]${NC} ${msg}"
+    fi
+}
+
+# --- Section header: whiptail infobox when called from installer,
+#     plain text otherwise ---
+module_header() {
+    local title="$1"
+    local desc="${2:-}"
+    if [ "${MARK2_MODULE_CONFIRMED:-0}" = "1" ]; then
+        show_info "${title}...\n\n${desc}" 8 60
+    else
+        section "$title"
+        [ -n "$desc" ] && echo -e "  ${desc}\n"
     fi
 }
 

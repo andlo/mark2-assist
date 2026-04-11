@@ -12,12 +12,7 @@ source "$(dirname "$0")/../lib/common.sh"
 check_not_root
 setup_paths
 
-section "Screensaver - Clock + Weather"
-echo "  Displays a fullscreen clock with weather info from Home Assistant."
-echo "  Activates after 2 minutes of inactivity. Touch screen to dismiss."
-echo ""
-echo "  Requires a Home Assistant long-lived access token."
-echo "  Get one at: HA Profile page > Long-Lived Access Tokens"
+module_header "Screensaver — Clock + Weather" "Fullscreen clock with HA weather, activates after 2 min idle"
 echo ""
 
 if ! confirm_or_skip "Install clock/weather screensaver?"; then

@@ -12,9 +12,7 @@ source "$(dirname "$0")/../lib/common.sh"
 check_not_root
 setup_paths
 
-section "Volume / Status Overlay"
-echo "  Transparent on-screen overlay showing volume and Wyoming status."
-echo "  Auto-hides after 3 seconds."
+module_header "Volume Overlay" "On-screen volume indicator, auto-hides after 3 seconds"
 echo ""
 
 if ! confirm_or_skip "Install volume/status overlay?"; then

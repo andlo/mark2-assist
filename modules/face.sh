@@ -20,10 +20,7 @@ source "$(dirname "$0")/../lib/common.sh"
 check_not_root
 setup_paths
 
-section "Animated Face Display"
-echo "  Shows an animated robot face on the touchscreen that reacts"
-echo "  to Wyoming satellite events (wake, listen, think, speak)."
-echo ""
+module_header "Animated Face Display" "Animated robot face reacting to voice events and music"
 
 if ! confirm_or_skip "Install animated face?"; then
     log "Skipping face"

@@ -12,11 +12,7 @@ source "$(dirname "$0")/../lib/common.sh"
 check_not_root
 setup_paths
 
-section "Snapcast Client"
-echo "  Snapcast turns Mark II into a synchronized multiroom audio endpoint."
-echo "  Requires a Snapcast server already running on your network (or NAS/HA)."
-echo "  In Home Assistant the 'Snapcast' integration shows Mark II as a media player."
-echo ""
+module_header "Snapcast Client" "Synchronized multiroom audio endpoint.\nRequires a Snapcast server on your network."
 
 if ! confirm_or_skip "Install Snapcast client?"; then
     log "Skipping Snapcast"

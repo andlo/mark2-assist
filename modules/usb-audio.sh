@@ -12,10 +12,7 @@ source "$(dirname "$0")/../lib/common.sh"
 check_not_root
 setup_paths
 
-section "USB Audio Fallback"
-echo "  Automatically switches audio output to a USB DAC/speaker"
-echo "  if the SJ201 sound card fails to initialize at boot."
-echo "  Also installs: mark2-audio-switch command for manual control."
+module_header "USB Audio Fallback" "Auto-switch to USB DAC if SJ201 fails at boot"
 echo ""
 
 if ! confirm_or_skip "Install USB audio fallback?"; then

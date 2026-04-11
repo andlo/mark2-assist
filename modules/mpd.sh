@@ -12,11 +12,7 @@ source "$(dirname "$0")/../lib/common.sh"
 check_not_root
 setup_paths
 
-section "MPD - Music Player Daemon"
-echo "  Local music player that integrates with:"
-echo "  · Home Assistant media player entity"
-echo "  · Music Assistant (streams local files and radio)"
-echo "  · Snapcast (if installed - MPD feeds audio to Snapcast)"
+module_header "MPD — Music Player Daemon" "Local music player with HA and Music Assistant integration"
 echo ""
 
 if ! confirm_or_skip "Install MPD?"; then

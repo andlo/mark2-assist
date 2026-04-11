@@ -12,15 +12,8 @@ source "$(dirname "$0")/../lib/common.sh"
 check_not_root
 setup_paths
 
-section "LED Ring Control"
-echo "  Controls the SJ201 LED ring based on Wyoming satellite events:"
-echo "  · Idle:         LEDs off"
-echo "  · Wake word:    pulsing blue"
-echo "  · Listening:    solid blue"
-echo "  · Thinking:     spinning cyan"
-echo "  · Speaking:     solid green"
-echo "  · Error:        flash red"
-echo ""
+module_header "LED Ring Control" "SJ201 LED ring follows Wyoming satellite state"
+
 
 if ! confirm_or_skip "Install LED ring control?"; then
     log "Skipping LED control"

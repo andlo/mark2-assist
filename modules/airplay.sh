@@ -12,12 +12,7 @@ source "$(dirname "$0")/../lib/common.sh"
 check_not_root
 setup_paths
 
-section "AirPlay Receiver (shairport-sync)"
-echo "  Makes Mark II visible as an AirPlay speaker on your network."
-echo "  Works with iPhone, iPad, Mac, and any AirPlay-compatible app."
-echo ""
-echo "  NOTE: AirPlay 1 only. shairport-sync may occasionally lose timing"
-echo "  sync on Trixie with PipeWire."
+module_header "AirPlay Receiver" "Mark II as AirPlay speaker (AirPlay 1)"
 echo ""
 
 if ! confirm_or_skip "Install AirPlay receiver?"; then

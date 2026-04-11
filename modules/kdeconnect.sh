@@ -12,12 +12,7 @@ source "$(dirname "$0")/../lib/common.sh"
 check_not_root
 setup_paths
 
-section "KDE Connect"
-echo "  Pairs Mark II with your Android phone for:"
-echo "  · Phone notifications shown on Mark II screen"
-echo "  · Media playback control from phone"
-echo "  · Clipboard sync between phone and Pi"
-echo "  · Use phone as touchpad/keyboard for Mark II"
+module_header "KDE Connect" "Android phone integration — notifications, media control, clipboard"
 echo ""
 echo "  Android: KDE Connect (Play Store / F-Droid)"
 echo "  iPhone:  Not supported"
