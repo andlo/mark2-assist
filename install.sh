@@ -1,19 +1,18 @@
 #!/bin/bash
 # =============================================================================
 # install.sh
-# Mark II Assist - Main installer wrapper
-#
-# Runs all setup scripts in the correct order with guidance between steps.
+# Mark II Assist - Main installer
 #
 # Usage:
-#   chmod +x install.sh
 #   ./install.sh
+#   ./install.sh --skip-hardware     (hardware already done, skip to satellite)
 #
 # Or run individual scripts directly:
 #   ./mark2-hardware-setup.sh
 #   ./mark2-satellite-setup.sh
-#   ./mark2-extras-setup.sh
-#   ./mark2-advanced-setup.sh
+#   bash modules/snapcast.sh
+#   bash modules/airplay.sh
+#   ... etc
 # =============================================================================
 
 set -euo pipefail
@@ -22,81 +21,37 @@ set -euo pipefail
 source "$(dirname "$0")/lib/common.sh"
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-
-print_banner() {
-    echo ""
-    echo -e "${CYAN}╔══════════════════════════════════════════╗${NC}"
-    echo -e "${CYAN}║       Mark II Assist - Installer         ║${NC}"
-    echo -e "${CYAN}║  github.com/andlo/mark2-assist           ║${NC}"
-    echo -e "${CYAN}╚══════════════════════════════════════════╝${NC}"
-    echo ""
-}
-
-print_step() {
-    local num="$1"
-    local title="$2"
-    local desc="$3"
-    echo ""
-    echo -e "${CYAN}────────────────────────────────────────────${NC}"
-    echo -e "${CYAN} Step ${num}: ${title}${NC}"
-    echo -e " ${desc}"
-    echo -e "${CYAN}────────────────────────────────────────────${NC}"
-    echo ""
-}
-
-wait_for_reboot() {
-    echo ""
-    echo -e "${YELLOW}╔══════════════════════════════════════════╗${NC}"
-    echo -e "${YELLOW}║            REBOOT REQUIRED               ║${NC}"
-    echo -e "${YELLOW}║                                          ║${NC}"
-    echo -e "${YELLOW}║  Hardware drivers need a reboot to       ║${NC}"
-    echo -e "${YELLOW}║  take effect before continuing.          ║${NC}"
-    echo -e "${YELLOW}║                                          ║${NC}"
-    echo -e "${YELLOW}║  After reboot, run this script again:    ║${NC}"
-    echo -e "${YELLOW}║    ./install.sh --skip-hardware          ║${NC}"
-    echo -e "${YELLOW}╚══════════════════════════════════════════╝${NC}"
-    echo ""
-    echo "Rebooting in 10 seconds... (Ctrl+C to cancel)"
-    sleep 10
-    sudo reboot
-}
+MODULES_DIR="${SCRIPT_DIR}/modules"
 
 # --- Parse arguments ---
 SKIP_HARDWARE=false
-SKIP_SATELLITE=false
-ONLY_HARDWARE=false
-
 for arg in "$@"; do
     case "$arg" in
-        --skip-hardware)   SKIP_HARDWARE=true ;;
-        --skip-satellite)  SKIP_SATELLITE=true ;;
-        --only-hardware)   ONLY_HARDWARE=true ;;
+        --skip-hardware) SKIP_HARDWARE=true ;;
         --help|-h)
-            echo "Usage: $0 [options]"
-            echo ""
-            echo "Options:"
-            echo "  --skip-hardware    Skip hardware setup (already done)"
-            echo "  --skip-satellite   Skip satellite + kiosk setup"
-            echo "  --only-hardware    Only run hardware setup then reboot"
-            echo "  --help             Show this help"
-            exit 0
-            ;;
+            echo "Usage: $0 [--skip-hardware]"
+            echo "  --skip-hardware   Skip hardware setup (already done + rebooted)"
+            exit 0 ;;
     esac
 done
 
-# --- Main ---
 check_not_root
 setup_paths
 
-print_banner
+# =============================================================================
+# BANNER
+# =============================================================================
 
-echo "  This installer will set up your Mycroft Mark II as:"
+echo ""
+echo -e "${CYAN}╔══════════════════════════════════════════╗${NC}"
+echo -e "${CYAN}║       Mark II Assist - Installer         ║${NC}"
+echo -e "${CYAN}║  github.com/andlo/mark2-assist           ║${NC}"
+echo -e "${CYAN}╚══════════════════════════════════════════╝${NC}"
+echo ""
+echo "  Repurpose your Mycroft Mark II as:"
 echo "  · Wyoming voice satellite for Home Assistant"
 echo "  · Home Assistant kiosk display"
 echo "  · Multiroom audio endpoint"
-echo ""
-echo "  Scripts will run in order. Each step will explain"
-echo "  what it does before proceeding."
 echo ""
 
 if ! ask_yes_no "Ready to begin?"; then
@@ -109,26 +64,26 @@ fi
 # =============================================================================
 
 if [ "$SKIP_HARDWARE" = false ]; then
-    print_step "1/4" "Hardware Drivers" \
-        "Installs SJ201 audio drivers, VocalFusion kernel module,\n boot overlays and WirePlumber config.\n Requires a reboot when complete."
+    section "Step 1/3 — Hardware Drivers"
+    echo "  Installs SJ201 audio drivers, VocalFusion kernel module,"
+    echo "  boot overlays, WirePlumber config and kernel watchdog."
+    echo "  A reboot is required after this step."
+    echo ""
 
     if ask_yes_no "Run hardware setup?"; then
         bash "${SCRIPT_DIR}/mark2-hardware-setup.sh"
-
-        if [ "$ONLY_HARDWARE" = true ]; then
-            wait_for_reboot
-        fi
-
         echo ""
-        echo -e "${YELLOW}Hardware setup complete. A reboot is required.${NC}"
+        echo -e "${YELLOW}  Hardware setup complete. A reboot is required before continuing.${NC}"
         echo ""
-        if ask_yes_no "Reboot now? (You will need to re-run ./install.sh --skip-hardware after reboot)"; then
-            wait_for_reboot
+        if ask_yes_no "Reboot now? (re-run './install.sh --skip-hardware' after reboot)"; then
+            echo "Rebooting in 5 seconds... (Ctrl+C to cancel)"
+            sleep 5
+            sudo reboot
         else
-            warn "Skipping reboot - note that audio may not work until you reboot"
+            warn "Skipping reboot - audio may not work until you reboot"
         fi
     else
-        warn "Skipping hardware setup - SJ201 audio may not work"
+        warn "Skipping hardware setup"
     fi
 else
     log "Skipping hardware setup (--skip-hardware)"
@@ -138,44 +93,47 @@ fi
 # STEP 2: WYOMING SATELLITE + KIOSK
 # =============================================================================
 
-if [ "$SKIP_SATELLITE" = false ]; then
-    print_step "2/4" "Wyoming Satellite + HA Kiosk" \
-        "Installs Wyoming voice satellite and openWakeWord.\n Sets up Chromium kiosk showing Home Assistant.\n Configures PipeWire media playback."
+section "Step 2/3 — Wyoming Satellite + HA Kiosk"
+echo "  Installs Wyoming voice satellite and openWakeWord."
+echo "  Sets up Chromium kiosk showing Home Assistant."
+echo ""
 
-    if ask_yes_no "Run satellite + kiosk setup?"; then
-        bash "${SCRIPT_DIR}/mark2-satellite-setup.sh"
+if ask_yes_no "Run satellite + kiosk setup?"; then
+    bash "${SCRIPT_DIR}/mark2-satellite-setup.sh"
+else
+    warn "Skipping satellite setup"
+fi
+
+# =============================================================================
+# STEP 3: OPTIONAL MODULES
+# =============================================================================
+
+section "Step 3/3 — Optional Modules"
+echo "  Each module can be installed individually."
+echo "  All can also be run later: bash modules/<name>.sh"
+echo ""
+
+run_module() {
+    local name="$1"
+    local desc="$2"
+    local script="${MODULES_DIR}/${name}.sh"
+    echo ""
+    echo -e "${CYAN}  ── ${desc}${NC}"
+    if ask_yes_no "  Install?"; then
+        bash "$script"
     else
-        warn "Skipping satellite setup"
+        log "Skipping ${name}"
     fi
-else
-    log "Skipping satellite setup (--skip-satellite)"
-fi
+}
 
-# =============================================================================
-# STEP 3: EXTRAS (OPTIONAL)
-# =============================================================================
-
-print_step "3/4" "Extra Audio Services (optional)" \
-    "Snapcast multiroom client, AirPlay receiver,\n and clock/weather screensaver.\n Each module is prompted individually."
-
-if ask_yes_no "Run extras setup?"; then
-    bash "${SCRIPT_DIR}/mark2-extras-setup.sh"
-else
-    log "Skipping extras - you can run mark2-extras-setup.sh later"
-fi
-
-# =============================================================================
-# STEP 4: ADVANCED FEATURES (OPTIONAL)
-# =============================================================================
-
-print_step "4/4" "Advanced Features (optional)" \
-    "LED ring control, kernel watchdog, KDE Connect,\n MPD music player, USB audio fallback,\n and volume overlay.\n Each module is prompted individually."
-
-if ask_yes_no "Run advanced setup?"; then
-    bash "${SCRIPT_DIR}/mark2-advanced-setup.sh"
-else
-    log "Skipping advanced setup - you can run mark2-advanced-setup.sh later"
-fi
+run_module "snapcast"   "Snapcast client — synchronized multiroom audio"
+run_module "airplay"    "AirPlay receiver — Mark II as AirPlay speaker"
+run_module "screensaver" "Screensaver — fullscreen clock + weather"
+run_module "leds"       "LED ring control — visual Wyoming feedback"
+run_module "mpd"        "MPD — local music player (HA / Music Assistant)"
+run_module "kdeconnect" "KDE Connect — Android phone integration"
+run_module "usb-audio"  "USB audio fallback — auto-switch if SJ201 fails"
+run_module "overlay"    "Volume overlay — on-screen status display"
 
 # =============================================================================
 # DONE

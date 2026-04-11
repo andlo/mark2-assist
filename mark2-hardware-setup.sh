@@ -320,6 +320,99 @@ cleanup_vocalfusion_src() {
     sudo rm -rf "$VOCALFUSION_SRC"
 }
 
+install_kernel_watchdog() {
+    section "Kernel Update Watchdog"
+    log "Installing VocalFusion kernel module watchdog..."
+
+    MARK2_DIR="${USER_HOME}/.config/mark2"
+    mkdir -p "$MARK2_DIR"
+    REBUILD_SCRIPT="${MARK2_DIR}/rebuild-vocalfusion.sh"
+
+    cat > "$REBUILD_SCRIPT" << 'SHEOF'
+#!/bin/bash
+# Rebuild VocalFusion kernel module if needed after kernel update
+set -euo pipefail
+KERNEL=$(uname -r)
+MODULE_PATH="/lib/modules/${KERNEL}/vocalfusion-soundcard.ko"
+SRC_PATH="/usr/src/vocalfusion-rebuild"
+LOG="/var/log/mark2-vocalfusion-rebuild.log"
+
+echo "[$(date)] Checking VocalFusion module for kernel ${KERNEL}" | sudo tee -a "$LOG"
+if [ -f "$MODULE_PATH" ]; then
+    echo "[$(date)] Module exists for ${KERNEL} - no rebuild needed" | sudo tee -a "$LOG"
+    exit 0
+fi
+echo "[$(date)] Module missing for ${KERNEL} - rebuilding..." | sudo tee -a "$LOG"
+
+DEBIAN_VERSION=$(. /etc/os-release && echo "${VERSION_ID:-0}")
+HEADERS_PKG=$( [ "$DEBIAN_VERSION" = "13" ] && echo "linux-headers-rpi-v8" || echo "raspberrypi-kernel-headers" )
+sudo apt-get update -qq
+sudo apt-get install -y --no-install-recommends "$HEADERS_PKG" build-essential
+
+if [ -d "$SRC_PATH/.git" ]; then
+    (cd "$SRC_PATH" && sudo git pull --quiet)
+else
+    sudo git clone --quiet https://github.com/OpenVoiceOS/VocalFusionDriver "$SRC_PATH"
+fi
+
+(cd "${SRC_PATH}/driver" && sudo make -j"$(nproc)" KDIR="/lib/modules/${KERNEL}/build" all) 2>&1 | sudo tee -a "$LOG"
+sudo cp "${SRC_PATH}/driver/vocalfusion-soundcard.ko" "$MODULE_PATH"
+sudo depmod -a
+
+BOOT_OVERLAYS=$([ -d /boot/firmware/overlays ] && echo /boot/firmware/overlays || echo /boot/overlays)
+for f in sj201 sj201-buttons-overlay sj201-rev10-pwm-fan-overlay; do
+    for suffix in "" "-pi5"; do
+        src="${SRC_PATH}/${f}${suffix}.dtbo"
+        [ -f "$src" ] && sudo cp "$src" "${BOOT_OVERLAYS}/${f}${suffix}.dtbo"
+    done
+done
+
+echo "[$(date)] VocalFusion rebuilt for ${KERNEL}" | sudo tee -a "$LOG"
+systemctl --user restart sj201.service 2>/dev/null || true
+SHEOF
+    chmod +x "$REBUILD_SCRIPT"
+
+    sudo tee /etc/systemd/system/mark2-vocalfusion-watchdog.service > /dev/null << EOF
+[Unit]
+Description=Mark II VocalFusion kernel module watchdog
+DefaultDependencies=no
+Before=sj201.service
+After=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=${REBUILD_SCRIPT}
+RemainAfterExit=yes
+User=root
+
+[Install]
+WantedBy=multi-user.target
+EOF
+    sudo systemctl daemon-reload
+    sudo systemctl enable mark2-vocalfusion-watchdog.service
+
+    # Safe weekly update cron (Sunday 03:00)
+    UPDATE_SCRIPT="${MARK2_DIR}/safe-update.sh"
+    cat > "$UPDATE_SCRIPT" << 'SHEOF'
+#!/bin/bash
+LOG="/var/log/mark2-updates.log"
+echo "[$(date)] Starting safe update" | tee -a "$LOG"
+apt-get update -qq 2>&1 | tee -a "$LOG"
+apt-get upgrade -y --no-install-recommends 2>&1 | tee -a "$LOG"
+echo "[$(date)] Update complete" | tee -a "$LOG"
+SHEOF
+    chmod +x "$UPDATE_SCRIPT"
+
+    sudo tee /etc/cron.d/mark2-updates > /dev/null << EOF
+# Mark II safe weekly update - Sunday 03:00
+0 3 * * 0 root ${UPDATE_SCRIPT}
+EOF
+    sudo chmod 644 /etc/cron.d/mark2-updates
+
+    log "Kernel watchdog installed - VocalFusion auto-rebuilds after kernel updates"
+    log "Safe weekly updates scheduled: Sunday 03:00"
+}
+
 # =============================================================================
 # MAIN
 # =============================================================================
@@ -345,6 +438,7 @@ download_sj201_firmware
 create_sj201_service
 configure_wireplumber
 cleanup_vocalfusion_src
+install_kernel_watchdog
 
 echo ""
 echo "========================================"
