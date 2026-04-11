@@ -30,7 +30,29 @@ _log_write() {
     fi
 }
 
-ask_yes_no() {
+# --- Show informational whiptail box (non-blocking display) ---
+show_info() {
+    local msg="$1"
+    local height="${2:-8}"
+    local width="${3:-60}"
+    if command -v whiptail >/dev/null 2>&1 && [ -t 0 ]; then
+        whiptail --title "Mark II Assist" --infobox "$msg" "$height" "$width"
+    else
+        echo -e "${BLUE}[....] ${msg}${NC}"
+    fi
+}
+
+# --- Show whiptail message box (waits for OK) ---
+show_msg() {
+    local msg="$1"
+    local height="${2:-10}"
+    local width="${3:-60}"
+    if command -v whiptail >/dev/null 2>&1 && [ -t 0 ]; then
+        whiptail --title "Mark II Assist" --msgbox "$msg" "$height" "$width"
+    else
+        echo -e "${BLUE}[INFO] ${msg}${NC}"
+    fi
+}
     local prompt="$1"
     if command -v whiptail >/dev/null 2>&1 && [ -t 0 ]; then
         whiptail --title "Mark II Assist" --yesno "$prompt" 8 60

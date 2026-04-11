@@ -125,6 +125,7 @@ create_directories() {
 
 install_kernel_headers() {
     log "Installing kernel headers and build tools..."
+    show_info "Installing kernel headers and build tools...\n\nThis may take a few minutes." 8 60
     sudo chmod 1777 /tmp
     apt_update
     apt_install \
@@ -148,6 +149,7 @@ update_eeprom() {
 }
 
 build_vocalfusion_driver() {
+    show_info "Building VocalFusion audio driver...\n\nCloning and compiling kernel module.\nThis may take several minutes." 10 60
     info "Cloning VocalFusion driver..."
     sudo git clone --quiet https://github.com/OpenVoiceOS/VocalFusionDriver "$VOCALFUSION_SRC" 2>/dev/null \
         || (cd "$VOCALFUSION_SRC" && sudo git pull --quiet)
