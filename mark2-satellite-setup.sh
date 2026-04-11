@@ -350,6 +350,7 @@ EOF
 if [ -z "${WAYLAND_DISPLAY:-}" ] && [ "$(tty)" = "/dev/tty1" ]; then
     export XDG_RUNTIME_DIR=/run/user/$(id -u)
     export XDG_SESSION_TYPE=wayland
+    export WAYLAND_DISPLAY=wayland-0
     labwc
 fi
 EOF
@@ -394,8 +395,8 @@ EOF
     KIOSK_SCRIPT="${USER_HOME}/kiosk.sh"
     cat > "$KIOSK_SCRIPT" << EOF
 #!/bin/bash
-export WAYLAND_DISPLAY=\${WAYLAND_DISPLAY:-wayland-1}
-unclutter-xfixes --timeout 1 &
+export WAYLAND_DISPLAY=\${WAYLAND_DISPLAY:-wayland-0}
+export XDG_RUNTIME_DIR=/run/user/\$(id -u)
 
 # Wait for Home Assistant
 until curl -sf --max-time 3 "${HA_URL}" > /dev/null 2>&1; do
@@ -426,7 +427,8 @@ EOF
     HUD_SCRIPT="${USER_HOME}/hud.sh"
     cat > "$HUD_SCRIPT" << EOF
 #!/bin/bash
-export WAYLAND_DISPLAY=\${WAYLAND_DISPLAY:-wayland-1}
+export WAYLAND_DISPLAY=\${WAYLAND_DISPLAY:-wayland-0}
+export XDG_RUNTIME_DIR=/run/user/\$(id -u)
 # Small delay so HA window is behind before HUD starts
 sleep 3
 
