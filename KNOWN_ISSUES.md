@@ -164,3 +164,55 @@ various web apps). This may cause a conflict.
 **Fix needed:**
 Make the HTTP stream port configurable, or check if port 8000 is free
 before configuring it.
+
+---
+
+## Issue 11: Fan overlay only works on Rev10 - Rev6 Dev Kits have no fan
+
+**Labels:** `hardware`, `documentation`
+
+**Description:**
+The `sj201-rev10-pwm-fan-overlay.dtbo` is installed and activated in `config.txt`
+by `mark2-hardware-setup.sh`. This overlay only applies to **Mark II Rev10**
+(production units shipped to Kickstarter backers).
+
+Early **Dev Kit units (Rev6)** do not have a fan connector on the SJ201 board.
+The overlay loading is harmless on Rev6 — the kernel will simply not find a fan
+device — but it generates a warning in dmesg.
+
+**Verify your hardware revision:**
+```bash
+# Check SJ201 board revision from dmesg
+dmesg | grep -i "sj201\|rev"
+```
+
+**Fix needed:**
+Detect board revision during setup and skip fan overlay on Rev6.
+Board revision may be readable from SJ201 I2C registers or from the
+DeviceTree model string.
+
+---
+
+## Issue 12: Fan thermal thresholds are fixed in DTBO - not user-configurable without recompile
+
+**Labels:** `enhancement`, `configuration`
+
+**Description:**
+Fan temperature thresholds are hardcoded in `sj201-rev10-pwm-fan-overlay.dtbo`:
+- 40°C → fan starts
+- 50°C → medium
+- 55°C → high
+- 60°C → full speed
+
+The DTS exposes `poe_fan_temp0`/`poe_fan_temp0_hyst` etc. as kernel command
+line overrides, but these are not documented or exposed to the user.
+
+**Fix needed:**
+Document how to tune thresholds via `/boot/firmware/cmdline.txt`, or add a
+`mark2-fan-config` helper command that writes the correct parameters.
+
+Example (to lower fan-on threshold to 35°C):
+```
+# Add to /boot/firmware/cmdline.txt:
+dtoverlay=sj201-rev10-pwm-fan-overlay,poe_fan_temp0=35000,poe_fan_temp0_hyst=5000
+```

@@ -156,6 +156,40 @@ Mark II will appear as a player target via:
 - **Wyoming** media player (HA native)
 
 Docs: https://music-assistant.io/integration/ha/
+---
+
+## Fan Control
+
+The Mark II has a PWM-controlled fan on the SJ201 board.
+**Fan control is fully automatic — no extra configuration needed.**
+
+The `sj201-rev10-pwm-fan-overlay.dtbo` file (installed by `mark2-hardware-setup.sh`)
+configures the Linux kernel's thermal management to control the fan via hardware PWM on GPIO 13.
+
+| CPU Temperature | Fan state |
+|----------------|-----------|
+| Below 40°C | Off |
+| 40°C | Low speed |
+| 50°C | Medium speed |
+| 55°C | High speed |
+| 60°C+ | Full speed |
+
+Temperature thresholds can be tuned via kernel command line parameters
+(see `sj201-rev10-pwm-fan-overlay.dts` in the VocalFusion repo for parameter names).
+
+**Note:** The PWM fan overlay is only present on Mark II Rev10 (production units).
+Early Dev Kit units (Rev6) do not have a fan and the overlay will simply have no effect.
+
+To verify the fan is working:
+```bash
+# Check thermal zones
+cat /sys/class/thermal/thermal_zone0/temp
+
+# Check fan cooling state (0=off, 4=full)
+cat /sys/class/thermal/cooling_device*/cur_state 2>/dev/null || echo "Fan device not found"
+```
+
+
 
 ---
 
