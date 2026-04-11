@@ -194,6 +194,7 @@ Requires=wyoming-openwakeword.service
 
 [Service]
 Type=simple
+ExecStartPre=-/bin/sh -c 'fuser -k 10700/tcp 2>/dev/null; sleep 1'
 ExecStart=${WYOMING_SAT_DIR}/script/run \\
     --name '${SATELLITE_NAME}' \\
     --uri 'tcp://0.0.0.0:10700' \\
