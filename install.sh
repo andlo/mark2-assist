@@ -85,11 +85,11 @@ print_banner() {
     echo ' / /  / / /_/ / /  / ,<    _/ /_/ /   '
     echo '/_/  /_/\__,_/_/  /_/|_|  /___/___/   '
     echo -e "${BLUE}"
-    echo '    ___              _      __ '
-    echo '   /   |  __________(_)____/ /_'
-    echo '  / /| | / ___/ ___/ / ___/ __/'
-    echo ' / ___ |(__  |__  ) (__  ) /_  '
-    echo '/_/  |_/____/____/_/____/\__/  '
+    echo '             ___              _      __ '
+    echo '            /   |  __________(_)____/ /_'
+    echo '           / /| | / ___/ ___/ / ___/ __/'
+    echo '          / ___ |(__  |__  ) (__  ) /_  '
+    echo '         /_/  |_/____/____/_/____/\__/  '
     echo -e "${NC}"
     echo -e "${BLUE}  Welcome to the Mark II Assist installer${NC}"
     echo -e "${BLUE}  github.com/andlo/mark2-assist${NC}"
