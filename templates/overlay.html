@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body {
+      background:transparent; overflow:hidden;
+      font-family:system-ui,sans-serif; pointer-events:none;
+    }
+    #container {
+      position:fixed; bottom:1.5rem; left:50%; transform:translateX(-50%);
+      display:flex; flex-direction:column; align-items:center; gap:0.6rem;
+      transition:opacity 0.4s ease; opacity:0;
+    }
+    #container.visible { opacity:1; }
+    #status-pill {
+      background:rgba(20,20,40,0.85); border:1px solid rgba(100,120,255,0.3);
+      border-radius:2rem; padding:0.4rem 1.2rem;
+      font-size:0.85rem; color:#c0c8ff;
+      backdrop-filter:blur(8px); display:none;
+    }
+    #status-pill.visible { display:block; }
+    #volume-bar-wrap {
+      background:rgba(20,20,40,0.85); border:1px solid rgba(255,255,255,0.1);
+      border-radius:2rem; padding:0.5rem 1.5rem;
+      display:flex; align-items:center; gap:0.8rem;
+      backdrop-filter:blur(8px); min-width:200px;
+    }
+    #vol-icon { font-size:1.1rem; }
+    #vol-track {
+      flex:1; height:4px; background:rgba(255,255,255,0.15);
+      border-radius:2px; overflow:hidden;
+    }
+    #vol-fill {
+      height:100%; background:linear-gradient(90deg,#4080ff,#80c0ff);
+      border-radius:2px; transition:width 0.2s ease; width:0%;
+    }
+    #vol-pct { font-size:0.85rem; color:#9090c0; min-width:2.5rem; text-align:right; }
+  </style>
+</head>
+<body>
+  <div id="container">
+    <div id="status-pill"></div>
+    <div id="volume-bar-wrap">
+      <span id="vol-icon">🔊</span>
+      <div id="vol-track"><div id="vol-fill"></div></div>
+      <span id="vol-pct">--</span>
+    </div>
+  </div>
+  <script>
+    const container  = document.getElementById('container');
+    const statusPill = document.getElementById('status-pill');
+    const volFill    = document.getElementById('vol-fill');
+    const volPct     = document.getElementById('vol-pct');
+    const volIcon    = document.getElementById('vol-icon');
+    let hideTimer = null;
+
+    function show(ms = 3000) {
+      container.classList.add('visible');
+      clearTimeout(hideTimer);
+      if (ms > 0) hideTimer = setTimeout(() => container.classList.remove('visible'), ms);
+    }
+
+    function setVolume(pct) {
+      const v = Math.max(0, Math.min(100, pct));
+      volFill.style.width = v + '%';
+      volPct.textContent  = v + '%';
+      volIcon.textContent = v === 0 ? '🔇' : v < 40 ? '🔉' : '🔊';
+      show(3000);
+    }
+
+    function setStatus(text, persistent = false) {
+      statusPill.textContent = text;
+      statusPill.classList.add('visible');
+      show(persistent ? 0 : 4000);
+      if (!persistent) setTimeout(() => statusPill.classList.remove('visible'), 4000);
+    }
+
+    function clearAll() {
+      statusPill.classList.remove('visible');
+      container.classList.remove('visible');
+    }
+
+    // Listen via BroadcastChannel (same-origin)
+    const bc = new BroadcastChannel('mark2-overlay');
+    bc.onmessage = (e) => {
+      const { type, value } = e.data;
+      if      (type === 'volume')            setVolume(value);
+      else if (type === 'status')            setStatus(value, false);
+      else if (type === 'status-persistent') setStatus(value, true);
+      else if (type === 'clear')             clearAll();
+    };
+
+    // Poll /tmp/mark2-overlay-event.json written by mark2-overlay command
+    let lastEvent = '';
+    setInterval(async () => {
+      try {
+        const r = await fetch('file:///tmp/mark2-overlay-event.json?' + Date.now());
+        const text = await r.text();
+        if (text === lastEvent) return;
+        lastEvent = text;
+        const d = JSON.parse(text);
+        bc.dispatchEvent(new MessageEvent('message', { data: d }));
+      } catch(e) {}
+    }, 500);
+  </script>
+</body>
+</html>
