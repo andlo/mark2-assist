@@ -226,6 +226,12 @@ configure_boot_config() {
         log "  Added: dtoverlay=rpi-backlight"
     fi
 
+    # Mark II 4.3" Waveshare 800x480 DSI display
+    if ! grep -q "^dtoverlay=vc4-kms-dsi-waveshare-800x480$" "$BOOT_CONFIG"; then
+        echo "dtoverlay=vc4-kms-dsi-waveshare-800x480" | sudo tee -a "$BOOT_CONFIG" > /dev/null
+        log "  Added: dtoverlay=vc4-kms-dsi-waveshare-800x480 (Mark II touchscreen)"
+    fi
+
     # Remove vc4-fkms-v3d if present (deprecated on Trixie/kernel 6.x)
     sudo sed -i '/^dtoverlay=vc4-fkms-v3d$/d' "$BOOT_CONFIG" 2>/dev/null || true
     sudo sed -i '/^disable_fw_kms_setup/d' "$BOOT_CONFIG" 2>/dev/null || true
