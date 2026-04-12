@@ -260,8 +260,13 @@ configure_boot_config() {
 }
 
 configure_modules_load() {
-    log "Configuring automatic loading of vocalfusion module..."
+    log "Configuring automatic loading of kernel modules..."
+    # vocalfusion-soundcard: SJ201 XVF3510 microphone array ALSA driver
     echo "${VOCALFUSION_MODULE}" | sudo tee "$MODULES_LOAD_CONF" > /dev/null
+    # i2c-dev: exposes I2C buses as /dev/i2c-* devices
+    # Required for init_tas5806 (TAS5806 amplifier) and LED ring control
+    echo "i2c-dev" | sudo tee /etc/modules-load.d/i2c-dev.conf > /dev/null
+    log "Module autoload configured: vocalfusion-soundcard, i2c-dev"
 }
 
 setup_sj201_venv() {
