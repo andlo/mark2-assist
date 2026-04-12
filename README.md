@@ -12,7 +12,7 @@
 </p>
 
 <p align="center">
-  No cloud. No Mycroft. No OVOS. Pure Home Assistant local voice.
+  No Mycroft. No OVOS. Just Home Assistant Assist — local or cloud, your choice.
 </p>
 
 ---
