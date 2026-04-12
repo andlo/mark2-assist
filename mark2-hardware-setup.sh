@@ -444,11 +444,29 @@ EOF
     UPDATE_SCRIPT="${MARK2_DIR}/safe-update.sh"
     cat > "$UPDATE_SCRIPT" << 'SHEOF'
 #!/bin/bash
+# Mark II safe weekly update — runs as root from cron
+# Updates: 1) system packages  2) mark2-assist scripts + LVA
 LOG="/var/log/mark2-updates.log"
-echo "[$(date)] Starting safe update" | tee -a "$LOG"
+MARK2_ASSIST_DIR="/home/pi/mark2-assist"
+
+echo "" | tee -a "$LOG"
+echo "[$(date)] === Mark II weekly update ===" | tee -a "$LOG"
+
+# 1. System packages
+echo "[$(date)] Step 1: apt upgrade" | tee -a "$LOG"
 apt-get update -qq 2>&1 | tee -a "$LOG"
 apt-get upgrade -y --no-install-recommends 2>&1 | tee -a "$LOG"
-echo "[$(date)] Update complete" | tee -a "$LOG"
+
+# 2. mark2-assist scripts + LVA (skip apt — already done above)
+if [ -f "${MARK2_ASSIST_DIR}/update.sh" ]; then
+    echo "[$(date)] Step 2: mark2-assist + LVA update" | tee -a "$LOG"
+    # Run update.sh as pi user (it manages user services)
+    sudo -u pi TERM=xterm bash "${MARK2_ASSIST_DIR}/update.sh"         --skip-apt --yes 2>&1 | tee -a "$LOG"
+else
+    echo "[$(date)] mark2-assist not found at ${MARK2_ASSIST_DIR} — skipping" | tee -a "$LOG"
+fi
+
+echo "[$(date)] === Update complete ===" | tee -a "$LOG"
 SHEOF
     chmod +x "$UPDATE_SCRIPT"
 

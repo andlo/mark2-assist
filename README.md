@@ -246,7 +246,13 @@ Optional flags:
 sudo apt update && sudo apt upgrade
 ```
 
-A safe weekly update also runs automatically every Sunday at 03:00 via cron.
+A **safe weekly update** runs automatically every Sunday at 03:00 via `/etc/cron.d/mark2-updates`.
+It runs in two steps:
+1. `apt upgrade` — system packages
+2. `update.sh --skip-apt --yes` — mark2-assist scripts + LVA (git pull + setup if new commits)
+
+The log is written to `/var/log/mark2-updates.log`.
+
 After any kernel update the VocalFusion audio driver is automatically rebuilt
 by `mark2-vocalfusion-watchdog.service` before the next boot — no manual action needed.
 
