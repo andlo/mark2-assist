@@ -226,10 +226,10 @@ read -rp "  Press Enter when ready to record..." _dummy
 echo "  🎤 Recording now..."
 echo ""
 
-RECFILE="/tmp/mark2-mic-test.wav"
-if arecord -D "${MIC_DEV}" -r 16000 -c 1 -f S16_LE -d 4 "$RECFILE" 2>/dev/null; then
+MIC_RECORDING="/tmp/mark2-mic-recording.wav"
+if arecord -D "${MIC_DEV}" -r 16000 -c 1 -f S16_LE -d 4 "$MIC_RECORDING" 2>/dev/null; then
     # Check signal level
-    LEVEL=$(python3 - "$RECFILE" << 'PYEOF'
+    LEVEL=$(python3 - "$MIC_RECORDING" << 'PYEOF'
 import sys, wave, struct, math
 try:
     with wave.open(sys.argv[1]) as f:
@@ -257,10 +257,10 @@ PYEOF
     echo ""
     echo "  Playing back your recording through the speaker..."
     echo "  NOTE: Audio quality will sound processed — XMOS noise reduction is normal."
-    RECFILE_48="/tmp/mark2-roundtrip-48k.wav"
+    MIC_RECORDING_48="/tmp/mark2-mic-recording-48k.wav"
     if command -v sox &>/dev/null; then
-        sox "$RECFILE" -r 48000 -c 2 "$RECFILE_48" 2>/dev/null
-        timeout 6 aplay -D plughw:CARD=sj201,DEV=0 "$RECFILE_48" 2>/dev/null || true
+        sox "$MIC_RECORDING" -r 48000 -c 2 "$MIC_RECORDING_48" 2>/dev/null
+        timeout 6 aplay -D plughw:CARD=sj201,DEV=0 "$MIC_RECORDING_48" 2>/dev/null || true
     fi
     ask_result "Could you roughly hear what you said? (quality will be poor — that is normal)"
     _rt_ans=$?
@@ -273,10 +273,6 @@ else
     result "Microphone record" FAIL "arecord failed — device busy or not available"
     result "Mic → Speaker roundtrip" FAIL "skipped — recording failed"
 fi
-
-# =============================================================================
-# TEST 5: Speaker — play test tone
-# =============================================================================
 
 # =============================================================================
 # TEST 4: Speaker — verified by roundtrip above
