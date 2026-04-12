@@ -282,25 +282,12 @@ ExecStart=-/sbin/agetty --autologin ${CURRENT_USER} --noclear %I \$TERM
 EOF
     log "Auto-login on tty1 configured for ${CURRENT_USER}"
 
-    # startup.sh — session command called by Weston via weston -- /path/startup.sh
-    # Weston runs this script and exits when it finishes, so we use 'wait' at
-    # the end to keep startup.sh alive while kiosk.sh (Chromium) is running.
+    # startup.sh — session command called by Weston via weston -- ~/startup.sh
+    # Uses ${HOME}/kiosk.sh and ${HOME}/hud.sh — no hardcoded /home/pi paths.
     STARTUP_SCRIPT="${USER_HOME}/startup.sh"
-    cat > "$STARTUP_SCRIPT" << 'EOF'
-#!/bin/bash
-# Weston session startup script.
-# Called by: weston --shell=kiosk -- /home/pi/startup.sh
-# Weston stays alive as long as this script is running.
-exec >> /tmp/mark2-startup.log 2>&1
-echo "[$(date)] startup.sh starting"
-/home/pi/kiosk.sh &
-sleep 3
-/home/pi/hud.sh &
-# Keep running so Weston does not exit
-wait
-EOF
+    cp "${SCRIPT_DIR}/lib/startup.sh" "$STARTUP_SCRIPT"
     chmod +x "$STARTUP_SCRIPT"
-    log "Created ~/startup.sh"
+    log "Installed ~/startup.sh"
 
     # ~/.bash_profile — starts Weston when user logs in on tty1.
     # Weston --backend=drm uses the DRM/KMS display (Pi4 vc4-kms-v3d driver).
@@ -321,7 +308,7 @@ EOF
 if [ -z "${WAYLAND_DISPLAY:-}" ] && [ "$(tty)" = "/dev/tty1" ]; then
     export XDG_RUNTIME_DIR=/run/user/$(id -u)
     export XDG_SESSION_TYPE=wayland
-    weston --backend=drm --shell=kiosk --log=/tmp/weston.log -- /home/pi/startup.sh
+    weston --backend=drm --shell=kiosk --log=/tmp/weston.log -- "${HOME}/startup.sh"
 fi
 EOF
     log "Weston autostart added to ~/.bash_profile"
@@ -359,89 +346,18 @@ EOF
     log "Installed HUD template → ${KIOSK_DIR}/hud.html"
 
     # ── kiosk.sh — main display launcher ──
-    # If ~/.config/mark2/ha-kiosk-enabled exists (written by modules/homeassistant.sh),
-    # Chromium opens the HA dashboard. Otherwise it opens the local HUD page,
-    # showing only the face animation and clock — useful as a pure voice satellite
-    # without an HA dashboard.
+    # Uses ${HOME} for paths — works with any username, not just pi.
     KIOSK_SCRIPT="${USER_HOME}/kiosk.sh"
-    cat > "$KIOSK_SCRIPT" << 'SCRIPTEOF'
-#!/bin/bash
-exec >> /tmp/mark2-kiosk.log 2>&1
-echo "[$(date)] kiosk.sh starting"
-
-export WAYLAND_DISPLAY=${WAYLAND_DISPLAY:-wayland-0}
-export XDG_RUNTIME_DIR=/run/user/$(id -u)
-
-CONFIG="${HOME}/.config/mark2/config"
-HA_URL=""
-[ -f "$CONFIG" ] && source "$CONFIG"
-
-# Wait for Wayland socket (up to 30 seconds)
-for i in $(seq 1 30); do
-    [ -S "/run/user/$(id -u)/wayland-0" ] && break
-    sleep 1
-done
-echo "[$(date)] Wayland ready"
-
-# Remove stale Chromium singleton lock (left by unclean shutdown)
-rm -f "${HOME}/.config/chromium-kiosk/Singleton"*
-
-# Decide what to show:
-# - If HA kiosk is enabled (modules/homeassistant.sh was run): open HA dashboard
-# - Otherwise: open local HUD page (face + clock only, no HA)
-if [ -f "${HOME}/.config/mark2/ha-kiosk-enabled" ] && [ -n "$HA_URL" ]; then
-    # Wait for HA to respond (401 Unauthorized is fine — means HA is running)
-    until curl -o /dev/null -sf --max-time 3 -w "%{http_code}" "${HA_URL}" \
-        2>/dev/null | grep -qE '200|401|302'; do
-        sleep 3
-    done
-    sleep 3
-    START_URL="${HA_URL}"
-    echo "[$(date)] HA ready, opening dashboard: ${START_URL}"
-else
-    # No HA dashboard — open local HUD page (face animation + clock)
-    START_URL="file://${HOME}/.config/mark2-kiosk/hud.html"
-    echo "[$(date)] HA kiosk not enabled, opening local HUD"
-fi
-
-exec chromium \
-    --kiosk \
-    --noerrdialogs \
-    --disable-infobars \
-    --no-first-run \
-    --disable-session-crashed-bubble \
-    --disable-component-update \
-    --password-store=basic \
-    --ozone-platform=wayland \
-    --enable-features=UseOzonePlatform \
-    --autoplay-policy=no-user-gesture-required \
-    --disable-background-timer-throttling \
-    --no-sandbox \
-    --user-data-dir="${HOME}/.config/chromium-kiosk" \
-    "${START_URL}"
-SCRIPTEOF
+    cp "${SCRIPT_DIR}/lib/kiosk.sh" "$KIOSK_SCRIPT"
     chmod +x "$KIOSK_SCRIPT"
-    log "Created ~/kiosk.sh"
+    log "Installed ~/kiosk.sh"
 
     # ── hud.sh — HUD overlay launcher ──
-    # Starts a second Chromium window in --app mode (no browser UI) showing
-    # the face animation + volume overlay on top of the kiosk.
+    # Uses ${HOME} for paths — works with any username, not just pi.
     HUD_SCRIPT="${USER_HOME}/hud.sh"
-    cat > "$HUD_SCRIPT" << EOF
-#!/bin/bash
-export WAYLAND_DISPLAY=\${WAYLAND_DISPLAY:-wayland-0}
-export XDG_RUNTIME_DIR=/run/user/\$(id -u)
-sleep 3
-exec chromium \\
-    --app="file://${KIOSK_DIR}/hud.html" \\
-    --window-size=800,480 --window-position=0,0 \\
-    --ozone-platform=wayland --password-store=basic \\
-    --no-first-run --disable-infobars \\
-    --disable-background-timer-throttling \\
-    --app-auto-launched --enable-features=UseOzonePlatform
-EOF
+    cp "${SCRIPT_DIR}/lib/hud.sh" "$HUD_SCRIPT"
     chmod +x "$HUD_SCRIPT"
-    log "Created ~/hud.sh"
+    log "Installed ~/hud.sh"
 
     # ── labwc rc.xml ──
     # labwc is installed alongside Weston for use by the optional face and
