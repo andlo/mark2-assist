@@ -14,7 +14,7 @@ TAS_VOL  = 0x4c
 TAS_MAX  = 84    # register at 100% = -42dB (max safe for Mark II 5W speaker)
 TAS_MIN  = 210   # register at 0% (near silence)
 STEP     = 5     # percent per button press
-DEFAULT  = 50    # restore level after unmute (50% log = reg 0x85 = -66.5dB)
+DEFAULT  = 60    # restore level after unmute (60% log = reg 0x79 = -60.5dB)
 
 from math import log as _log, exp as _exp
 def pct_to_reg(p):
