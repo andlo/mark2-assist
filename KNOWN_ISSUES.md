@@ -211,3 +211,37 @@ keys and logged `'dict object' has no attribute 'disk_usage'` etc.
 Fixed in `lib/mqtt-bridge.py`: sys_metrics dict is now initialised with
 `None` values before the loop, so all keys are always present in every
 published payload. `None` serialises as JSON `null` which HA handles fine.
+
+---
+
+## Issue 14: Speaker audio — XMOS XVF-3510 requires specific audio format ⚠️
+
+**Labels:** `audio`, `hardware`, `needs-testing`
+
+**Description:**
+The audio path on SJ201 is: **Pi I2S → XMOS XVF-3510 → TAS5806 → Speaker**
+
+Audio does NOT go directly from Pi to TAS5806. XMOS sits in the middle.
+The correct aplay format for XMOS output has not been confirmed — likely
+48kHz stereo. Playing 16kHz mono (TTS format) may require resampling.
+
+**Symptoms:**
+- aplay runs without error but no sound
+- aplay sometimes hangs indefinitely at 22050Hz mono
+- TAS5806 shows correct play state but no output
+
+**Fix needed:**
+Confirm correct format, update Wyoming `--snd-command` accordingly.
+
+---
+
+## Issue 15: openWakeWord wake word detection not verified in production ⚠️
+
+**Labels:** `audio`, `wyoming`, `needs-testing`
+
+**Description:**
+Wake word detection works when tested directly against the OWW service
+(score 0.96 on okay_nabu.wav test file). However end-to-end detection via
+Wyoming satellite + microphone has not been confirmed working.
+
+**Status:** Needs re-testing after Issue 14 (audio routing) is resolved.
