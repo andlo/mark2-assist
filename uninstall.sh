@@ -14,7 +14,8 @@
 #   - /boot/firmware/config.txt overlays
 #
 # Usage:
-#   ./uninstall.sh
+#   ./uninstall.sh                  — full uninstall
+#   ./uninstall.sh --keep-hardware  — keep sj201/hardware, remove rest
 # =============================================================================
 
 set -euo pipefail
@@ -24,6 +25,11 @@ source "$(dirname "$0")/lib/common.sh"
 
 check_not_root
 setup_paths
+
+KEEP_HARDWARE=false
+for arg in "$@"; do
+    [[ "$arg" == "--keep-hardware" ]] && KEEP_HARDWARE=true
+done
 
 # =============================================================================
 # BANNER
@@ -54,7 +60,6 @@ section "Stopping and disabling services"
 USER_SERVICES=(
     wyoming-satellite
     wyoming-openwakeword
-    sj201
     ha-kiosk
     mark2-leds
     mark2-led-events
@@ -69,6 +74,11 @@ USER_SERVICES=(
     kdeconnect
     mark2-audio-fallback
 )
+
+# Only remove hardware services if not keeping hardware setup
+if [ "$KEEP_HARDWARE" = false ]; then
+    USER_SERVICES+=(sj201)
+fi
 
 SYSTEM_SERVICES=(
     mark2-vocalfusion-watchdog
@@ -191,9 +201,12 @@ log "System scripts removed"
 # =============================================================================
 
 section "Removing WirePlumber SJ201 config"
-
-rm -f "${USER_HOME}/.config/wireplumber/wireplumber.conf.d/90-sj201-profile.conf"
-log "WirePlumber config removed"
+if [ "$KEEP_HARDWARE" = false ]; then
+    rm -f "${USER_HOME}/.config/wireplumber/wireplumber.conf.d/90-sj201-profile.conf"
+    log "WirePlumber config removed"
+else
+    log "Keeping WirePlumber SJ201 config (--keep-hardware)"
+fi
 
 # =============================================================================
 # MPD CONFIG
@@ -228,13 +241,27 @@ fi
 
 if ask_yes_no "Remove saved config (HA URL, token, MQTT credentials) and install progress?"; then
     rm -f "${MARK2_CONFIG}"
-    rm -f "${MARK2_PROGRESS}"
-    log "Config and progress removed"
+    if [ "$KEEP_HARDWARE" = true ]; then
+        # Keep hardware=done so next install skips hardware setup
+        grep "^hardware=" "${MARK2_PROGRESS}" > /tmp/mark2_hw_tmp 2>/dev/null || true
+        rm -f "${MARK2_PROGRESS}"
+        mv /tmp/mark2_hw_tmp "${MARK2_PROGRESS}" 2>/dev/null || true
+        log "Config removed — hardware progress kept"
+    else
+        rm -f "${MARK2_PROGRESS}"
+        log "Config and progress removed"
+    fi
     info "Next install will ask for HA URL, token etc. again"
 else
     log "Keeping config — next install will reuse saved values"
-    # Reset progress so install runs all steps again
-    rm -f "${MARK2_PROGRESS}"
+    if [ "$KEEP_HARDWARE" = true ]; then
+        # Reset all except hardware
+        grep "^hardware=" "${MARK2_PROGRESS}" > /tmp/mark2_hw_tmp 2>/dev/null || true
+        rm -f "${MARK2_PROGRESS}"
+        mv /tmp/mark2_hw_tmp "${MARK2_PROGRESS}" 2>/dev/null || true
+    else
+        rm -f "${MARK2_PROGRESS}"
+    fi
     log "Install progress reset — all steps will run on next install"
 fi
 
