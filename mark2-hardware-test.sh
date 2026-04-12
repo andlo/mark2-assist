@@ -131,8 +131,8 @@ section "1. SJ201 Service"
 # Without this, lsmod may not yet show vocalfusion_soundcard
 if systemctl --user is-active sj201.service &>/dev/null; then
     result "sj201.service" PASS "active (firmware loaded)"
-    echo "  Waiting 3 seconds for XMOS XVF-3510 to fully initialize..."
-    sleep 3
+    echo "  Waiting 5 seconds for XMOS XVF-3510 to fully initialize..."
+    sleep 5
 else
     STATUS=$(systemctl --user show sj201.service -p ActiveState --value 2>/dev/null || echo "unknown")
     if [ "$STATUS" = "failed" ]; then
@@ -200,8 +200,10 @@ section "3. Microphone"
 echo "  Waiting 2 seconds for XMOS XVF-3510 to be ready..."
 sleep 2
 echo ""
-read -rp "  Press Enter when ready to record 3 seconds of audio..." _dummy
-echo "  Recording now — say something or clap your hands!"
+echo "  When you press Enter, recording starts immediately (3 seconds)."
+echo "  Speak clearly into the microphone — e.g. 'testing one two three'."
+read -rp "  Press Enter when ready to record..." _dummy
+echo "  🎤 Recording now..."
 echo ""
 
 RECFILE="/tmp/mark2-mic-test.wav"
@@ -298,10 +300,12 @@ fi
 # =============================================================================
 
 section "5. Microphone → Speaker Roundtrip"
-echo "  Records 4 seconds then plays it back."
+echo "  Records 4 seconds then plays it back through the speaker."
 echo ""
-read -rp "  Press Enter when ready to record — say something clearly..." _dummy
-echo "  Recording now!"
+echo "  When you press Enter, recording starts immediately (4 seconds)."
+echo "  Say something clearly — e.g. 'hello mark two testing'."
+read -rp "  Press Enter when ready to record..." _dummy
+echo "  🎤 Recording now..."
 echo ""
 
 ROUNDFILE="/tmp/mark2-roundtrip.wav"
@@ -406,7 +410,9 @@ else
         result "Button input device" PASS "$EVDEV_DEV"
         echo "  Input device found: $EVDEV_DEV"
         echo ""
-        read -rp "  Press Enter when ready — then press any button within 8 seconds..." _dummy
+        echo "  When you press Enter, you have 8 seconds to press any button."
+        echo "  Press volume up, volume down, or the action button (center of LED ring)."
+        read -rp "  Press Enter when ready..." _dummy
         echo "  Waiting for button press..."
         if timeout 8 bash -c "evtest '$EVDEV_DEV' 2>/dev/null | grep -m1 'type 1'" 2>/dev/null | grep -q "type 1"; then
             result "Button press detected" PASS
