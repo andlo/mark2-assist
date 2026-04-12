@@ -164,10 +164,9 @@ configure_upfront() {
     # Save module selection so it survives reboot
     config_save "SELECTED_MODULES" "$SELECTED_MODULES"
 
-    # ── Step 2: Home Assistant URL (only if homeassistant module selected) ──
-    if echo "$SELECTED_MODULES" | grep -qw "homeassistant"; then
-        prompt_ha_url
-    fi
+    # ── Step 2: Home Assistant URL ──
+    # Always asked upfront — used by kiosk, screensaver, MQTT sensors etc.
+    prompt_ha_url
 
     # ── Step 3: HA token (only if screensaver selected) ──
     if echo "$SELECTED_MODULES" | grep -qw "screensaver"; then

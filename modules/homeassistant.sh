@@ -34,7 +34,11 @@ if ! confirm_or_skip "Install Home Assistant kiosk dashboard?"; then
     exit 0
 fi
 
-prompt_ha_url
+# HA URL is always saved upfront by install.sh — just load it here
+config_load
+if [ -z "${HA_URL:-}" ]; then
+    prompt_ha_url
+fi
 
 # Write marker file — kiosk.sh checks for this at startup
 touch "${MARK2_DIR}/ha-kiosk-enabled"
