@@ -90,13 +90,14 @@ ask_result() {
 
 clear
 echo -e "${CYAN}"
-echo '    __  ___           __      ______  ____  __ '
-echo '   /  |/  /___ ______/ /__   /  _/  _/ __ \/ /'
-echo '  / /|_/ / __ `/ ___/ //_/   / / / // / / / / '
-echo ' / /  / / /_/ / /  / ,<    _/ /_/ // /_/ /_/  '
-echo '/_/  /_/\__,_/_/  /_/|_|  /___/___/\____(_)   '
+echo '    __  ___           __      ________     ___              _      __ '
+echo '   /  |/  /___ ______/ /__   /  _/  _/    /   |  __________(_)____/ /_'
+echo '  / /|_/ / __ `/ ___/ //_/   / / / /     / /| | / ___/ ___/ / ___/ __/'
+echo ' / /  / / /_/ / /  / ,<    _/ /_/ /     / ___ |(__  |__  ) (__  ) /_  '
+echo '/_/  /_/\__,_/_/  /_/|_|  /___/___/    /_/  |_/____/____/_/____/\__/  '
 echo -e "${NC}"
 echo -e "${BLUE}  Mark II Hardware Test Suite${NC}"
+echo -e "${BLUE}  github.com/andlo/mark2-assist${NC}"
 echo ""
 if [ "$AUTO" = true ]; then
     echo -e "  ${YELLOW}Running in automatic mode — manual checks skipped${NC}"
