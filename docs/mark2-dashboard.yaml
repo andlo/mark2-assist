@@ -5,19 +5,19 @@
 #   - Mushroom Cards    https://github.com/piitaya/lovelace-mushroom
 #   - layout-card       https://github.com/thomasloven/lovelace-layout-card
 #   - card-mod          https://github.com/thomasloven/lovelace-card-mod
+#   - Kiosk Mode        https://github.com/NemesisRE/kiosk-mode
 #
 # Setup: see docs/HA_SETUP.md
 #
-# Entity IDs used (update to match your setup):
-#   weather.forecast_home         — weather entity
-#   light.living_room             — main room light
-#   media_player.mark2            — Mark II media player (MPD / Music Assistant)
-#   person.andreas_lorensen       — primary person
-#   person.sonia                  — secondary person
-#   climate.living_room           — room thermostat
-#   scene.good_night              — good night scene
-#   scene.good_morning            — good morning scene
-#   input_boolean.mark2_dnd       — do not disturb toggle (create as Helper)
+# Replace these placeholder entity IDs with your own:
+#   weather.forecast_home   — your weather entity
+#   light.your_light        — main light in the room
+#   media_player.mark2      — Mark II media player (MPD / Music Assistant)
+#   climate.your_room       — thermostat in the room
+#   person.your_name        — primary person entity
+#   scene.good_night        — good night scene (or remove the card)
+#   scene.good_morning      — good morning scene (or remove the card)
+#   input_boolean.mark2_dnd — do not disturb toggle (create as Helper or remove)
 # =============================================================================
 
 title: Mark II
@@ -36,7 +36,7 @@ views:
     cards:
 
       # -----------------------------------------------------------------------
-      # ROW 1: Clock (left) + Weather (right)
+      # ROW 1: Clock + Weather
       # -----------------------------------------------------------------------
 
       - type: custom:mushroom-template-card
@@ -69,6 +69,7 @@ views:
 
       # -----------------------------------------------------------------------
       # ROW 2: Media Player (full width)
+      # Tip: replace media_player.mark2 with your MPD or Music Assistant entity
       # -----------------------------------------------------------------------
 
       - type: custom:mushroom-media-player-card
@@ -90,11 +91,11 @@ views:
           grid_rows: 1
 
       # -----------------------------------------------------------------------
-      # ROW 3: Light + Temperature + Scenes + Do Not Disturb
+      # ROW 3: Light + Climate + Scenes
       # -----------------------------------------------------------------------
 
       - type: custom:mushroom-light-card
-        entity: light.living_room
+        entity: light.your_light
         show_brightness_control: true
         show_color_temp_control: false
         show_color_control: false
@@ -104,7 +105,7 @@ views:
           grid_rows: 1
 
       - type: custom:mushroom-climate-card
-        entity: climate.living_room
+        entity: climate.your_room
         show_temperature_control: true
         hvac_modes:
           - heat
@@ -114,7 +115,7 @@ views:
           grid_rows: 1
 
       - type: custom:mushroom-template-card
-        primary: God nat
+        primary: Good Night
         icon: mdi:weather-night
         icon_color: indigo
         tap_action:
@@ -127,7 +128,7 @@ views:
           grid_rows: 1
 
       - type: custom:mushroom-template-card
-        primary: God morgen
+        primary: Good Morning
         icon: mdi:weather-sunny
         icon_color: orange
         tap_action:
@@ -140,11 +141,12 @@ views:
           grid_rows: 1
 
       # -----------------------------------------------------------------------
-      # ROW 4: Presence (Andreas + Sonia) + Timer + Do Not Disturb
+      # ROW 4: Presence + Timer + Do Not Disturb
+      # Tip: add more person cards or replace with other entities
       # -----------------------------------------------------------------------
 
       - type: custom:mushroom-person-card
-        entity: person.andreas_lorensen
+        entity: person.your_name
         use_entity_picture: true
         tap_action:
           action: none
@@ -152,20 +154,19 @@ views:
           grid_columns: 1
           grid_rows: 1
 
-      - type: custom:mushroom-person-card
-        entity: person.sonia
-        use_entity_picture: true
-        tap_action:
-          action: none
-        layout_options:
-          grid_columns: 1
-          grid_rows: 1
+      # Tip: add a second person card here, or replace with another entity
+      # - type: custom:mushroom-person-card
+      #   entity: person.your_partner
+      #   use_entity_picture: true
+      #   layout_options:
+      #     grid_columns: 1
+      #     grid_rows: 1
 
       - type: custom:mushroom-template-card
         primary: >
           {% set timers = states.timer | selectattr('state', 'eq', 'active') | list %}
           {% if timers %}{{ timers[0].attributes.friendly_name }}
-          {% else %}Ingen timer{% endif %}
+          {% else %}No timer{% endif %}
         secondary: >
           {% set timers = states.timer | selectattr('state', 'eq', 'active') | list %}
           {% if timers %}{{ timers[0].attributes.remaining }}{% endif %}
@@ -181,8 +182,8 @@ views:
 
       - type: custom:mushroom-template-card
         primary: >
-          {% if is_state('input_boolean.mark2_dnd', 'on') %}Stille
-          {% else %}Lytter{% endif %}
+          {% if is_state('input_boolean.mark2_dnd', 'on') %}Muted
+          {% else %}Listening{% endif %}
         icon: >
           {% if is_state('input_boolean.mark2_dnd', 'on') %}mdi:microphone-off
           {% else %}mdi:microphone{% endif %}

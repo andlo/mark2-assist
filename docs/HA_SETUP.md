@@ -12,10 +12,31 @@ The recommended HA setup for Mark II consists of:
 
 1. **A dedicated `mark2` user** — logs in automatically via trusted network,
    sees only the Mark II dashboard, cannot change HA settings
-2. **Trusted network auto-login** — Mark II's IP is whitelisted so it logs
-   in without a password prompt on the touchscreen
+2. **Trusted network auto-login** — Mark II's IP is whitelisted so the
+   touchscreen logs in without a password prompt
 3. **Mark II dashboard** — 800×480 touch-optimised, 4-column grid layout
-   with clock, weather, media player, lights, scenes, and presence
+4. **Kiosk mode** — hides the HA header/sidebar inside the dashboard,
+   giving the full 480px to your cards
+
+---
+
+## HACS requirements
+
+Install these via HACS before setting up the dashboard:
+
+| Card | HACS search | Purpose |
+|------|-------------|---------|
+| Mushroom Cards | `mushroom` | Clean touch-friendly cards |
+| layout-card | `layout-card` | CSS grid layout for 800×480 |
+| card-mod | `card-mod` | Custom card CSS (clock size etc.) |
+| Kiosk Mode | `kiosk-mode` | Hides HA header/sidebar on the device |
+
+Install HACS: https://hacs.xyz/docs/use/download/download/
+
+> **Why Kiosk Mode?** Chromium already runs in OS-level kiosk mode (no
+> address bar, no tabs). But HA itself still shows its own header bar with
+> hamburger menu, notifications, and user avatar — wasting ~50px on a 480px
+> screen. The Kiosk Mode card hides this completely for the `mark2` user.
 
 ---
 
@@ -26,10 +47,8 @@ The recommended HA setup for Mark II consists of:
 3. Fill in:
    - Display name: `Mark II`
    - Username: `mark2`
-   - Password: something strong (it will only be used as fallback)
-   - **Uncheck** "Can login" if you want a device-only account
-     (leave checked so trusted network login works)
-   - **Uncheck** "Administrator"
+   - Password: something strong (only used as fallback)
+   - Uncheck **Administrator**
 4. Click **Create**
 
 ---
@@ -42,9 +61,9 @@ The recommended HA setup for Mark II consists of:
    - Title: `Mark II`
    - URL slug: `mark2`
    - Icon: `mdi:speaker`
-   - **Uncheck** "Show in sidebar" (optional — keeps it clean for other users)
+   - Uncheck **Show in sidebar** (keeps it clean for other users)
 4. Click **Create**
-5. Open the new dashboard, click **⋮ → Edit dashboard → Raw configuration editor**
+5. Open the new dashboard → **⋮ → Edit dashboard → Raw configuration editor**
 6. Select all and replace with the YAML from `docs/mark2-dashboard.yaml`
 7. Click **Save**
 
@@ -52,17 +71,20 @@ The recommended HA setup for Mark II consists of:
 
 ## Step 3 — Set Mark II dashboard as default for the mark2 user
 
-1. Log out of your admin account (or open incognito)
+1. Log out (or open an incognito window)
 2. Log in as `mark2`
 3. Go to **Profile** (bottom left) → **Default Dashboard** → select **Mark II**
 4. Log out and log back in as your admin account
+
+After this, the `mark2` user always lands directly on the Mark II dashboard.
+The kiosk in `mark2-assist` can simply use `http://<ha-ip>:8123` as the URL —
+no need to hardcode `/lovelace/mark2`.
 
 ---
 
 ## Step 4 — Configure trusted network auto-login
 
 This allows Mark II to log in automatically without entering a password.
-The `trusted_networks` provider grants passwordless access from specific IPs.
 
 Edit `/config/configuration.yaml` (use Studio Code Server or File Editor add-on):
 
@@ -74,9 +96,9 @@ homeassistant:
     - type: homeassistant          # Keep first — used for all other logins
     - type: trusted_networks
       trusted_networks:
-        - 192.168.65.37            # Mark II's exact IP address
+        - 192.168.1.x              # Mark II's exact IP address
       trusted_users:
-        192.168.65.37:
+        192.168.1.x:
           - USER_ID_FOR_MARK2      # See below for how to find this
       allow_bypass_login: true
 ```
@@ -91,52 +113,77 @@ homeassistant:
     - type: homeassistant
     - type: trusted_networks
       trusted_networks:
-        - 192.168.65.37            # nabu-1
-        - 192.168.65.38            # nabu-2
+        - 192.168.1.10             # nabu-1
+        - 192.168.1.11             # nabu-2
       trusted_users:
-        192.168.65.37:
-          - USER_ID_FOR_MARK2      # same user for all devices
-        192.168.65.38:
+        192.168.1.10:
+          - USER_ID_FOR_MARK2      # same user ID for all devices
+        192.168.1.11:
           - USER_ID_FOR_MARK2
       allow_bypass_login: true
 ```
 
-Each device is identified in HA by its **hostname** (set during install, e.g.
-`nabu-1`, `nabu-2`). They share the same user and dashboard but appear as
-separate Wyoming satellites and MQTT sensors in HA.
+Each device is identified in HA by its **hostname** (set during install).
+They share the same user and dashboard but appear as separate Wyoming
+satellites, assist satellites, and MQTT sensor devices in HA.
 
 **How to find the mark2 user ID:**
 In HA go to **Settings → People → Users**, click the `mark2` user.
-The URL will be something like `/config/users/edit/abc123def456` —
-the last part (`abc123def456`) is the user ID.
+The URL ends with something like `/config/users/edit/abc123def456` —
+that last part is the user ID.
 
 **Restart HA** after saving configuration.yaml.
 
-> **Security note:** `trusted_networks` with `allow_bypass_login: true` grants
-> passwordless access from those specific IPs only. Using exact device IPs
-> (not a whole subnet like `192.168.65.0/24`) limits exposure to Mark II devices only.
-> Always keep `- type: homeassistant` first so other devices still require a password.
+> **Security note:** `allow_bypass_login: true` grants passwordless access
+> from those exact IPs only. Using specific device IPs (not a whole subnet
+> like `192.168.1.0/24`) limits exposure to Mark II devices only. Always
+> keep `- type: homeassistant` first so all other devices still need a password.
 
 ---
 
-## Step 5 — Set the dashboard URL in mark2-assist
+## Step 5 — Configure Kiosk Mode for the mark2 user
 
-If the `mark2` user has the Mark II dashboard set as their default dashboard
-(Step 3), you can simply use the base HA URL — HA will redirect automatically
-to the default dashboard after login:
+After installing the Kiosk Mode HACS card, add this to your
+`configuration.yaml` to hide the HA header for the `mark2` user on all
+dashboards:
 
-```
-HA_URL=http://192.168.65.200:8123
-```
-
-If you prefer to hardcode the dashboard path (e.g. you skipped Step 3):
-
-```
-HA_URL=http://192.168.65.200:8123/lovelace/mark2
+```yaml
+kiosk_mode:
+  non_admin_settings:
+    hide_header: true
+    hide_sidebar: true
 ```
 
-Set this during install, or afterwards in `~/.config/mark2/config`,
-or by re-running the satellite setup:
+Or to target only the `mark2` user specifically:
+
+```yaml
+kiosk_mode:
+  user_settings:
+    - users:
+        - mark2
+      hide_header: true
+      hide_sidebar: true
+```
+
+**Restart HA** after adding this.
+
+> This gives you the full 480px height for dashboard cards on the Mark II
+> screen, while other users (your admin account) still see the normal HA UI.
+
+---
+
+## Step 6 — Set the HA URL in mark2-assist
+
+Since the `mark2` user has the Mark II dashboard as their default, the base
+URL is sufficient — HA redirects automatically after login:
+
+```
+HA_URL=http://192.168.1.x:8123
+```
+
+Set this during install or afterwards in `~/.config/mark2/config`,
+or re-run the satellite setup:
+
 ```bash
 cd ~/mark2-assist
 ./mark2-satellite-setup.sh
@@ -144,35 +191,20 @@ cd ~/mark2-assist
 
 ---
 
-## Dashboard HACS requirements
-
-The dashboard uses these custom cards — install via HACS before pasting the YAML:
-
-| Card | HACS search |
-|------|-------------|
-| Mushroom Cards | `mushroom` |
-| layout-card | `layout-card` |
-| card-mod | `card-mod` |
-
-Install HACS: https://hacs.xyz/docs/use/download/download/
-
----
-
 ## Dashboard entity customisation
 
-After pasting the dashboard YAML, update these entity IDs to match your setup:
+After pasting the dashboard YAML, update these placeholders to match your setup:
 
 | Placeholder | Replace with |
 |-------------|-------------|
 | `weather.forecast_home` | Your weather entity |
-| `light.living_room` | Main light in the room where Mark II lives |
+| `light.your_light` | Main light in the room where Mark II lives |
 | `media_player.mark2` | Mark II media player (MPD or Music Assistant) |
-| `person.andreas_lorensen` | Your person entity |
-| `person.sonia` | Second person (or remove the card) |
-| `scene.good_night` | Your good night scene |
-| `scene.good_morning` | Your good morning scene |
-| `input_boolean.mark2_dnd` | Create this helper or replace with another toggle |
-| `climate.living_room` | Thermostat in the room where Mark II lives |
+| `climate.your_room` | Thermostat in the room where Mark II lives |
+| `person.your_name` | Your person entity |
+| `scene.good_night` | Your good night scene (or remove the card) |
+| `scene.good_morning` | Your good morning scene (or remove the card) |
+| `input_boolean.mark2_dnd` | Create as Helper (see below) or remove the card |
 
 **To create `input_boolean.mark2_dnd`:**
 Settings → Helpers → Add Helper → Toggle
