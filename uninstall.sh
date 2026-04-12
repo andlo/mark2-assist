@@ -60,8 +60,8 @@ section "Stopping and disabling services"
 USER_SERVICES=(
     lva
     ha-kiosk
-    mark2-leds
     mark2-led-events
+# mark2-leds is a system service (needs root for NeoPixel GPIO)
     mark2-face-bridge
     mark2-face-events
     mark2-volume-monitor
@@ -191,6 +191,10 @@ sudo rm -f /usr/local/bin/mark2-audio-switch
 sudo rm -f /usr/local/bin/mark2-overlay
 sudo rm -f /usr/local/bin/mark2-mqtt-bridge
 sudo rm -f /usr/local/bin/mark2-mpd-watcher
+sudo systemctl stop mark2-leds 2>/dev/null || true
+sudo systemctl disable mark2-leds 2>/dev/null || true
+sudo rm -f /etc/systemd/system/mark2-leds.service
+sudo systemctl daemon-reload 2>/dev/null || true
 sudo rm -f /etc/cron.d/mark2-updates
 
 log "System scripts removed"
