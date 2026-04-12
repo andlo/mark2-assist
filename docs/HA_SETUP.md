@@ -95,13 +95,22 @@ the last part (`abc123def456`) is the user ID.
 
 ## Step 5 — Set the dashboard URL in mark2-assist
 
-In `~/.config/mark2/config` (or during install) set:
+If the `mark2` user has the Mark II dashboard set as their default dashboard
+(Step 3), you can simply use the base HA URL — HA will redirect automatically
+to the default dashboard after login:
+
+```
+HA_URL=http://192.168.65.200:8123
+```
+
+If you prefer to hardcode the dashboard path (e.g. you skipped Step 3):
 
 ```
 HA_URL=http://192.168.65.200:8123/lovelace/mark2
 ```
 
-Or re-run the satellite setup:
+Set this during install, or afterwards in `~/.config/mark2/config`,
+or by re-running the satellite setup:
 ```bash
 cd ~/mark2-assist
 ./mark2-satellite-setup.sh
