@@ -78,6 +78,41 @@ Before running the installer you need:
 
 ---
 
+## Hardware test
+
+After running `mark2-hardware-setup.sh` and rebooting, run the hardware test
+to verify all components before proceeding with satellite/kiosk installation:
+
+```bash
+./mark2-hardware-test.sh
+```
+
+The test covers all Mark II hardware components interactively:
+
+| Test | What it checks |
+|------|---------------|
+| SJ201 service | Firmware loaded, kernel module, venv |
+| Audio devices | ALSA sees SJ201 for capture and playback |
+| Microphone | Records 3s, checks RMS signal level |
+| Speaker | Plays 440Hz tone, asks if you hear it |
+| Mic → Speaker | Records then plays back your voice |
+| LED ring | Cycles red/green/blue/white via I2C |
+| Buttons | Detects volume up/down/action via evdev |
+| Touchscreen | DSI display and touch input device |
+| Backlight | Dims and restores display brightness |
+| I2C bus | Scans for known SJ201 addresses |
+| SPI bus | Checks /dev/spidev0.0 for XVF3510 |
+
+If any tests fail, fix them before running `./install.sh` — the installer
+also offers to run the hardware test automatically after reboot.
+
+Non-interactive mode (for scripted use):
+```bash
+./mark2-hardware-test.sh --auto
+```
+
+---
+
 ## Quick start
 
 ```bash
