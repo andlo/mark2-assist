@@ -94,19 +94,19 @@ to verify all components before proceeding with satellite/kiosk installation:
 
 The test covers all Mark II hardware components interactively:
 
-| Test | What it checks |
-|------|---------------|
-| SJ201 service | Firmware loaded, kernel module, venv |
-| Audio devices | ALSA sees SJ201 for capture and playback |
-| Microphone | Records 3s, checks RMS signal level |
-| Speaker | Plays 440Hz tone, asks if you hear it |
-| Mic → Speaker | Records then plays back your voice |
-| LED ring | Cycles red/green/blue/white via I2C |
-| Buttons | Detects volume up/down/action via evdev |
-| Touchscreen | DSI display and touch input device |
-| Backlight | Dims and restores display brightness |
-| I2C bus | Scans for known SJ201 addresses |
-| SPI bus | Checks /dev/spidev0.0 for XVF3510 |
+| # | Test | What it checks |
+|---|------|---------------|
+| 1 | SJ201 service | Firmware loaded, kernel module, XMOS init wait |
+| 2 | Audio devices | ALSA sees SJ201 for capture and playback |
+| 3 | Microphone | Records 3s, checks RMS signal level |
+| 4 | Mic → Speaker roundtrip | Records then plays back (sox resampling) |
+| 5 | Speaker | Plays 440Hz test tone |
+| 6 | LED ring | NeoPixel GPIO12 cycles red/green/blue/white |
+| 7 | Buttons | evdev events from volume up/down/action |
+| 8 | Touchscreen & Display | DSI display + touch input device |
+| 9 | Backlight | Dims and restores display brightness |
+| 10 | I2C Bus | Scans bus 1 for 0x2c and 0x2f |
+| 11 | SPI Bus | /dev/spidev0.0 exists |
 
 If any tests fail, fix them before running `./install.sh` — the installer
 also offers to run the hardware test automatically after reboot.
