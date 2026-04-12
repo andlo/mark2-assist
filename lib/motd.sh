@@ -30,13 +30,13 @@ printf "  %-12s %s\n" "Uptime:"   "$(uptime -p | sed 's/up //')"
 printf "  %-12s %s\n" "IP:"       "$(hostname -I | awk '{print $1}')"
 echo ""
 
-# Service status
+# Service status — motd runs as root via run-parts, query pi user services via su
 echo -e "${CYAN}  Services:${NC}"
-for svc in lva sj201; do
-    if systemctl --user is-active "$svc" &>/dev/null 2>&1; then
+for svc in lva sj201 mark2-volume-buttons; do
+    STATUS=$(systemctl --machine pi@.host --user is-active "$svc" 2>/dev/null || echo "unknown")
+    if [ "$STATUS" = "active" ]; then
         printf "  ${GREEN}✓${NC} %-30s %s\n" "$svc" "running"
     else
-        STATUS=$(systemctl --user show "$svc" -p ActiveState --value 2>/dev/null || echo "unknown")
         printf "  ${YELLOW}·${NC} %-30s %s\n" "$svc" "$STATUS"
     fi
 done
