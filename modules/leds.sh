@@ -241,8 +241,8 @@ else
     warn "Manually add: --event-uri 'tcp://127.0.0.1:10500' to ExecStart"
 fi
 
-systemctl --user daemon-reload
-systemctl --user enable mark2-leds.service mark2-led-events.service
+systemctl --user daemon-reload 2>/dev/null
+systemctl --user enable mark2-leds.service mark2-led-events.service 2>/dev/null
 
 log "LED ring control installed"
 info "Test: echo 'listen' | socat - UNIX-CONNECT:/tmp/mark2-leds.sock"

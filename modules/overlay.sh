@@ -104,8 +104,8 @@ EOF
 labwc_autostart_add "overlay.html" \
     "chromium --app=\"file://${OVERLAY_DIR}/overlay.html\" --window-size=400,120 --window-position=200,360 --ozone-platform=wayland --password-store=basic --no-first-run --disable-infobars --app-auto-launched &"
 
-systemctl --user daemon-reload
-systemctl --user enable mark2-volume-monitor.service
+systemctl --user daemon-reload 2>/dev/null
+systemctl --user enable mark2-volume-monitor.service 2>/dev/null
 
 log "Volume overlay installed"
 info "Trigger manually: mark2-overlay volume 75"

@@ -94,8 +94,8 @@ WantedBy=default.target
 EOF
 
 sudo systemctl disable --now shairport-sync.service 2>/dev/null || true
-systemctl --user daemon-reload
-systemctl --user enable shairport-sync.service
+systemctl --user daemon-reload 2>/dev/null
+systemctl --user enable shairport-sync.service 2>/dev/null
 
 log "AirPlay receiver installed as user service"
 info "Mark II will appear as '${AIRPLAY_NAME}' on your AirPlay devices"

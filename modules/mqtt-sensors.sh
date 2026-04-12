@@ -75,8 +75,8 @@ RestartSec=10
 WantedBy=default.target
 EOF
 
-systemctl --user daemon-reload
-systemctl --user enable mark2-mqtt-bridge.service
+systemctl --user daemon-reload 2>/dev/null
+systemctl --user enable mark2-mqtt-bridge.service 2>/dev/null
 systemctl --user start  mark2-mqtt-bridge.service
 
 log "MQTT bridge installed and started"

@@ -187,8 +187,8 @@ EOF
 
 enable_satellite_services() {
     section "Enabling Wyoming services"
-    systemctl --user daemon-reload
-    systemctl --user enable wyoming-openwakeword.service wyoming-satellite.service
+    systemctl --user daemon-reload 2>/dev/null
+    systemctl --user enable wyoming-openwakeword.service wyoming-satellite.service 2>/dev/null
     log "Wyoming services enabled — will start on next boot"
     log "To start now: systemctl --user start wyoming-openwakeword wyoming-satellite"
 }
@@ -268,8 +268,8 @@ RestartSec=5
 WantedBy=default.target
 EOF
 
-    systemctl --user daemon-reload
-    systemctl --user enable mark2-face-events.service
+    systemctl --user daemon-reload 2>/dev/null
+    systemctl --user enable mark2-face-events.service 2>/dev/null
     log "Face event bridge installed"
 }
 

@@ -58,7 +58,7 @@ log "Copied face template to ${FACE_DIR}/face.html"
 labwc_autostart_add "face.html" \
     "chromium --app=\"file://${FACE_DIR}/face.html\" --window-size=260,260 --window-position=540,220 --ozone-platform=wayland --password-store=basic --no-first-run --disable-infobars --disable-background-timer-throttling --app-auto-launched &"
 
-systemctl --user daemon-reload
+systemctl --user daemon-reload 2>/dev/null
 
 log "Animated face installed"
 info "Face appears bottom-right of screen (540,220), reacts to Wyoming events"

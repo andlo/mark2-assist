@@ -121,8 +121,8 @@ RestartSec=5
 WantedBy=default.target
 EOF
 
-systemctl --user daemon-reload
-systemctl --user enable mpd.service
+systemctl --user daemon-reload 2>/dev/null
+systemctl --user enable mpd.service 2>/dev/null
 
 log "MPD installed"
 info "Music directory: ${MPD_MUSIC}"

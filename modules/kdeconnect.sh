@@ -51,7 +51,7 @@ if command -v ufw >/dev/null 2>&1 && sudo ufw status | grep -q "active"; then
     log "Opened KDE Connect ports in ufw"
 fi
 
-systemctl --user enable kdeconnect.service 2>/dev/null || {
+systemctl --user enable kdeconnect.service 2>/dev/null || { 2>/dev/null
     cat > "${SYSTEMD_USER_DIR}/kdeconnect.service" << EOF
 [Unit]
 Description=KDE Connect
@@ -66,8 +66,8 @@ RestartSec=5
 [Install]
 WantedBy=default.target
 EOF
-    systemctl --user daemon-reload
-    systemctl --user enable kdeconnect.service
+    systemctl --user daemon-reload 2>/dev/null
+    systemctl --user enable kdeconnect.service 2>/dev/null
 }
 
 log "KDE Connect installed"

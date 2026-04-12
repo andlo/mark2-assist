@@ -113,8 +113,8 @@ RemainAfterExit=yes
 WantedBy=default.target
 EOF
 
-systemctl --user daemon-reload
-systemctl --user enable mark2-audio-fallback.service
+systemctl --user daemon-reload 2>/dev/null
+systemctl --user enable mark2-audio-fallback.service 2>/dev/null
 
 log "USB audio fallback installed"
 info "Manual switch: mark2-audio-switch [sj201|usb|list]"

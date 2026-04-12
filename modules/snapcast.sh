@@ -81,8 +81,8 @@ RestartSec=5
 WantedBy=default.target
 EOF
 
-systemctl --user daemon-reload
-systemctl --user enable snapclient.service
+systemctl --user daemon-reload 2>/dev/null
+systemctl --user enable snapclient.service 2>/dev/null
 log "Snapcast client installed and enabled"
 info "Mark II will appear in Home Assistant Snapcast integration"
 info "Server: ${SNAPCAST_HOST}"
