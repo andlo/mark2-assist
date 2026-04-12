@@ -133,8 +133,15 @@ section "1. SJ201 Service"
 # Without this, lsmod may not yet show vocalfusion_soundcard
 if systemctl --user is-active sj201.service &>/dev/null; then
     result "sj201.service" PASS "active (firmware loaded)"
-    echo "  Waiting 5 seconds for XMOS XVF-3510 to fully initialize..."
-    sleep 5
+    # Wait for XMOS XVF-3510 to fully initialize — poll until vocalfusion module appears
+    echo "  Waiting for XMOS XVF-3510 to initialize (up to 15 seconds)..."
+    for i in $(seq 1 15); do
+        if lsmod 2>/dev/null | grep -q "vocalfusion"; then
+            echo "  Ready after ${i}s."
+            break
+        fi
+        sleep 1
+    done
 else
     STATUS=$(systemctl --user show sj201.service -p ActiveState --value 2>/dev/null || echo "unknown")
     if [ "$STATUS" = "failed" ]; then
@@ -557,9 +564,9 @@ echo -e "${CYAN}═════════════════════�
 echo -e "${CYAN}  Test Summary${NC}"
 echo -e "${CYAN}════════════════════════════════════════${NC}"
 echo ""
-printf "  %-8s %s\n" "${GREEN}Passed:${NC}" "$PASS"
-printf "  %-8s %s\n" "${RED}Failed:${NC}" "$FAIL"
-printf "  %-8s %s\n" "${YELLOW}Skipped:${NC}" "$SKIP"
+echo -e "  ${GREEN}Passed:${NC}  $PASS"
+echo -e "  ${RED}Failed:${NC}  $FAIL"
+echo -e "  ${YELLOW}Skipped:${NC} $SKIP"
 echo ""
 
 if [ "$FAIL" -eq 0 ]; then
