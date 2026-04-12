@@ -158,7 +158,22 @@ systemctl --user restart wyoming-satellite
 
 ## Keeping the system updated
 
-### System packages
+Run the update script to update everything at once:
+
+```bash
+cd ~/mark2-assist
+./update.sh
+```
+
+This updates system packages, mark2-assist scripts, Wyoming satellite and openWakeWord, and restarts all services. Wyoming setup only re-runs if new commits were pulled.
+
+Optional flags:
+- `--skip-apt` — skip system package update
+- `--skip-wyoming` — skip Wyoming update
+- `--skip-restart` — skip service restart
+- `--yes` — non-interactive, no confirmation prompt
+
+### Manual component updates
 ```bash
 sudo apt update && sudo apt upgrade
 ```
