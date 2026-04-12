@@ -1,7 +1,7 @@
 #!/bin/bash
 # =============================================================================
 # modules/leds.sh
-# SJ201 LED ring control for Wyoming satellite events
+# SJ201 LED ring control for LVA/HA voice satellite events
 #
 # Can be run standalone: bash modules/leds.sh
 # =============================================================================
@@ -12,7 +12,7 @@ source "$(dirname "$0")/../lib/common.sh"
 check_not_root
 setup_paths
 
-module_header "LED Ring Control" "SJ201 LED ring follows Wyoming satellite state"
+module_header "LED Ring Control" "SJ201 LED ring follows LVA satellite state"
 
 
 if ! confirm_or_skip "Install LED ring control?"; then
@@ -157,14 +157,13 @@ if __name__ == "__main__": main()
 PYEOF
 chmod +x "$LED_SCRIPT"
 
-# --- Wyoming event bridge ---
-# Listens on TCP port 10500 (Wyoming --event-uri target) and forwards
-# Wyoming events to the LED Unix socket.
+# --- LVA event bridge ---
+# Reads face event JSON and forwards states to the LED Unix socket.
 cat > "$LED_EVENT_SCRIPT" << 'PYEOF'
 #!/usr/bin/env python3
 """
-Wyoming satellite event bridge.
-Listens on TCP port 10500 for Wyoming events (--event-uri tcp://127.0.0.1:10500)
+LVA face event bridge.
+Reads /tmp/mark2-face-event.json for voice state
 and forwards them as LED states to /tmp/mark2-leds.sock.
 """
 import json, socket, threading, sys, time
@@ -261,7 +260,7 @@ EOF
 cat > "${SYSTEMD_USER_DIR}/mark2-led-events.service" << EOF
 [Unit]
 Description=Mark II LED Event Bridge
-After=wyoming-satellite.service mark2-leds.service
+After=lva.service mark2-leds.service
 Requires=mark2-leds.service
 
 [Service]
@@ -274,37 +273,14 @@ RestartSec=3
 WantedBy=default.target
 EOF
 
-# Patch wyoming-satellite service to emit events via --event-uri.
+# Note: Wyoming --event-uri patching is no longer needed with LVA.
+# LVA state is read via HA API by face-event-bridge.
+# This block kept for reference only.
 # We add --event-uri on a new line AFTER --wake-word-name line.
 # Uses Python for reliable multi-line sed replacement to avoid
 # shell escaping issues that cause double backslash (\ \) corruption.
-WYOMING_SERVICE="${SYSTEMD_USER_DIR}/wyoming-satellite.service"
-if [ -f "$WYOMING_SERVICE" ]; then
-    if ! grep -q "event-uri" "$WYOMING_SERVICE"; then
-        python3 - "$WYOMING_SERVICE" << 'PYEOF'
-import sys, re
-path = sys.argv[1]
-with open(path) as f:
-    content = f.read()
-# Insert --event-uri line after --wake-word-name line
-content = re.sub(
-    r"(    --wake-word-name '[^']+') \\$",
-    r"\1 \\\n    --event-uri 'tcp://127.0.0.1:10500' \\",
-    content,
-    flags=re.MULTILINE
-)
-with open(path, 'w') as f:
-    f.write(content)
-print("Patched wyoming-satellite.service with --event-uri")
-PYEOF
-        log "Patched wyoming-satellite.service with --event-uri"
-    else
-        log "wyoming-satellite.service already has --event-uri"
-    fi
-else
-    warn "wyoming-satellite.service not found — run mark2-satellite-setup.sh first"
-    warn "Manually add: --event-uri 'tcp://127.0.0.1:10500' to ExecStart"
-fi
+# Note: Wyoming --event-uri patching is no longer needed with LVA.
+# LVA state is read via HA API by mark2-face-events.service.
 
 systemctl --user daemon-reload 2>/dev/null
 systemctl --user enable mark2-leds.service mark2-led-events.service 2>/dev/null

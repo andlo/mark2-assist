@@ -506,7 +506,7 @@ else
     echo "  1. Reboot the device:  sudo reboot"
     echo "  2. After reboot:       systemctl --user status sj201.service"
     echo "  3. Test audio:         aplay -l"
-    echo "  4. Install whatever you want on top (Wyoming, OVOS, HA, etc.)"
+    echo "  4. Install whatever you want on top (LVA, OVOS, HA, etc.)"
 fi
 echo "========================================"
 echo ""

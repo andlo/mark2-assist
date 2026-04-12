@@ -302,15 +302,15 @@ class Mark2Bridge:
                 last_system_update          = now
 
             # LVA state
-            wyoming = read_lva_state()
-            self._last_lva = wyoming
+            lva_state = read_lva_state()
+            self._last_lva = lva_state
 
             # MPD state
             mpd = read_mpd_state()
 
             # Build flat payload — all keys always present
             state = {
-                "lva_state": wyoming,
+                "lva_state": lva_state,
                 **mpd,
                 **sys_metrics,
             }

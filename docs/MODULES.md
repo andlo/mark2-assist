@@ -14,7 +14,7 @@ Unix socket and animates the LED ring accordingly.
 ### Architecture
 
 ```
-wyoming-satellite → mark2-led-events.service → /tmp/mark2-leds.sock → mark2-leds.service → hardware
+lva → HA API → mark2-face-events.service → /tmp/mark2-face-event.json → mark2-led-events.service → /tmp/mark2-leds.sock → mark2-leds.service → hardware
 ```
 
 **mark2-leds.service** runs `led_control.py`:
@@ -23,15 +23,18 @@ wyoming-satellite → mark2-led-events.service → /tmp/mark2-leds.sock → mark
 - Animates LEDs using `smbus2` I2C writes to address `0x04` (SJ201 LED controller)
 
 **mark2-led-events.service** runs `led_event_handler.py`:
-- Reads Wyoming satellite events from stdin (piped from wyoming-satellite `--event-uri`)
-- Maps Wyoming event types to LED states
+- Reads face event JSON from `/tmp/mark2-face-event.json` (written by mark2-face-events.service)
+- Maps LVA voice states to LED states
 - Sends state strings to the LED socket
 
-**wyoming-satellite.service** is patched to add:
+> **Note:** With LVA, the `--event-uri` patch is no longer used. LED events come
+> from `/tmp/mark2-face-event.json` via the face-event-bridge.
+
+**Legacy wyoming-satellite.service** was patched to add:
 ```
 --event-uri 'tcp://127.0.0.1:10500'
 ```
-This makes Wyoming stream events to the LED event bridge.
+This was used with Wyoming. With LVA, state is read via HA API instead.
 
 ### LED states and animations
 
@@ -148,7 +151,7 @@ Once set up, sensors appear automatically in HA under the device name.
 
 | Sensor | Entity ID | Update rate |
 |--------|-----------|-------------|
-| Wyoming state | `sensor.<hostname>_wyoming_state` | On change |
+| LVA satellite state | `sensor.<hostname>_lva_state` | On change |
 | MPD state | `sensor.<hostname>_mpd_state` | On change |
 | MPD track | `sensor.<hostname>_mpd_track` | On change |
 | MPD artist | `sensor.<hostname>_mpd_artist` | On change |
@@ -168,7 +171,7 @@ Discovery topic format: `homeassistant/sensor/<hostname>_<sensor>/config`
 
 ```
 mqtt-bridge.py
-├── Subscribes to: /tmp/mark2-face-event.json  (Wyoming state)
+├── Subscribes to: /tmp/mark2-face-event.json  (LVA state)
 ├── Subscribes to: /tmp/mark2-mpd-state.json   (MPD state)
 ├── Publishes to:  MQTT broker
 └── Reads: /proc/stat, /sys/thermal, /proc/meminfo  (system metrics)

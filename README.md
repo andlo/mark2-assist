@@ -286,7 +286,7 @@ cd ~/mark2-assist
 ```
 
 This removes:
-- All mark2-assist systemd user services (Wyoming, kiosk, LEDs, face, overlay, MQTT, etc.)
+- All mark2-assist systemd user services (LVA, kiosk, LEDs, face, overlay, MQTT, etc.)
 - Installed packages (Chromium, weston, snapcast, shairport-sync, mpd, etc.)
 - Configuration files in `~/.config/mark2/`, `~/.config/mark2-kiosk/`, etc.
 - Weston/labwc autostart from `~/.bash_profile`

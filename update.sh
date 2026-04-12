@@ -24,7 +24,7 @@
 #
 #   Or with flags:
 #   ./update.sh --skip-apt        Skip system package update
-#   ./update.sh --skip-wyoming    Skip Wyoming satellite/openWakeWord update
+#   ./update.sh --skip-lva        Skip Linux Voice Assistant update
 #   ./update.sh --skip-restart    Skip service restart
 #   ./update.sh --yes             Non-interactive (no confirmation prompts)
 # =============================================================================
@@ -82,7 +82,7 @@ echo -e "  · Restarts all mark2 services"
 echo ""
 
 if [ "$YES" = false ]; then
-    if ! ask_yes_no "Update Mark II Assist and Wyoming components?"; then
+    if ! ask_yes_no "Update Mark II Assist and LVA components?"; then
         echo "Cancelled."
         exit 0
     fi
@@ -136,11 +136,11 @@ else
 fi
 
 # =============================================================================
-# 3. WYOMING COMPONENTS
+# 3. LVA COMPONENTS
 # =============================================================================
 
 if [ "$SKIP_LVA" = false ]; then
-    # Linux Voice Assistant (replaces Wyoming Satellite + openWakeWord)
+    # Linux Voice Assistant
     section "Step 3/4 — Linux Voice Assistant (LVA)"
     LVA_DIR="${USER_HOME}/lva"
     if [ -d "$LVA_DIR" ]; then

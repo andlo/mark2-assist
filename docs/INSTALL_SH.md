@@ -138,7 +138,7 @@ See [HARDWARE_TEST.md](HARDWARE_TEST.md) for full test documentation.
 
 Printed at the end of installation. Shows:
 - Service status commands
-- Wyoming integration instructions for HA (IP address, port)
+- LVA ESPHome discovery instructions for HA
 - **Trusted networks configuration block** — the exact YAML to add to HA's
   `configuration.yaml` for auto-login, with the device's actual IP address filled in
 

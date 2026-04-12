@@ -264,11 +264,11 @@ LVA_DIR="${USER_HOME}/lva"
 
 
 if [ -d "$LVA_DIR" ]; then
-    if ask_yes_no "Remove Wyoming satellite and openWakeWord clones?"; then
+    if ask_yes_no "Remove Linux Voice Assistant clone (~/lva)?"; then
         rm -rf "$LVA_DIR"
-        log "Wyoming clones removed"
+        log "LVA clone removed"
     else
-        log "Keeping Wyoming clones"
+        log "Keeping LVA clone"
     fi
 fi
 

@@ -1,7 +1,7 @@
 #!/bin/bash
 # =============================================================================
 # mark2-satellite-setup.sh
-# Mycroft Mark II — Wyoming Voice Satellite + HA Kiosk Display
+# Mycroft Mark II — Linux Voice Assistant + HA Kiosk Display
 #
 # Run AFTER mark2-hardware-setup.sh and a reboot.
 #
@@ -13,7 +13,7 @@
 #   1. Detects SJ201 audio device automatically
 #   2. Installs Linux Voice Assistant (ESPHome protocol, replaces Wyoming Satellite)
 #   3. Creates lva.service (auto-discovered by HA as ESPHome device)
-#   4. Installs face event bridge (Wyoming state → /tmp/mark2-face-event.json)
+#   4. Installs face event bridge (LVA state → /tmp/mark2-face-event.json)
 #   5. Installs hardware volume button handler (vol up/down/mute → TAS5806)
 #   6. Installs Weston + Chromium kiosk showing Home Assistant dashboard
 #   6. Configures auto-login on tty1 + Weston session startup
@@ -35,7 +35,7 @@
 #   ./mark2-satellite-setup.sh
 #
 # After running, reboot. The touchscreen will show your HA dashboard.
-# Add Wyoming integration in HA: Settings → Devices → Wyoming Protocol
+# LVA auto-discovers in HA as ESPHome device — no manual integration needed
 # Host: <Mark II IP>  Port: 10700
 # =============================================================================
 
@@ -108,7 +108,7 @@ install_dependencies() {
 install_lva() {
     section "Installing Linux Voice Assistant"
     # linux-voice-assistant uses ESPHome protocol — same as HA Voice Preview Edition.
-    # It replaces the deprecated wyoming-satellite and integrates OWW wake word,
+    # ESPHome protocol satellite for Home Assistant. Integrates OWW wake word,
     # timers, announcements, media player, and auto-discovery in one service.
     # HA discovers it automatically as an ESPHome device (no manual integration needed).
     apt_install libmpv2 python3-evdev
@@ -176,7 +176,7 @@ EOF
 
 install_face_event_bridge() {
     section "Installing face event bridge"
-    # Monitors wyoming-satellite journal and writes current voice state to
+    # Monitors HA satellite entity state and writes current voice state to
     # /tmp/mark2-face-event.json. The HUD overlay reads this file for face
     # animation. Installed here so it works even without the optional face module.
     BRIDGE_SCRIPT="${MARK2_DIR}/face-event-bridge.py"
@@ -184,9 +184,9 @@ install_face_event_bridge() {
     cat > "$BRIDGE_SCRIPT" << 'PYEOF'
 #!/usr/bin/env python3
 """
-Wyoming satellite → face event bridge.
+LVA → face event bridge.
 
-Tails the wyoming-satellite systemd journal and writes the current
+Polls the HA assist_satellite entity state and writes the current
 voice state to /tmp/mark2-face-event.json (atomic write via temp file).
 
 States: idle, wake, listen, think, speak, error
@@ -219,7 +219,7 @@ def write_state(state):
 def main():
     write_state("idle")
     proc = subprocess.Popen(
-        ["journalctl", "--user", "-u", "wyoming-satellite",
+        ["journalctl", "--user", "-u", "lva",  # kept for compatibility
          "-f", "-n", "0", "--output=cat"],
         stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True)
     for line in proc.stdout:
@@ -235,9 +235,9 @@ PYEOF
 
     cat > "${SYSTEMD_USER_DIR}/mark2-face-events.service" << EOF
 [Unit]
-Description=Mark II face event bridge (Wyoming journal → /tmp/mark2-face-event.json)
-After=wyoming-satellite.service
-Wants=wyoming-satellite.service
+Description=Mark II face event bridge (LVA state → /tmp/mark2-face-event.json)
+After=lva.service
+Wants=lva.service
 
 [Service]
 Type=simple
@@ -561,8 +561,8 @@ print_summary() {
     echo "========================================"
     log "Mark II Satellite + Kiosk setup complete!"
     echo ""
-    echo "  Wyoming integration — add in Home Assistant:"
-    echo "    Settings → Devices → Add Integration → Wyoming Protocol"
+    echo "  LVA auto-discovers in HA as an ESPHome device."
+    echo "  Settings → Devices & Services → ESPHome → configure pipeline"
     echo "    Host: ${IP}   Port: 10700"
     echo ""
     echo "  Wake word: ${WAKE_WORD}"
@@ -580,7 +580,7 @@ print_summary() {
 
 echo ""
 echo "========================================"
-echo "  Mark II Wyoming Satellite + Kiosk"
+echo "  Mark II Linux Voice Assistant + Kiosk"
 echo "  User:           ${CURRENT_USER}"
 echo "  Hostname:       $(hostname)"
 echo "  Satellite name: ${SATELLITE_NAME} (shown in HA)"

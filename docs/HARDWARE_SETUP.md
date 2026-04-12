@@ -120,7 +120,7 @@ profiles and the microphone/speaker may not work correctly.
 
 Configuration file: `~/.config/wireplumber/wireplumber.conf.d/90-sj201-profile.conf`
 
-The `pro-audio` profile exposes all audio channels individually, giving Wyoming
+The `pro-audio` profile exposes all audio channels individually, giving LVA
 satellite direct access to the mic array capture stream.
 
 ### 11. VocalFusion kernel watchdog
