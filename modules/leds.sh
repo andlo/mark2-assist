@@ -45,11 +45,17 @@ After=sj201.service
 
 [Service]
 Type=simple
-ExecStart=/usr/bin/python3 ${LED_SCRIPT}
-Restart=always
-RestartSec=3
-# NeoPixel requires root for GPIO access
+ExecStart=/usr/bin/python3 -u ${LED_SCRIPT}
+Restart=on-failure
+RestartSec=5
 User=root
+StandardOutput=journal
+StandardError=journal
+# BLINKA_FORCEBOARD avoids NeoPixel DMA hangs under systemd
+Environment=BLINKA_FORCEBOARD=RASPBERRY_PI_4B
+# Give NeoPixel DMA time to shut down cleanly on stop
+TimeoutStopSec=15
+KillMode=process
 
 [Install]
 WantedBy=multi-user.target
