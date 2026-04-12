@@ -199,7 +199,9 @@ result "Speaker device" PASS "${SPK_DEV}"
 section "3. Microphone"
 echo "  Waiting 2 seconds for XMOS XVF-3510 to be ready..."
 sleep 2
-echo "  Recording 3 seconds... Say something or clap your hands!"
+echo ""
+read -rp "  Press Enter when ready to record 3 seconds of audio..." _dummy
+echo "  Recording now — say something or clap your hands!"
 echo ""
 
 RECFILE="/tmp/mark2-mic-test.wav"
@@ -296,8 +298,10 @@ fi
 # =============================================================================
 
 section "5. Microphone → Speaker Roundtrip"
-echo "  Recording 4 seconds, then playing back via speaker."
-echo "  Say something clearly now!"
+echo "  Records 4 seconds then plays it back."
+echo ""
+read -rp "  Press Enter when ready to record — say something clearly..." _dummy
+echo "  Recording now!"
 echo ""
 
 ROUNDFILE="/tmp/mark2-roundtrip.wav"
@@ -401,7 +405,9 @@ else
     if [ -n "$EVDEV_DEV" ]; then
         result "Button input device" PASS "$EVDEV_DEV"
         echo "  Input device found: $EVDEV_DEV"
-        echo "  Press any button (volume up, volume down or action) within 8 seconds..."
+        echo ""
+        read -rp "  Press Enter when ready — then press any button within 8 seconds..." _dummy
+        echo "  Waiting for button press..."
         if timeout 8 bash -c "evtest '$EVDEV_DEV' 2>/dev/null | grep -m1 'type 1'" 2>/dev/null | grep -q "type 1"; then
             result "Button press detected" PASS
         else
