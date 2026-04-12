@@ -43,18 +43,18 @@ LVA_DIR="${USER_HOME}/lva"
 
 # --- Parse flags ---
 SKIP_APT=false
-SKIP_WYOMING=false
+SKIP_LVA=false
 SKIP_RESTART=false
 YES=false
 
 for arg in "$@"; do
     case "$arg" in
         --skip-apt)     SKIP_APT=true ;;
-        --skip-wyoming) SKIP_WYOMING=true ;;
+        --skip-lva) SKIP_LVA=true ;;
         --skip-restart) SKIP_RESTART=true ;;
         --yes|-y)       YES=true ;;
         --help|-h)
-            echo "Usage: $0 [--skip-apt] [--skip-wyoming] [--skip-restart] [--yes]"
+            echo "Usage: $0 [--skip-apt] [--skip-lva] [--skip-restart] [--yes]"
             exit 0 ;;
     esac
 done
@@ -77,7 +77,7 @@ echo ""
 echo -e "  Updates:"
 echo -e "  · System packages  (apt upgrade)"
 echo -e "  · mark2-assist scripts  (git pull)"
-echo -e "  · Wyoming satellite + openWakeWord  (git pull + setup)"
+echo -e "  · Linux Voice Assistant (LVA)  (git pull + setup)"
 echo -e "  · Restarts all mark2 services"
 echo ""
 
@@ -139,9 +139,9 @@ fi
 # 3. WYOMING COMPONENTS
 # =============================================================================
 
-if [ "$SKIP_WYOMING" = false ]; then
+if [ "$SKIP_LVA" = false ]; then
     # Linux Voice Assistant (replaces Wyoming Satellite + openWakeWord)
-    section "Step 3/4 — Linux Voice Assistant"
+    section "Step 3/4 — Linux Voice Assistant (LVA)"
     LVA_DIR="${USER_HOME}/lva"
     if [ -d "$LVA_DIR" ]; then
         LVA_BEFORE=$(git -C "$LVA_DIR" rev-parse --short HEAD 2>/dev/null || echo "unknown")
@@ -166,7 +166,7 @@ if [ "$SKIP_WYOMING" = false ]; then
         warn "LVA not found at ${LVA_DIR} — skipping (run mark2-satellite-setup.sh)"
     fi
 else
-    info "Skipping Wyoming update (--skip-wyoming)"
+    info "Skipping LVA update (--skip-lva)"
 fi
 
 # =============================================================================
