@@ -10,6 +10,7 @@
 #   2. Installs Wyoming Satellite + openWakeWord (voice satellite for HA)
 #   3. Creates wyoming-satellite.service + wyoming-openwakeword.service
 #   4. Installs face event bridge (Wyoming state → /tmp/mark2-face-event.json)
+#   5. Installs hardware volume button handler (vol up/down/mute → TAS5806)
 #   5. Installs Weston + Chromium kiosk showing Home Assistant dashboard
 #   6. Configures auto-login on tty1 + Weston session startup
 #   7. Fixes Chromium GPU flags for Pi4 + Trixie (invalid gles ANGLE backend)
@@ -285,6 +286,36 @@ EOF
     systemctl --user enable mark2-face-events.service 2>/dev/null
     log "Face event bridge installed"
 }
+
+install_volume_buttons() {
+    section "Installing hardware volume button handler"
+    # Installs mark2-volume-buttons: reads KEY_VOLUMEUP/DOWN/MICMUTE from
+    # /dev/input/event0 and adjusts TAS5806 I2C register + ALSA PCM softvol.
+    # Also writes /tmp/mark2-volume.json for the overlay.
+    sudo apt-get install -y --no-install-recommends python3-evdev         >> "${MARK2_LOG}" 2>&1 || warn "python3-evdev install failed"
+
+    sudo install -m 755 "${SCRIPT_DIR}/lib/volume-buttons.py"         /usr/local/bin/mark2-volume-buttons
+
+    cat > "${SYSTEMD_USER_DIR}/mark2-volume-buttons.service" << EOF
+[Unit]
+Description=Mark II hardware volume buttons (vol up/down/mute → TAS5806)
+After=sj201.service
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 /usr/local/bin/mark2-volume-buttons
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=default.target
+EOF
+
+    systemctl --user daemon-reload 2>/dev/null
+    systemctl --user enable mark2-volume-buttons.service 2>/dev/null
+    log "Volume button handler installed"
+}
+
 
 install_kiosk_packages() {
     section "Installing kiosk and media packages"
@@ -600,6 +631,7 @@ create_openwakeword_service
 create_satellite_service
 enable_satellite_services
 install_face_event_bridge
+install_volume_buttons
 install_kiosk_packages
 configure_autologin
 configure_screen_no_blank
