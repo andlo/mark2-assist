@@ -336,65 +336,48 @@ section "6. LED Ring"
 if ! command -v python3 &>/dev/null; then
     result "LED ring" SKIP "python3 not available"
 else
-    echo "  Testing LED ring — cycling through colors via I2C..."
+    echo "  Testing LED ring — NeoPixel WS2812 on GPIO12..."
     echo "  Watch the LED ring on the Mark II."
     echo ""
 
-    python3 - << 'PYEOF'
-import time, sys
+    # LED ring is NeoPixel WS2812 on GPIO12 (D12) — NOT I2C
+    # Requires adafruit-circuitpython-neopixel + adafruit-blinka (root)
+    LED_RESULT=$(sudo python3 - 2>&1 << 'PYEOF'
+import sys, time
 try:
-    import smbus2
-    bus = smbus2.SMBus(1)
-    # SJ201 LED ring controller is at 0x2c on I2C bus 1
-    # Protocol: write [R, G, B] * 12 LEDs in two blocks (max 32 bytes per write)
-    LED_ADDR = 0x2c
-    NUM_LEDS = 12
-
-    def set_leds(r, g, b):
-        payload = [r, g, b] * NUM_LEDS  # 36 bytes total
-        bus.write_i2c_block_data(LED_ADDR, 0x00, payload[:32])
-        bus.write_i2c_block_data(LED_ADDR, 0x20, payload[32:36])
-
+    import neopixel
+    from adafruit_blinka.microcontroller.bcm283x.pin import D12
+    pixels = neopixel.NeoPixel(D12, 12, brightness=0.2, auto_write=False, pixel_order=neopixel.GRB)
     print("  Red...")
-    set_leds(80, 0, 0); time.sleep(0.5)
+    pixels.fill((255, 0, 0)); pixels.show(); time.sleep(0.5)
     print("  Green...")
-    set_leds(0, 80, 0); time.sleep(0.5)
+    pixels.fill((0, 255, 0)); pixels.show(); time.sleep(0.5)
     print("  Blue...")
-    set_leds(0, 0, 80); time.sleep(0.5)
+    pixels.fill((0, 0, 255)); pixels.show(); time.sleep(0.5)
     print("  White...")
-    set_leds(40, 40, 40); time.sleep(0.5)
-    print("  Off.")
-    set_leds(0, 0, 0)
-    bus.close()
+    pixels.fill((40, 40, 40)); pixels.show(); time.sleep(0.5)
+    pixels.fill((0, 0, 0)); pixels.show()
     print("LED_OK")
-except ImportError:
-    print("LED_SKIP:smbus2 not installed")
+except ImportError as e:
+    print(f"LED_SKIP:{e}")
 except Exception as e:
     print(f"LED_FAIL:{e}")
 PYEOF
-
-    LED_RESULT=$(python3 - 2>/dev/null << 'PYEOF'
-try:
-    import smbus2
-    bus = smbus2.SMBus(1)
-    bus.write_i2c_block_data(0x04, 0x00, [0]*32)
-    bus.close()
-    print("OK")
-except Exception as e:
-    print(f"FAIL:{e}")
-PYEOF
 )
 
-    if [[ "$LED_RESULT" == "OK" ]]; then
+    if echo "$LED_RESULT" | grep -q "LED_OK"; then
         case $(ask_result "Did the LED ring cycle through red/green/blue/white?") in
-            0) result "LED ring" PASS "I2C write OK, colors seen" ;;
-            1) result "LED ring" FAIL "I2C write OK but no visible colors" ;;
+            0) result "LED ring" PASS "NeoPixel GPIO12 OK, colors seen" ;;
+            1) result "LED ring" FAIL "NeoPixel write OK but no visible colors" ;;
             2) result "LED ring" SKIP ;;
         esac
-    elif [[ "$LED_RESULT" == SKIP* ]]; then
-        result "LED ring" SKIP "${LED_RESULT#SKIP:}"
+    elif echo "$LED_RESULT" | grep -q "LED_SKIP"; then
+        SKIP_MSG=$(echo "$LED_RESULT" | grep LED_SKIP | cut -d: -f2-)
+        result "LED ring" SKIP "neopixel not installed: ${SKIP_MSG}"
+        info "Install with: sudo pip3 install adafruit-circuitpython-neopixel --break-system-packages"
     else
-        result "LED ring" FAIL "${LED_RESULT#FAIL:}"
+        FAIL_MSG=$(echo "$LED_RESULT" | grep LED_FAIL | cut -d: -f2-)
+        result "LED ring" FAIL "${FAIL_MSG}"
     fi
 fi
 
