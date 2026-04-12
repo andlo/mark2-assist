@@ -296,37 +296,30 @@ fi
 # =============================================================================
 
 section "5. Microphone → Speaker Roundtrip"
-echo "  Recording 3 seconds at 16kHz mono (mic format), then playing back."
-echo "  Say something clearly (e.g. 'testing testing one two three')"
+echo "  Recording 4 seconds, then playing back via speaker."
+echo "  Say something clearly now!"
 echo ""
 
 ROUNDFILE="/tmp/mark2-roundtrip.wav"
-if arecord -D "${MIC_DEV}" -r 16000 -c 1 -f S16_LE -d 3 "$ROUNDFILE" 2>/dev/null; then
-    echo "  Playing back your recording..."
-    # Convert to 48kHz stereo for playback via XMOS
-    ROUNDFILE_48="/tmp/mark2-roundtrip-48k.wav"
-    python3 - "$ROUNDFILE" "$ROUNDFILE_48" << 'PYEOF'
-import sys, wave, struct
-with wave.open(sys.argv[1]) as f_in:
-    data = f_in.readframes(f_in.getnframes())
-    rate_in = f_in.getframerate()
-samples = list(struct.unpack('<' + 'h' * (len(data)//2), data))
-# Simple upsample 16k→48k (repeat each sample 3x) and mono→stereo
-out = []
-for s in samples:
-    for _ in range(3):
-        out.extend([s, s])
-with wave.open(sys.argv[2], 'w') as f_out:
-    f_out.setnchannels(2)
-    f_out.setsampwidth(2)
-    f_out.setframerate(48000)
-    f_out.writeframes(struct.pack('<' + 'h' * len(out), *out))
-PYEOF
-    timeout 5 aplay -D plughw:CARD=sj201,DEV=0 -r 48000 -c 2 "$ROUNDFILE_48" 2>/dev/null || \
-    timeout 5 aplay -D "${SPK_DEV}" "$ROUNDFILE" 2>/dev/null || true
-    case $(ask_result "Did you hear your voice played back?") in
+ROUNDFILE_48="/tmp/mark2-roundtrip-48k.wav"
+if arecord -D "${MIC_DEV}" -r 16000 -c 1 -f S16_LE -d 4 "$ROUNDFILE" 2>/dev/null; then
+    echo "  Converting and playing back..."
+    # Use sox for proper resampling (much better quality than manual upsample)
+    if command -v sox &>/dev/null; then
+        sox "$ROUNDFILE" -r 48000 -c 2 "$ROUNDFILE_48" 2>/dev/null
+        timeout 6 aplay -D plughw:CARD=sj201,DEV=0 "$ROUNDFILE_48" 2>/dev/null || true
+    else
+        # Fallback: install sox and retry
+        sudo apt-get install -y --no-install-recommends sox \
+            >> "${MARK2_LOG:-/dev/null}" 2>&1 || true
+        if command -v sox &>/dev/null; then
+            sox "$ROUNDFILE" -r 48000 -c 2 "$ROUNDFILE_48" 2>/dev/null
+            timeout 6 aplay -D plughw:CARD=sj201,DEV=0 "$ROUNDFILE_48" 2>/dev/null || true
+        fi
+    fi
+    case $(ask_result "Did you hear your voice played back clearly?") in
         0) result "Mic → Speaker roundtrip" PASS ;;
-        1) result "Mic → Speaker roundtrip" FAIL "mic records but speaker silent" ;;
+        1) result "Mic → Speaker roundtrip" FAIL "poor quality — check XMOS audio routing" ;;
         2) result "Mic → Speaker roundtrip" SKIP ;;
     esac
 else
