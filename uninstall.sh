@@ -1,16 +1,17 @@
 #!/bin/bash
 # =============================================================================
 # uninstall.sh
-# Mark II Assist - Uninstaller
+# Mark II Assist — Uninstaller
 #
 # Removes all mark2-assist installed files and services so the device
 # can be re-installed cleanly without reflashing.
 #
 # Does NOT remove:
-#   - apt packages (labwc, chromium, pipewire, etc.) — harmless to keep
+#   - apt packages (weston, labwc, chromium, pipewire, etc.) — harmless to keep
 #   - VocalFusion kernel module / SJ201 hardware config — requires reboot
 #     to undo and is safe to keep
 #   - Wyoming satellite/openwakeword git clones (optional, asked)
+#   - /boot/firmware/config.txt overlays
 #
 # Usage:
 #   ./uninstall.sh
@@ -103,6 +104,7 @@ section "Removing kiosk and HUD files"
 
 rm -f "${USER_HOME}/kiosk.sh"
 rm -f "${USER_HOME}/hud.sh"
+rm -f "${USER_HOME}/startup.sh"
 rm -rf "${USER_HOME}/.config/mark2-kiosk"
 rm -rf "${USER_HOME}/.config/mark2-overlay"
 rm -rf "${USER_HOME}/.config/mark2-screensaver"
@@ -155,13 +157,13 @@ if [ -f "$GETTY_CONF" ]; then
     log "Removed getty auto-login"
 fi
 
-# Remove labwc launcher from .bash_profile
+section "Removing Weston autostart from .bash_profile"
+
 BASH_PROFILE="${USER_HOME}/.bash_profile"
-if grep -q "labwc" "$BASH_PROFILE" 2>/dev/null; then
-    grep -v "labwc\|Wayland compositor\|tty1" "$BASH_PROFILE" \
-        | sed '/^$/N;/^\n$/d' > /tmp/bash_profile_clean || true
-    mv /tmp/bash_profile_clean "$BASH_PROFILE"
-    log "Removed labwc from .bash_profile"
+if grep -q "weston\|labwc" "$BASH_PROFILE" 2>/dev/null; then
+    # Remove the Weston/labwc compositor block (everything from the comment to closing 'fi')
+    sed -i '/# Start W.*compositor\|# Start labwc\|# Start Weston/,/^fi$/d' "$BASH_PROFILE" || true
+    log "Removed compositor autostart from .bash_profile"
 fi
 
 # Remove install resume hook if present
@@ -239,6 +241,7 @@ fi
 # Keep MARK2_DIR itself but clean out scripts
 rm -f "${MARK2_DIR}/led_control.py"
 rm -f "${MARK2_DIR}/led_event_handler.py"
+rm -f "${MARK2_DIR}/face-event-bridge.py"
 rm -f "${MARK2_DIR}/audio-fallback.sh"
 rm -f "${MARK2_DIR}/face-bridge.sh"
 rm -f "${MARK2_DIR}/volume-monitor.sh"
@@ -265,7 +268,7 @@ echo ""
 echo "  To reinstall from scratch:"
 echo "    ./install.sh"
 echo ""
-echo "  Note: apt packages (labwc, chromium, pipewire etc.) were kept."
+echo "  Note: apt packages (weston, labwc, chromium, pipewire etc.) were kept."
 echo "  Note: SJ201 hardware config in /boot/firmware/config.txt was kept."
 echo "        A reboot will restore the original boot behaviour."
 echo ""
