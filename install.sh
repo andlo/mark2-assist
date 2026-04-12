@@ -328,10 +328,20 @@ else
     _log_write "----" "=== Starting: hardware ==="
     if MARK2_MODULE_CONFIRMED=1 bash "${SCRIPT_DIR}/mark2-hardware-setup.sh"; then
         progress_set "hardware" "done"
-        show_info "Hardware setup complete!\n\nRebooting in 5 seconds to activate drivers." 8 60
         install_resume_hook
-        sleep 5
-        sudo reboot
+        echo ""
+        echo -e "${GREEN}  ✓ Hardware setup complete!${NC}"
+        echo ""
+        echo "  The device needs to reboot to activate the drivers."
+        echo "  After reboot, log in again and run:"
+        echo ""
+        echo -e "    ${CYAN}./mark2-assist/install.sh${NC}"
+        echo ""
+        read -rp "  Reboot now? [Y/n]: " _hw_reboot
+        if [[ "${_hw_reboot,,}" != "n" ]]; then
+            log "Rebooting after hardware setup..."
+            sudo reboot
+        fi
         exit 0
     else
         progress_set "hardware" "failed"
