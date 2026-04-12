@@ -237,18 +237,17 @@ echo ""
 # Generate a simple 440Hz test tone using Python and pipe to aplay
 TONEFILE="/tmp/mark2-tone-test.wav"
 python3 - "$TONEFILE" << 'PYEOF'
-import wave, struct, math
+import sys, wave, struct, math
 rate = 22050
 duration = 1.5
 freq = 440
 samples = [int(32767 * 0.5 * math.sin(2 * math.pi * freq * i / rate))
            for i in range(int(rate * duration))]
-# Fade in/out
 fade = int(rate * 0.1)
 for i in range(fade):
     samples[i] = int(samples[i] * i / fade)
     samples[-(i+1)] = int(samples[-(i+1)] * i / fade)
-with wave.open(sys.argv[1] if len(__import__('sys').argv) > 1 else '/tmp/tone.wav', 'w') as f:
+with wave.open(sys.argv[1], 'w') as f:
     f.setnchannels(1)
     f.setsampwidth(2)
     f.setframerate(rate)
