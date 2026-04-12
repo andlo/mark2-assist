@@ -36,6 +36,7 @@ No cloud. No Mycroft. No OVOS. Pure Home Assistant local voice.
 ### Optional modules (choose during install)
 | Module | What it does |
 |--------|-------------|
+| **homeassistant** | Show HA dashboard on the touchscreen (on by default) |
 | **leds** | SJ201 LED ring reacts to wake/listen/speak/error/idle states |
 | **face** | Animated face overlay — zooms in on voice, dances to music |
 | **overlay** | On-screen volume bar — appears on volume change, auto-hides |
@@ -46,6 +47,9 @@ No cloud. No Mycroft. No OVOS. Pure Home Assistant local voice.
 | **mpd** | Local music player (works with Music Assistant in HA) |
 | **kdeconnect** | Android phone integration — notifications, media control |
 | **usb-audio** | Fallback audio device if SJ201 fails at boot |
+
+> Without the **homeassistant** module the touchscreen still shows the
+> animated face and clock — Mark II works as a pure voice satellite.
 
 ---
 
