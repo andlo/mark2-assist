@@ -512,6 +512,8 @@ if [ -f "${SCRIPT_DIR}/lib/motd.sh" ]; then
     sudo chmod +x /etc/update-motd.d/10-mark2
     sudo cp "${SCRIPT_DIR}/lib/status.sh" /usr/local/bin/mark2-status
     sudo chmod +x /usr/local/bin/mark2-status
+    sudo cp "${SCRIPT_DIR}/lib/wait-pipewire.sh" /usr/local/bin/mark2-wait-pipewire
+    sudo chmod +x /usr/local/bin/mark2-wait-pipewire
     # Remove old default uname motd if it exists
     sudo rm -f /etc/update-motd.d/10-uname
     # Clear static /etc/motd — dynamic scripts handle it

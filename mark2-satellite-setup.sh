@@ -132,6 +132,9 @@ install_lva() {
     cp "${SCRIPT_DIR}/assets/pipewire-sj201-asr.conf"        "${USER_HOME}/.config/pipewire/pipewire.conf.d/sj201-asr.conf"
     cp "${SCRIPT_DIR}/assets/pipewire-sj201-output.conf"     "${USER_HOME}/.config/pipewire/pipewire.conf.d/sj201-output.conf"
     log "PipeWire SJ201 ASR source + Speaker sink installed"
+    sudo cp "${SCRIPT_DIR}/lib/wait-pipewire.sh" /usr/local/bin/mark2-wait-pipewire
+    sudo chmod +x /usr/local/bin/mark2-wait-pipewire
+    log "PipeWire wait script installed: /usr/local/bin/mark2-wait-pipewire"
     # Reload PipeWire so new source is available immediately
     systemctl --user restart pipewire pipewire-pulse wireplumber 2>/dev/null || true
     sleep 3
@@ -146,6 +149,8 @@ Wants=network-online.target
 
 [Service]
 Type=simple
+# Wait for PipeWire virtual devices before starting (wireplumber gives no ready signal)
+ExecStartPre=/usr/local/bin/mark2-wait-pipewire
 ExecStart=${LVA_DIR}/.venv/bin/python3 -m linux_voice_assistant \\
     --name '${SATELLITE_NAME}' \\
     --wake-model '${WAKE_WORD}' \\
