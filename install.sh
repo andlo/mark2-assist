@@ -292,11 +292,13 @@ if [ "$RESUME" = true ]; then
     echo -e "  ${YELLOW}Recommended:${NC} Run hardware test to verify all components"
     echo "  before proceeding with satellite/kiosk installation."
     echo ""
-    if ask_yes_no "Run hardware test now? (recommended)"; then
+    read -rp "  Run hardware test now? (recommended) [Y/n]: " _hw_test_ans
+    if [[ "${_hw_test_ans,,}" != "n" ]]; then
         bash "${SCRIPT_DIR}/mark2-hardware-test.sh" || true
         echo ""
-        if ! ask_yes_no "Continue with installation?"; then
-            echo "Cancelled. Fix hardware issues and re-run ./install.sh"
+        read -rp "  Continue with installation? [Y/n]: " _hw_cont_ans
+        if [[ "${_hw_cont_ans,,}" == "n" ]]; then
+            echo "  Cancelled. Fix hardware issues and re-run ./install.sh"
             exit 0
         fi
     fi
