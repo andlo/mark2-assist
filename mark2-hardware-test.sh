@@ -230,16 +230,17 @@ fi
 # =============================================================================
 
 section "4. Speaker"
-echo "  Playing test tone (440 Hz beep) through SJ201 amplifier..."
-echo "  Listen for a beep from the Mark II speaker."
+echo "  Playing test tone (440 Hz) through SJ201 → XMOS → TAS5806 amplifier..."
+echo "  Note: Audio path is Pi I2S → XMOS XVF-3510 → TAS5806 → Speaker"
+echo "  Trying multiple formats as XMOS may require specific sample rate/width."
 echo ""
 
-# Generate a simple 440Hz test tone using Python and pipe to aplay
+# Generate tone file
 TONEFILE="/tmp/mark2-tone-test.wav"
 python3 - "$TONEFILE" << 'PYEOF'
 import sys, wave, struct, math
-rate = 22050
-duration = 1.5
+rate = 48000  # XMOS XVF-3510 prefers 48kHz
+duration = 2.0
 freq = 440
 samples = [int(32767 * 0.5 * math.sin(2 * math.pi * freq * i / rate))
            for i in range(int(rate * duration))]
@@ -248,20 +249,39 @@ for i in range(fade):
     samples[i] = int(samples[i] * i / fade)
     samples[-(i+1)] = int(samples[-(i+1)] * i / fade)
 with wave.open(sys.argv[1], 'w') as f:
-    f.setnchannels(1)
+    f.setnchannels(2)   # Stereo — XMOS may require stereo
     f.setsampwidth(2)
     f.setframerate(rate)
-    f.writeframes(struct.pack('<' + 'h' * len(samples), *samples))
+    # Duplicate mono to stereo
+    stereo = []
+    for s in samples:
+        stereo.extend([s, s])
+    f.writeframes(struct.pack('<' + 'h' * len(stereo), *stereo))
 PYEOF
 
-if aplay -D "${SPK_DEV}" "$TONEFILE" 2>/dev/null; then
-    case $(ask_result "Did you hear a beep from the speaker?") in
-        0) result "Speaker playback" PASS "tone heard" ;;
-        1) result "Speaker playback" FAIL "no sound — check TAS5806 amp init" ;;
-        2) result "Speaker playback" SKIP "manual check skipped" ;;
-    esac
+PLAYED=false
+# Try formats in order of likelihood for XMOS XVF-3510
+for ARGS in \
+    "-D plughw:CARD=sj201,DEV=0 -r 48000 -c 2" \
+    "-D plughw:CARD=sj201,DEV=0 -r 16000 -c 2" \
+    "-D plughw:CARD=sj201,DEV=0" \
+    "-D default"; do
+    echo "  Trying: aplay ${ARGS}..."
+    if timeout 5 aplay $ARGS "$TONEFILE" 2>/dev/null; then
+        PLAYED=true
+        result "Speaker aplay ($ARGS)" PASS
+        break
+    fi
+done
+
+if [ "$PLAYED" = false ]; then
+    result "Speaker playback" FAIL "all formats failed — check XMOS firmware and sj201.service"
 else
-    result "Speaker playback" FAIL "aplay failed"
+    case $(ask_result "Did you hear a tone from the speaker?") in
+        0) result "Speaker audio output" PASS "tone heard" ;;
+        1) result "Speaker audio output" FAIL "aplay ran but no sound — check TAS5806 amp or volume" ;;
+        2) result "Speaker audio output" SKIP "manual check skipped" ;;
+    esac
 fi
 
 # =============================================================================
@@ -269,17 +289,37 @@ fi
 # =============================================================================
 
 section "5. Microphone → Speaker Roundtrip"
-echo "  Recording 3 seconds, then playing back."
+echo "  Recording 3 seconds at 16kHz mono (mic format), then playing back."
 echo "  Say something clearly (e.g. 'testing testing one two three')"
 echo ""
 
 ROUNDFILE="/tmp/mark2-roundtrip.wav"
 if arecord -D "${MIC_DEV}" -r 16000 -c 1 -f S16_LE -d 3 "$ROUNDFILE" 2>/dev/null; then
     echo "  Playing back your recording..."
-    aplay -D "${SPK_DEV}" "$ROUNDFILE" 2>/dev/null || true
+    # Convert to 48kHz stereo for playback via XMOS
+    ROUNDFILE_48="/tmp/mark2-roundtrip-48k.wav"
+    python3 - "$ROUNDFILE" "$ROUNDFILE_48" << 'PYEOF'
+import sys, wave, struct
+with wave.open(sys.argv[1]) as f_in:
+    data = f_in.readframes(f_in.getnframes())
+    rate_in = f_in.getframerate()
+samples = list(struct.unpack('<' + 'h' * (len(data)//2), data))
+# Simple upsample 16k→48k (repeat each sample 3x) and mono→stereo
+out = []
+for s in samples:
+    for _ in range(3):
+        out.extend([s, s])
+with wave.open(sys.argv[2], 'w') as f_out:
+    f_out.setnchannels(2)
+    f_out.setsampwidth(2)
+    f_out.setframerate(48000)
+    f_out.writeframes(struct.pack('<' + 'h' * len(out), *out))
+PYEOF
+    timeout 5 aplay -D plughw:CARD=sj201,DEV=0 -r 48000 -c 2 "$ROUNDFILE_48" 2>/dev/null || \
+    timeout 5 aplay -D "${SPK_DEV}" "$ROUNDFILE" 2>/dev/null || true
     case $(ask_result "Did you hear your voice played back?") in
         0) result "Mic → Speaker roundtrip" PASS ;;
-        1) result "Mic → Speaker roundtrip" FAIL "check mic and speaker separately" ;;
+        1) result "Mic → Speaker roundtrip" FAIL "mic records but speaker silent" ;;
         2) result "Mic → Speaker roundtrip" SKIP ;;
     esac
 else
