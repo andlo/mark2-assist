@@ -124,8 +124,8 @@ via a local proxy script, rather than embedding it in HTML.
 **Labels:** `enhancement`, `configuration`
 
 **Description:**
-MPD is configured to stream on port 8000. This port is commonly used by
-other services. No conflict detection is done.
+`modules/mpd.sh` configures MPD to stream on port 8000 (line 82 in mpd.sh).
+This port is commonly used by other services. No conflict detection is done.
 
 **Fix needed:**
 Check if port 8000 is free before configuring it, or make the port configurable.
