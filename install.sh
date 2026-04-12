@@ -225,11 +225,14 @@ configure_upfront() {
     else
         summary+="  Satellite/Kiosk: will install\n"
     fi
-    summary+="\n  Modules: $(echo "$SELECTED_MODULES" | tr ' ' ', ')\n"
+    summary+="\n  Modules to install:\n"
+    for mod in $SELECTED_MODULES; do
+        summary+="    · ${mod}\n"
+    done
     summary+="\nInstallation will run without further prompts."
 
     if ! whiptail --title "Mark II Assist — Confirm" \
-        --yesno "$summary" 22 68; then
+        --yesno "$summary" 26 60; then
         echo "Cancelled."
         exit 0
     fi
