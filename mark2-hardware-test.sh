@@ -301,9 +301,12 @@ fi
 
 section "5. Microphone → Speaker Roundtrip"
 echo "  Records 4 seconds then plays it back through the speaker."
+echo "  NOTE: Audio quality may sound processed/distorted — this is normal!"
+echo "  The XMOS XVF-3510 chip processes microphone audio for noise reduction."
+echo "  What matters: can you roughly hear what you said? (words recognisable)"
 echo ""
 echo "  When you press Enter, recording starts immediately (4 seconds)."
-echo "  Say something clearly — e.g. 'hello mark two testing'."
+echo "  Count slowly: 'one... two... three... four...'"
 read -rp "  Press Enter when ready to record..." _dummy
 echo "  🎤 Recording now..."
 echo ""
@@ -325,9 +328,9 @@ if arecord -D "${MIC_DEV}" -r 16000 -c 1 -f S16_LE -d 4 "$ROUNDFILE" 2>/dev/null
             timeout 6 aplay -D plughw:CARD=sj201,DEV=0 "$ROUNDFILE_48" 2>/dev/null || true
         fi
     fi
-    case $(ask_result "Did you hear your voice played back clearly?") in
+    case $(ask_result "Could you roughly hear what you said? (quality will be poor — that is normal)") in
         0) result "Mic → Speaker roundtrip" PASS ;;
-        1) result "Mic → Speaker roundtrip" FAIL "poor quality — check XMOS audio routing" ;;
+        1) result "Mic → Speaker roundtrip" FAIL "no recognisable audio — check XMOS routing" ;;
         2) result "Mic → Speaker roundtrip" SKIP ;;
     esac
 else
