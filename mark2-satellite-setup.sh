@@ -108,6 +108,12 @@ install_wyoming_satellite() {
     cd "$WYOMING_SAT_DIR"
     python3 script/setup >> "${MARK2_LOG}" 2>&1 \
         || die "Wyoming Satellite setup failed — check ${MARK2_LOG}"
+    # Install webrtc-noise-gain for --mic-noise-suppression support
+    # This is an optional extra not installed by script/setup by default
+    info "Installing webrtc-noise-gain for microphone noise suppression..."
+    "${WYOMING_SAT_DIR}/.venv/bin/pip" install --quiet webrtc-noise-gain \
+        >> "${MARK2_LOG}" 2>&1 \
+        || warn "webrtc-noise-gain install failed — noise suppression disabled"
     log "Wyoming Satellite installed"
 }
 

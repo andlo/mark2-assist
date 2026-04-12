@@ -223,17 +223,35 @@ RestartSec=3
 WantedBy=default.target
 EOF
 
-# Patch wyoming-satellite service to emit events
+# Patch wyoming-satellite service to emit events via --event-uri.
+# We add --event-uri on a new line AFTER --wake-word-name line.
+# Uses Python for reliable multi-line sed replacement to avoid
+# shell escaping issues that cause double backslash (\ \) corruption.
 WYOMING_SERVICE="${SYSTEMD_USER_DIR}/wyoming-satellite.service"
 if [ -f "$WYOMING_SERVICE" ]; then
     if ! grep -q "event-uri" "$WYOMING_SERVICE"; then
-        sed -i "s|--wake-word-name.*|&  \\\\\n    --event-uri 'tcp://127.0.0.1:10500'|" "$WYOMING_SERVICE"
+        python3 - "$WYOMING_SERVICE" << 'PYEOF'
+import sys, re
+path = sys.argv[1]
+with open(path) as f:
+    content = f.read()
+# Insert --event-uri line after --wake-word-name line
+content = re.sub(
+    r"(    --wake-word-name '[^']+') \\$",
+    r"\1 \\\n    --event-uri 'tcp://127.0.0.1:10500' \\",
+    content,
+    flags=re.MULTILINE
+)
+with open(path, 'w') as f:
+    f.write(content)
+print("Patched wyoming-satellite.service with --event-uri")
+PYEOF
         log "Patched wyoming-satellite.service with --event-uri"
     else
         log "wyoming-satellite.service already has --event-uri"
     fi
 else
-    warn "wyoming-satellite.service not found - run mark2-satellite-setup.sh first"
+    warn "wyoming-satellite.service not found — run mark2-satellite-setup.sh first"
     warn "Manually add: --event-uri 'tcp://127.0.0.1:10500' to ExecStart"
 fi
 
