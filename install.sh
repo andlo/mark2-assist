@@ -422,6 +422,10 @@ print_progress
 log "Installation complete. Log: ${MARK2_LOG}"
 echo ""
 MARK2_IP=$(hostname -I | awk '{print $1}')
+SUMMARY_FILE="${MARK2_DIR}/install-summary.txt"
+
+# Build summary — shown on screen AND saved to file for later reference
+print_summary() {
 echo -e "${CYAN}═══════════════════════════════════════════════════════${NC}"
 echo -e "${CYAN}  Wyoming integration — add in Home Assistant:${NC}"
 echo -e "${CYAN}═══════════════════════════════════════════════════════${NC}"
@@ -453,8 +457,63 @@ echo -e "${CYAN}═════════════════════�
 echo "  Full documentation: https://github.com/andlo/mark2-assist"
 echo -e "${CYAN}═══════════════════════════════════════════════════════${NC}"
 echo ""
+echo "  To show this summary again:"
+echo "    cat ${SUMMARY_FILE}"
+echo ""
+}
 
-if ask_yes_no "Reboot now to activate all installed services?"; then
+# Print to screen
+print_summary
+
+# Save plain-text version (without color codes) for later reference
+{
+echo "Mark II Assist — Installation Summary"
+echo "Installed: $(date)"
+echo ""
+echo "Wyoming integration — add in Home Assistant:"
+echo "  Settings → Devices → Add Integration → Wyoming Protocol"
+echo "  Host: ${MARK2_IP}   Port: 10700"
+echo ""
+if echo "${SELECTED_MODULES:-}" | grep -qw "homeassistant"; then
+    echo "Auto-login — add to configuration.yaml in HA:"
+    echo ""
+    echo "  homeassistant:"
+    echo "    auth_providers:"
+    echo "      - type: homeassistant"
+    echo "      - type: trusted_networks"
+    echo "        trusted_networks:"
+    echo "          - ${MARK2_IP}"
+    echo "        trusted_users:"
+    echo "          ${MARK2_IP}:"
+    echo "            - <YOUR_HA_USER_ID>   # Settings → People → click user → ID in URL"
+    echo "        allow_bypass_login: true"
+    echo ""
+    echo "  Then restart Home Assistant."
+    echo ""
+fi
+echo "Full documentation: https://github.com/andlo/mark2-assist"
+} > "$SUMMARY_FILE"
+
+# Add SSH login reminder to .bash_profile (shown once after install)
+BASH_PROFILE="${USER_HOME}/.bash_profile"
+if ! grep -q "mark2-install-summary" "$BASH_PROFILE" 2>/dev/null; then
+    cat >> "$BASH_PROFILE" << HOOKEOF
+
+# mark2-install-summary
+if [ -f "${SUMMARY_FILE}" ]; then
+    echo ""
+    echo -e "\033[0;36m  Mark II Assist installation summary:\033[0m"
+    echo "  cat ${SUMMARY_FILE}"
+    echo ""
+fi
+# mark2-install-summary-end
+HOOKEOF
+fi
+
+# Ask reboot in plain terminal (not whiptail) so summary stays visible
+echo ""
+read -rp "  Reboot now to activate all installed services? [Y/n]: " _reboot_ans
+if [[ "${_reboot_ans,,}" != "n" ]]; then
     log "Rebooting..."
     sleep 2
     sudo reboot
