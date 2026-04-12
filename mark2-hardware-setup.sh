@@ -147,7 +147,8 @@ install_kernel_headers() {
     log "Installing kernel headers and build tools..."
     apt_install \
         "${KERNEL_HEADERS_PKG}" build-essential git \
-        python3-venv python3-pip python3-dev
+        python3-venv python3-pip python3-dev \
+        sox i2c-tools evtest
 }
 
 update_eeprom() {
