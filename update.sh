@@ -154,6 +154,9 @@ if [ "$SKIP_WYOMING" = false ]; then
                 python3 script/setup >> "${MARK2_LOG}" 2>&1 \
                     && log "Wyoming Satellite updated: ${SAT_BEFORE} → ${SAT_AFTER}" \
                     || { warn "Wyoming Satellite setup failed — check ${MARK2_LOG}"; ERRORS=$((ERRORS + 1)); }
+                # Upgrade webrtc-noise-gain if needed
+                .venv/bin/pip install --quiet --upgrade webrtc-noise-gain \
+                    >> "${MARK2_LOG}" 2>&1 || true
             else
                 log "Wyoming Satellite already up to date (${SAT_AFTER})"
             fi
@@ -197,6 +200,12 @@ fi
 
 if [ "$SKIP_RESTART" = false ]; then
     section "Step 4/4 — Restarting services"
+
+    # Clear ports before restart to avoid 'address already in use' errors
+    fuser -k 10400/tcp 2>/dev/null || true
+    fuser -k 10700/tcp 2>/dev/null || true
+    sleep 1
+
     systemctl --user daemon-reload
 
     SERVICES=(

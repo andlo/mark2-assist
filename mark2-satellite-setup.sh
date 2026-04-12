@@ -146,6 +146,7 @@ After=network-online.target sj201.service
 
 [Service]
 Type=simple
+ExecStartPre=-/bin/sh -c 'fuser -k 10400/tcp 2>/dev/null; sleep 1'
 ExecStart=${WYOMING_OWW_DIR}/script/run \\
     --uri 'tcp://127.0.0.1:10400' \\
     --preload-model '${WAKE_WORD}'
