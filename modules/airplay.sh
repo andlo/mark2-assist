@@ -1,7 +1,17 @@
 #!/bin/bash
 # =============================================================================
 # modules/airplay.sh
-# AirPlay receiver via shairport-sync
+# AirPlay 1 receiver for the Mark II — makes it appear as a speaker on
+# Apple devices and any AirPlay-compatible app (iTunes, iOS, macOS, etc.)
+#
+# Uses shairport-sync with PipeWire backend. Audio plays through the SJ201
+# amplifier via the WirePlumber default sink.
+#
+# Note: AirPlay 2 is not supported by shairport-sync without a paid license.
+# AirPlay 1 works with iOS, macOS, iTunes and most third-party AirPlay apps.
+#
+# Known issue: shairport-sync may log PipeWire timing warnings on Trixie.
+# See KNOWN_ISSUES.md Issue 5 for details.
 #
 # Can be run standalone: bash modules/airplay.sh
 # =============================================================================

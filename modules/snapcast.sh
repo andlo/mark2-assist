@@ -1,7 +1,20 @@
 #!/bin/bash
 # =============================================================================
 # modules/snapcast.sh
-# Snapcast multiroom audio client
+# Snapcast multiroom audio client for the Mark II
+#
+# Snapcast synchronizes audio across multiple speakers with sub-millisecond
+# precision. This module installs snapclient to connect to an existing
+# Snapcast server on your network.
+#
+# The Mark II will appear in the Snapcast integration in Home Assistant,
+# allowing you to control it as part of a multiroom audio group.
+#
+# Downloads the arm64 Trixie build with PipeWire support from GitHub releases.
+# Runs as a systemd user service using the PipeWire audio backend.
+#
+# Requires a Snapcast server on your network. A common setup is Snapcast
+# server running on the same machine as Home Assistant, fed by Music Assistant.
 #
 # Can be run standalone: bash modules/snapcast.sh
 # =============================================================================

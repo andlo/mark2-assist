@@ -1,7 +1,22 @@
 #!/bin/bash
 # =============================================================================
 # modules/mpd.sh
-# Music Player Daemon - local music + HA/Music Assistant integration
+# Music Player Daemon — local music player with HA/Music Assistant integration
+#
+# MPD is a server-side music player that runs as a background service.
+# It can be controlled from Home Assistant via the MPD integration, or from
+# Music Assistant which handles library management and playback queuing.
+#
+# Outputs:
+#   PipeWire sink  — plays through SJ201 speaker (primary output)
+#   HTTP stream    — port 8000, for streaming to other devices or HA media player
+#   Snapcast FIFO  — /tmp/snapfifo, enabled automatically if snapcast is installed
+#
+# MPD listens on port 6600 for client connections (mpc, ncmpc, HA integration).
+# Music files go in ~/Music. MPD auto-updates its library when files are added.
+#
+# Known issue: port 8000 for HTTP stream may conflict with other services.
+# See KNOWN_ISSUES.md Issue 8.
 #
 # Can be run standalone: bash modules/mpd.sh
 # =============================================================================
