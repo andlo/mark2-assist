@@ -108,7 +108,7 @@ echo ""
 echo "   1. SJ201 Service      — firmware loaded, XMOS chip ready"
 echo "   2. Audio Devices      — ALSA sees microphone and speaker"
 echo "   3. Microphone         — speak into mic, checks level + plays back  🎤🔊"
-echo "   4. Speaker            — listen for a beep tone               🔔"
+echo "   4. Speaker            — verified by roundtrip, or separate beep   🔔"
 echo "   5. LED Ring           — watch ring cycle through colours      💡"
 echo "   6. Buttons            — press any hardware button             🔘"
 echo "   7. Touchscreen        — look at the display                  🖥"
@@ -263,9 +263,9 @@ PYEOF
         timeout 6 aplay -D plughw:CARD=sj201,DEV=0 "$RECFILE_48" 2>/dev/null || true
     fi
     case $(ask_result "Could you roughly hear what you said? (quality will be poor — that is normal)") in
-        0) result "Mic → Speaker roundtrip" PASS ;;
-        1) result "Mic → Speaker roundtrip" FAIL "no recognisable audio — check XMOS routing" ;;
-        2) result "Mic → Speaker roundtrip" SKIP ;;
+        0) result "Mic → Speaker roundtrip" PASS; RECFILE_PLAYED=true ;;
+        1) result "Mic → Speaker roundtrip" FAIL "no recognisable audio — check XMOS routing"; RECFILE_PLAYED=false ;;
+        2) result "Mic → Speaker roundtrip" SKIP; RECFILE_PLAYED=false ;;
     esac
 else
     result "Microphone record" FAIL "arecord failed — device busy or not available"
@@ -276,18 +276,23 @@ fi
 # TEST 5: Speaker — play test tone
 # =============================================================================
 
-section "4. Speaker"
-echo "  Will play a 440 Hz test tone through the speaker (2 seconds)."
-echo "  Note: Audio path is Pi I2S → XMOS XVF-3510 → TAS5806 → Speaker"
-echo ""
-read -rp "  Press Enter to play the test tone — listen for a beep..." _dummy
-echo ""
+# =============================================================================
+# TEST 4: Speaker — verified by roundtrip above
+# =============================================================================
 
-# Generate tone file
-TONEFILE="/tmp/mark2-tone-test.wav"
-python3 - "$TONEFILE" << 'PYEOF'
+section "4. Speaker"
+if [ "${RECFILE_PLAYED:-false}" = "true" ]; then
+    result "Speaker playback" PASS "verified — playback worked in mic roundtrip test"
+else
+    echo "  Mic roundtrip did not confirm playback — running separate speaker test."
+    echo "  Will play a 440 Hz test tone through the speaker (2 seconds)."
+    echo ""
+    read -rp "  Press Enter to play the test tone — listen for a beep..." _dummy
+    echo ""
+    TONEFILE="/tmp/mark2-tone-test.wav"
+    python3 - "$TONEFILE" << 'PYEOF'
 import sys, wave, struct, math
-rate = 48000  # XMOS XVF-3510 prefers 48kHz
+rate = 48000
 duration = 2.0
 freq = 440
 samples = [int(32767 * 0.5 * math.sin(2 * math.pi * freq * i / rate))
@@ -297,39 +302,20 @@ for i in range(fade):
     samples[i] = int(samples[i] * i / fade)
     samples[-(i+1)] = int(samples[-(i+1)] * i / fade)
 with wave.open(sys.argv[1], 'w') as f:
-    f.setnchannels(2)   # Stereo — XMOS may require stereo
-    f.setsampwidth(2)
-    f.setframerate(rate)
-    # Duplicate mono to stereo
+    f.setnchannels(2); f.setsampwidth(2); f.setframerate(rate)
     stereo = []
-    for s in samples:
-        stereo.extend([s, s])
+    for s in samples: stereo.extend([s, s])
     f.writeframes(struct.pack('<' + 'h' * len(stereo), *stereo))
 PYEOF
-
-PLAYED=false
-# Try formats in order of likelihood for XMOS XVF-3510
-for ARGS in \
-    "-D plughw:CARD=sj201,DEV=0 -r 48000 -c 2" \
-    "-D plughw:CARD=sj201,DEV=0 -r 16000 -c 2" \
-    "-D plughw:CARD=sj201,DEV=0" \
-    "-D default"; do
-    echo "  Trying: aplay ${ARGS}..."
-    if timeout 5 aplay $ARGS "$TONEFILE" 2>/dev/null; then
-        PLAYED=true
-        result "Speaker aplay ($ARGS)" PASS
-        break
+    if timeout 5 aplay -D plughw:CARD=sj201,DEV=0 "$TONEFILE" 2>/dev/null; then
+        case $(ask_result "Did you hear a tone from the speaker?") in
+            0) result "Speaker audio output" PASS "tone heard" ;;
+            1) result "Speaker audio output" FAIL "aplay ran but no sound — check TAS5806 amp" ;;
+            2) result "Speaker audio output" SKIP ;;
+        esac
+    else
+        result "Speaker playback" FAIL "aplay failed — check XMOS firmware and sj201.service"
     fi
-done
-
-if [ "$PLAYED" = false ]; then
-    result "Speaker playback" FAIL "all formats failed — check XMOS firmware and sj201.service"
-else
-    case $(ask_result "Did you hear a tone from the speaker?") in
-        0) result "Speaker audio output" PASS "tone heard" ;;
-        1) result "Speaker audio output" FAIL "aplay ran but no sound — check TAS5806 amp or volume" ;;
-        2) result "Speaker audio output" SKIP "manual check skipped" ;;
-    esac
 fi
 
 # =============================================================================
