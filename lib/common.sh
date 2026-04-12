@@ -1,11 +1,60 @@
 #!/bin/bash
 # =============================================================================
 # lib/common.sh
-# Shared functions and variables for all mark2-assist scripts
+# Shared functions and variables for all mark2-assist scripts.
 #
 # Source this file at the top of each script:
 #   # shellcheck source=lib/common.sh
 #   source "$(dirname "$0")/lib/common.sh"
+#
+# Functions provided:
+#
+#   Output / logging:
+#     log "msg"          Print green  [OK]   line + write to MARK2_LOG
+#     warn "msg"         Print yellow [WARN] line + write to MARK2_LOG
+#     die "msg"          Print red    [FAIL] line + write to MARK2_LOG + exit 1
+#     info "msg"         Print blue   [INFO] line + write to MARK2_LOG
+#     section "title"    Print cyan   === title === separator
+#     show_info "msg"    whiptail infobox (non-blocking) or echo
+#     show_msg "msg"     whiptail msgbox (waits for OK) or echo
+#
+#   User prompts:
+#     ask_yes_no "?"     whiptail yesno or read — returns 0/1
+#     ask_input "?" def  whiptail inputbox or read — echoes result
+#     ask_password "?"   whiptail passwordbox or read -s — echoes result
+#     confirm_or_skip "?"  Skip prompt if MARK2_MODULE_CONFIRMED=1
+#
+#   Environment setup:
+#     check_not_root     Exit if running as raw root (not via sudo)
+#     resolve_user       Set CURRENT_USER and USER_HOME from SUDO_USER or $USER
+#     detect_boot_dir    Set BOOT_DIR, BOOT_CONFIG, BOOT_OVERLAYS
+#     detect_pi_model    Set PI_MODEL and PI5_SUFFIX ("-pi5" or "")
+#     detect_debian_version  Set DEBIAN_VERSION and KERNEL_HEADERS_PKG
+#     setup_paths        Call resolve_user + set all MARK2_* path variables
+#                        Creates ~/.config/mark2/, systemd/user/, labwc/ dirs
+#
+#   Configuration file (~/.config/mark2/config, chmod 600):
+#     config_load        Source the config file into current shell
+#     config_save k v    Write/update key=value in config file
+#     prompt_ha_url      Ask for HA URL if not saved, export HA_URL
+#     prompt_ha_token    Ask for HA token if not saved, export HA_TOKEN
+#     prompt_ha_weather  Ask for weather entity if not saved
+#
+#   Progress tracking (~/.config/mark2/install-progress):
+#     progress_set mod status   Write module=status (done|skipped|failed)
+#     progress_get mod          Echo current status for module
+#     progress_is_done mod      Return 0 if module status is "done"
+#
+#   Package management (output → MARK2_LOG):
+#     apt_update         Run apt-get update -qq
+#     apt_install pkg…   Run apt-get install -y --no-install-recommends
+#     git_clone_or_pull url dir  Clone or pull a git repo
+#
+#   labwc integration (used by optional face/overlay modules):
+#     labwc_autostart_add marker line  Add/replace a line in labwc/autostart
+#
+#   Systemd:
+#     reload_user_systemd   Run systemctl --user daemon-reload
 # =============================================================================
 
 # --- Output colors ---
@@ -27,6 +76,39 @@ _log_write() {
     local msg="$2"
     if [ -n "${MARK2_LOG:-}" ]; then
         echo "[$(date '+%Y-%m-%d %H:%M:%S')] [${level}] ${msg}" >> "$MARK2_LOG"
+    fi
+}
+
+# --- Show informational whiptail box (non-blocking display) ---
+show_info() {
+    local msg="$1"
+    local height="${2:-8}"
+    local width="${3:-60}"
+    if command -v whiptail >/dev/null 2>&1 && [ -t 0 ]; then
+        whiptail --title "Mark II Assist" --infobox "$msg" "$height" "$width"
+    else
+        echo -e "${BLUE}[INFO]${NC} ${msg}"
+    fi
+}
+
+# --- Section header for modules ---
+module_header() {
+    local title="$1"
+    local desc="${2:-}"
+    section "$title"
+    [ -n "$desc" ] && echo -e "  ${desc}"
+    echo ""
+}
+
+# --- Show whiptail message box (waits for OK) ---
+show_msg() {
+    local msg="$1"
+    local height="${2:-10}"
+    local width="${3:-60}"
+    if command -v whiptail >/dev/null 2>&1 && [ -t 0 ]; then
+        whiptail --title "Mark II Assist" --msgbox "$msg" "$height" "$width"
+    else
+        echo -e "${BLUE}[INFO] ${msg}${NC}"
     fi
 }
 
@@ -112,7 +194,7 @@ detect_boot_dir() {
 
 # --- Detect Pi model ---
 detect_pi_model() {
-    PI_MODEL=$(cat /proc/device-tree/model 2>/dev/null || echo "unknown")
+    PI_MODEL=$(tr -d '\0' < /proc/device-tree/model 2>/dev/null || echo "unknown")
     if echo "$PI_MODEL" | grep -q "Raspberry Pi 5"; then
         PI5_SUFFIX="-pi5"
     else
@@ -133,6 +215,9 @@ detect_debian_version() {
 }
 
 # --- Common paths ---
+# Sets all MARK2_* path variables and creates required directories.
+# Note: labwc/autostart dir is created even though Weston is the main compositor,
+# because the optional face and overlay modules still use labwc window rules.
 setup_paths() {
     resolve_user
     MARK2_DIR="${USER_HOME}/.config/mark2"
@@ -260,10 +345,18 @@ git_clone_or_pull() {
     fi
 }
 labwc_autostart_add() {
+    # Add or replace a line in ~/.config/labwc/autostart.
+    # Used by optional face and overlay modules to register their
+    # Chromium --app windows with labwc window management.
+    # marker: unique string to identify the line (used to find and replace it)
+    # line:   the full autostart line to write
     local marker="$1"
     local line="$2"
-    grep -v "$marker" "$LABWC_AUTOSTART" 2>/dev/null > /tmp/labwc_tmp || true
-    mv /tmp/labwc_tmp "$LABWC_AUTOSTART" 2>/dev/null || true
+    # Remove ALL existing lines containing this marker
+    if [ -f "$LABWC_AUTOSTART" ]; then
+        grep -v "$marker" "$LABWC_AUTOSTART" > /tmp/labwc_tmp 2>/dev/null || true
+        mv /tmp/labwc_tmp "$LABWC_AUTOSTART"
+    fi
     echo "$line" >> "$LABWC_AUTOSTART"
 }
 

@@ -60,8 +60,9 @@ def init_tas5806():
         # Set SAP format: I2S, 32-bit
         write_reg(bus, TAS5806_REG_SAP_CTRL1, 0x01)
 
-        # Set volume to ~-15dB (0x50 = 0dB, higher = quieter per TAS5806 spec)
-        write_reg(bus, TAS5806_REG_VOL_CTL, 0x60)
+        # Set volume to 60% logarithmic = -60.5dB (0x79)
+        # Scale: 0x54(-42dB)=100% .. 0xd2(-105dB)=0%, log curve matches Mycroft sj201-interface
+        write_reg(bus, TAS5806_REG_VOL_CTL, 0x79)
 
         # HIZ -> Play
         write_reg(bus, TAS5806_REG_DEVICE_CTRL_2, 0x03)

@@ -1,7 +1,17 @@
 #!/bin/bash
 # =============================================================================
 # modules/airplay.sh
-# AirPlay receiver via shairport-sync
+# AirPlay 1 receiver for the Mark II — makes it appear as a speaker on
+# Apple devices and any AirPlay-compatible app (iTunes, iOS, macOS, etc.)
+#
+# Uses shairport-sync with PipeWire backend. Audio plays through the SJ201
+# amplifier via the WirePlumber default sink.
+#
+# Note: AirPlay 2 is not supported by shairport-sync without a paid license.
+# AirPlay 1 works with iOS, macOS, iTunes and most third-party AirPlay apps.
+#
+# Known issue: shairport-sync may log PipeWire timing warnings on Trixie.
+# See KNOWN_ISSUES.md Issue 5 for details.
 #
 # Can be run standalone: bash modules/airplay.sh
 # =============================================================================
@@ -12,12 +22,7 @@ source "$(dirname "$0")/../lib/common.sh"
 check_not_root
 setup_paths
 
-section "AirPlay Receiver (shairport-sync)"
-echo "  Makes Mark II visible as an AirPlay speaker on your network."
-echo "  Works with iPhone, iPad, Mac, and any AirPlay-compatible app."
-echo ""
-echo "  NOTE: AirPlay 1 only. shairport-sync may occasionally lose timing"
-echo "  sync on Trixie with PipeWire."
+module_header "AirPlay Receiver" "Mark II as AirPlay speaker (AirPlay 1)"
 echo ""
 
 if ! confirm_or_skip "Install AirPlay receiver?"; then
@@ -27,10 +32,7 @@ fi
 
 AIRPLAY_NAME="${AIRPLAY_NAME:-Mark II}"
 
-sudo apt-get install -y --no-install-recommends \
-    shairport-sync \
-    avahi-daemon \
-    libavahi-client3
+apt_install shairport-sync avahi-daemon libavahi-client3
 
 SHAIRPORT_CONF="/etc/shairport-sync.conf"
 sudo tee "$SHAIRPORT_CONF" > /dev/null << EOF
@@ -89,8 +91,8 @@ WantedBy=default.target
 EOF
 
 sudo systemctl disable --now shairport-sync.service 2>/dev/null || true
-systemctl --user daemon-reload
-systemctl --user enable shairport-sync.service
+systemctl --user daemon-reload 2>/dev/null
+systemctl --user enable shairport-sync.service 2>/dev/null
 
 log "AirPlay receiver installed as user service"
 info "Mark II will appear as '${AIRPLAY_NAME}' on your AirPlay devices"

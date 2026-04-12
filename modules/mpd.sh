@@ -1,7 +1,22 @@
 #!/bin/bash
 # =============================================================================
 # modules/mpd.sh
-# Music Player Daemon - local music + HA/Music Assistant integration
+# Music Player Daemon — local music player with HA/Music Assistant integration
+#
+# MPD is a server-side music player that runs as a background service.
+# It can be controlled from Home Assistant via the MPD integration, or from
+# Music Assistant which handles library management and playback queuing.
+#
+# Outputs:
+#   PipeWire sink  — plays through SJ201 speaker (primary output)
+#   HTTP stream    — port 8000, for streaming to other devices or HA media player
+#   Snapcast FIFO  — /tmp/snapfifo, enabled automatically if snapcast is installed
+#
+# MPD listens on port 6600 for client connections (mpc, ncmpc, HA integration).
+# Music files go in ~/Music. MPD auto-updates its library when files are added.
+#
+# Known issue: port 8000 for HTTP stream may conflict with other services.
+# See KNOWN_ISSUES.md Issue 8.
 #
 # Can be run standalone: bash modules/mpd.sh
 # =============================================================================
@@ -12,11 +27,7 @@ source "$(dirname "$0")/../lib/common.sh"
 check_not_root
 setup_paths
 
-section "MPD - Music Player Daemon"
-echo "  Local music player that integrates with:"
-echo "  · Home Assistant media player entity"
-echo "  · Music Assistant (streams local files and radio)"
-echo "  · Snapcast (if installed - MPD feeds audio to Snapcast)"
+module_header "MPD — Music Player Daemon" "Local music player with HA and Music Assistant integration"
 echo ""
 
 if ! confirm_or_skip "Install MPD?"; then
@@ -24,10 +35,7 @@ if ! confirm_or_skip "Install MPD?"; then
     exit 0
 fi
 
-sudo apt-get install -y --no-install-recommends \
-    mpd \
-    mpc \
-    ncmpc
+apt_install mpd mpc ncmpc
 
 MPD_CONF_DIR="${USER_HOME}/.config/mpd"
 MPD_DB="${USER_HOME}/.local/share/mpd"
@@ -110,8 +118,8 @@ RestartSec=5
 WantedBy=default.target
 EOF
 
-systemctl --user daemon-reload
-systemctl --user enable mpd.service
+systemctl --user daemon-reload 2>/dev/null
+systemctl --user enable mpd.service 2>/dev/null
 
 log "MPD installed"
 info "Music directory: ${MPD_MUSIC}"

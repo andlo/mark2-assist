@@ -67,7 +67,7 @@ BOOT_OVERLAYS="${BOOT_DIR}/overlays"
 log "Boot directory: ${BOOT_DIR}"
 
 # --- Detect Pi model (Pi 4 vs Pi 5) ---
-PI_MODEL=$(cat /proc/device-tree/model 2>/dev/null || echo "unknown")
+PI_MODEL=$(tr -d '\0' < /proc/device-tree/model 2>/dev/null || echo "unknown")
 if echo "$PI_MODEL" | grep -q "Raspberry Pi 5"; then
     PI5_SUFFIX="-pi5"
     log "Detected: Raspberry Pi 5"
@@ -123,13 +123,32 @@ create_directories() {
     mkdir -p "$WIREPLUMBER_CONF_DIR"
 }
 
+system_upgrade() {
+    section "System upgrade"
+    # Run apt upgrade BEFORE building the VocalFusion kernel module.
+    # This ensures we build against the latest installed kernel.
+    # If a new kernel was installed, the subsequent reboot will boot into it
+    # and VocalFusion will be built against the correct version.
+    info "Running apt upgrade to ensure latest kernel is installed..."
+    apt_update
+    if sudo apt-get upgrade -y --no-install-recommends >> "${MARK2_LOG}" 2>&1; then
+        log "System packages upgraded"
+        # Re-detect kernel version after upgrade — it may have changed
+        KERNEL_VERSION=$(uname -r)
+        MODULE_PATH="/lib/modules/${KERNEL_VERSION}/${VOCALFUSION_MODULE}.ko"
+        log "Kernel version: ${KERNEL_VERSION}"
+    else
+        warn "apt upgrade had errors — check ${MARK2_LOG}"
+        warn "Continuing anyway — VocalFusion will be built against current kernel"
+    fi
+}
+
 install_kernel_headers() {
     log "Installing kernel headers and build tools..."
-    sudo chmod 1777 /tmp
-    apt_update
     apt_install \
         "${KERNEL_HEADERS_PKG}" build-essential git \
-        python3-venv python3-pip python3-dev
+        python3-venv python3-pip python3-dev \
+        sox i2c-tools evtest
 }
 
 update_eeprom() {
@@ -148,6 +167,7 @@ update_eeprom() {
 }
 
 build_vocalfusion_driver() {
+    info "Building VocalFusion audio driver (this may take a few minutes)..."
     info "Cloning VocalFusion driver..."
     sudo git clone --quiet https://github.com/OpenVoiceOS/VocalFusionDriver "$VOCALFUSION_SRC" 2>/dev/null \
         || (cd "$VOCALFUSION_SRC" && sudo git pull --quiet)
@@ -224,18 +244,29 @@ configure_boot_config() {
         log "  Added: dtoverlay=rpi-backlight"
     fi
 
-    # Touchscreen display overlay (Mark II uses fkms not kms)
-    # Remove vc4-kms-v3d if present
-    sudo sed -i '/^dtoverlay=vc4-kms-v3d$/d' "$BOOT_CONFIG" 2>/dev/null || true
-    if ! grep -q "^dtoverlay=vc4-fkms-v3d$" "$BOOT_CONFIG"; then
-        echo "dtoverlay=vc4-fkms-v3d" | sudo tee -a "$BOOT_CONFIG" > /dev/null
-        log "  Added: dtoverlay=vc4-fkms-v3d (touchscreen)"
+    # Mark II 4.3" Waveshare 800x480 DSI display
+    if ! grep -q "^dtoverlay=vc4-kms-dsi-waveshare-800x480$" "$BOOT_CONFIG"; then
+        echo "dtoverlay=vc4-kms-dsi-waveshare-800x480" | sudo tee -a "$BOOT_CONFIG" > /dev/null
+        log "  Added: dtoverlay=vc4-kms-dsi-waveshare-800x480 (Mark II touchscreen)"
+    fi
+
+    # Remove vc4-fkms-v3d if present (deprecated on Trixie/kernel 6.x)
+    sudo sed -i '/^dtoverlay=vc4-fkms-v3d$/d' "$BOOT_CONFIG" 2>/dev/null || true
+    sudo sed -i '/^disable_fw_kms_setup/d' "$BOOT_CONFIG" 2>/dev/null || true
+    if ! grep -q "^dtoverlay=vc4-kms-v3d$" "$BOOT_CONFIG"; then
+        echo "dtoverlay=vc4-kms-v3d" | sudo tee -a "$BOOT_CONFIG" > /dev/null
+        log "  Added: dtoverlay=vc4-kms-v3d (touchscreen/display)"
     fi
 }
 
 configure_modules_load() {
-    log "Configuring automatic loading of vocalfusion module..."
+    log "Configuring automatic loading of kernel modules..."
+    # vocalfusion-soundcard: SJ201 XVF3510 microphone array ALSA driver
     echo "${VOCALFUSION_MODULE}" | sudo tee "$MODULES_LOAD_CONF" > /dev/null
+    # i2c-dev: exposes I2C buses as /dev/i2c-* devices
+    # Required for init_tas5806 (TAS5806 amplifier) and LED ring control
+    echo "i2c-dev" | sudo tee /etc/modules-load.d/i2c-dev.conf > /dev/null
+    log "Module autoload configured: vocalfusion-soundcard, i2c-dev"
 }
 
 setup_sj201_venv() {
@@ -293,6 +324,7 @@ After=network-online.target
 Type=oneshot
 WorkingDirectory=${SJ201_VENV}
 ExecStart=/usr/bin/sudo -E env PATH=/usr/local/bin:/usr/sbin:/usr/bin:/bin ${SJ201_VENV}/bin/python ${WORK_DIR}/xvf3510-flash --direct ${WORK_DIR}/app_xvf3510_int_spi_boot_v4_2_0.bin --verbose
+ExecStartPost=/bin/sleep 5
 ExecStartPost=/usr/bin/env PATH=/usr/local/bin:/usr/sbin:/usr/bin:/bin ${SJ201_VENV}/bin/python ${WORK_DIR}/init_tas5806
 Restart=on-failure
 RestartSec=5s
@@ -364,7 +396,7 @@ echo "[$(date)] Module missing for ${KERNEL} - rebuilding..." | sudo tee -a "$LO
 DEBIAN_VERSION=$(. /etc/os-release && echo "${VERSION_ID:-0}")
 HEADERS_PKG=$( [ "$DEBIAN_VERSION" = "13" ] && echo "linux-headers-rpi-v8" || echo "raspberrypi-kernel-headers" )
 sudo apt-get update -qq
-sudo apt-get install -y --no-install-recommends "$HEADERS_PKG" build-essential
+sudo apt-get install -y --no-install-recommends "$HEADERS_PKG" build-essential >> "$LOG" 2>&1
 
 if [ -d "$SRC_PATH/.git" ]; then
     (cd "$SRC_PATH" && sudo git pull --quiet)
@@ -412,11 +444,29 @@ EOF
     UPDATE_SCRIPT="${MARK2_DIR}/safe-update.sh"
     cat > "$UPDATE_SCRIPT" << 'SHEOF'
 #!/bin/bash
+# Mark II safe weekly update — runs as root from cron
+# Updates: 1) system packages  2) mark2-assist scripts + LVA
 LOG="/var/log/mark2-updates.log"
-echo "[$(date)] Starting safe update" | tee -a "$LOG"
+MARK2_ASSIST_DIR="/home/pi/mark2-assist"
+
+echo "" | tee -a "$LOG"
+echo "[$(date)] === Mark II weekly update ===" | tee -a "$LOG"
+
+# 1. System packages
+echo "[$(date)] Step 1: apt upgrade" | tee -a "$LOG"
 apt-get update -qq 2>&1 | tee -a "$LOG"
 apt-get upgrade -y --no-install-recommends 2>&1 | tee -a "$LOG"
-echo "[$(date)] Update complete" | tee -a "$LOG"
+
+# 2. mark2-assist scripts + LVA (skip apt — already done above)
+if [ -f "${MARK2_ASSIST_DIR}/update.sh" ]; then
+    echo "[$(date)] Step 2: mark2-assist + LVA update" | tee -a "$LOG"
+    # Run update.sh as pi user (it manages user services)
+    sudo -u pi TERM=xterm bash "${MARK2_ASSIST_DIR}/update.sh"         --skip-apt --yes 2>&1 | tee -a "$LOG"
+else
+    echo "[$(date)] mark2-assist not found at ${MARK2_ASSIST_DIR} — skipping" | tee -a "$LOG"
+fi
+
+echo "[$(date)] === Update complete ===" | tee -a "$LOG"
 SHEOF
     chmod +x "$UPDATE_SCRIPT"
 
@@ -445,6 +495,7 @@ echo ""
 
 check_requirements
 create_directories
+system_upgrade
 install_kernel_headers
 update_eeprom
 build_vocalfusion_driver
@@ -461,10 +512,19 @@ echo ""
 echo "========================================"
 log "Hardware setup complete!"
 echo ""
-echo "  Next steps:"
-echo "  1. Reboot the device:  sudo reboot"
-echo "  2. After reboot:       systemctl --user status sj201.service"
-echo "  3. Test audio:         aplay -l"
-echo "  4. Install whatever you want on top (Wyoming, OVOS, HA, etc.)"
+if [ "${MARK2_MODULE_CONFIRMED:-0}" = "1" ]; then
+    echo "  The device will now reboot automatically."
+    echo "  After reboot, SSH back in and run:"
+    echo ""
+    echo "    ./mark2-assist/install.sh"
+    echo ""
+    echo "  Installation will continue from where it left off."
+else
+    echo "  Next steps:"
+    echo "  1. Reboot the device:  sudo reboot"
+    echo "  2. After reboot:       systemctl --user status sj201.service"
+    echo "  3. Test audio:         aplay -l"
+    echo "  4. Install whatever you want on top (LVA, OVOS, HA, etc.)"
+fi
 echo "========================================"
 echo ""

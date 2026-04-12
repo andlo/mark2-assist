@@ -1,7 +1,25 @@
 #!/bin/bash
 # =============================================================================
 # modules/usb-audio.sh
-# USB audio fallback - auto-switch if SJ201 fails at boot
+# USB audio fallback — auto-switches to USB DAC if SJ201 fails at boot
+#
+# The SJ201 audio board occasionally fails to initialize properly at boot,
+# leaving the system with no audio output. This module installs a oneshot
+# service that checks for the SJ201 at boot and switches to a USB audio
+# device if the SJ201 is not found.
+#
+# At boot (after PipeWire and SJ201 service):
+#   1. Check if SJ201 appears as a PipeWire sink
+#   2. If yes: set SJ201 as default sink and exit
+#   3. If no: find first USB audio sink, set as default, flash LEDs red
+#
+# Also installs the mark2-audio-switch command for manual switching:
+#   mark2-audio-switch list          — list available sinks
+#   mark2-audio-switch sj201         — switch to SJ201
+#   mark2-audio-switch usb           — switch to USB audio
+#   mark2-audio-switch <sink-name>   — switch to named sink
+#
+# Fallback log: ~/.config/mark2/audio-fallback.log
 #
 # Can be run standalone: bash modules/usb-audio.sh
 # =============================================================================
@@ -12,10 +30,7 @@ source "$(dirname "$0")/../lib/common.sh"
 check_not_root
 setup_paths
 
-section "USB Audio Fallback"
-echo "  Automatically switches audio output to a USB DAC/speaker"
-echo "  if the SJ201 sound card fails to initialize at boot."
-echo "  Also installs: mark2-audio-switch command for manual control."
+module_header "USB Audio Fallback" "Auto-switch to USB DAC if SJ201 fails at boot"
 echo ""
 
 if ! confirm_or_skip "Install USB audio fallback?"; then
@@ -98,8 +113,8 @@ RemainAfterExit=yes
 WantedBy=default.target
 EOF
 
-systemctl --user daemon-reload
-systemctl --user enable mark2-audio-fallback.service
+systemctl --user daemon-reload 2>/dev/null
+systemctl --user enable mark2-audio-fallback.service 2>/dev/null
 
 log "USB audio fallback installed"
 info "Manual switch: mark2-audio-switch [sj201|usb|list]"

@@ -1,0 +1,22 @@
+# Mark II Assist - git attributes
+# Preserve executable bit on all shell scripts and Python scripts
+
+*.sh    text eol=lf
+*.py    text eol=lf
+*.html  text eol=lf
+*.md    text eol=lf
+*.json  text eol=lf
+*.yaml  text eol=lf
+*.yml   text eol=lf
+*.conf  text eol=lf
+*.txt   text eol=lf
+
+# Executable scripts
+install.sh          text eol=lf
+uninstall.sh        text eol=lf
+mark2-hardware-setup.sh  text eol=lf
+mark2-satellite-setup.sh text eol=lf
+modules/*.sh        text eol=lf
+lib/*.sh            text eol=lf
+lib/*.py            text eol=lf
+assets/xvf3510-flash text eol=lf

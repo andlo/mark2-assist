@@ -210,7 +210,7 @@ mark2/<hostname>/availability  →  online / offline
 State payload example:
 ```json
 {
-  "wyoming_state": "idle",
+  "lva_state": "idle",
   "mpd_state": "play",
   "mpd_track": "Wish You Were Here",
   "mpd_artist": "Pink Floyd",

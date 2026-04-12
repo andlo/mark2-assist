@@ -6,7 +6,7 @@ Uses HA MQTT auto-discovery so sensors appear automatically in HA
 without any manual configuration.
 
 Sensors published:
-  - Wyoming state       (idle/listening/speaking/thinking)
+  - LVA state         (idle/listening/speaking/thinking)
   - MPD state           (playing/paused/stopped + track info)
   - MPD volume          (0-100)
   - CPU temperature     (°C)
@@ -38,7 +38,7 @@ CONFIG_FILE = os.path.expanduser("~/.config/mark2/config")
 STATE_DIR   = "/tmp"
 
 POLL_INTERVAL    = 10     # seconds between system sensor updates
-WYOMING_POLL     = 0.5    # seconds between Wyoming state checks
+LVA_POLL         = 0.5    # seconds between LVA state checks
 MPD_POLL         = 2.0    # seconds between MPD polls
 
 # ── Helpers ─────────────────────────────────────────────────────────────
@@ -93,8 +93,8 @@ def discovery_payload(sensor_id, name, icon, unit=None, device_class=None,
 
 
 SENSORS = [
-    ("wyoming_state", "Wyoming state",   "mdi:microphone",
-     None, None, None, "{{ value_json.wyoming_state }}"),
+    ("lva_state", "LVA state",   "mdi:microphone",
+     None, None, None, "{{ value_json.lva_state }}"),
 
     ("mpd_state",     "MPD state",       "mdi:music",
      None, None, None, "{{ value_json.mpd_state }}"),
@@ -146,11 +146,7 @@ def cpu_usage():
                         return round(100 - idle, 1)
     except Exception:
         pass
-    try:
-        import resource
-        return None
-    except Exception:
-        return None
+    return None
 
 
 def memory_usage():
@@ -181,9 +177,9 @@ def disk_usage():
         return None
 
 
-# ── Wyoming state ────────────────────────────────────────────────────────
+# ── LVA state ────────────────────────────────────────────────────────
 
-def read_wyoming_state():
+def read_lva_state():
     path = os.path.join(STATE_DIR, "mark2-face-event.json")
     try:
         with open(path) as f:
@@ -222,7 +218,7 @@ class Mark2Bridge:
         self.base    = f"mark2/{self.dev_id}"
         self.client  = None
         self.running = True
-        self._last_wyoming = None
+        self._last_lva = None
         self._last_mpd     = None
 
     def connect(self):
@@ -283,33 +279,44 @@ class Mark2Bridge:
         # Give connection a moment
         time.sleep(2)
 
+        # Initialise system metrics so they are always present in every
+        # published payload. HA's value_template raises an error if a key
+        # is missing — None serialises as JSON null which HA handles fine.
+        sys_metrics = {
+            "cpu_temp":     None,
+            "cpu_usage":    None,
+            "memory_usage": None,
+            "disk_usage":   None,
+        }
         last_system_update = 0
 
         while self.running:
             now = time.time()
-            state = {}
 
-            # Wyoming state (fast poll)
-            wyoming = read_wyoming_state()
-            if wyoming != self._last_wyoming:
-                self._last_wyoming = wyoming
-
-            state["wyoming_state"] = wyoming
-
-            # MPD state (medium poll)
-            mpd = read_mpd_state()
-            state.update(mpd)
-
-            # System metrics (slow poll)
+            # System metrics — update every POLL_INTERVAL seconds
             if now - last_system_update > POLL_INTERVAL:
-                state["cpu_temp"]     = cpu_temp()
-                state["cpu_usage"]    = cpu_usage()
-                state["memory_usage"] = memory_usage()
-                state["disk_usage"]   = disk_usage()
-                last_system_update    = now
+                sys_metrics["cpu_temp"]     = cpu_temp()
+                sys_metrics["cpu_usage"]    = cpu_usage()
+                sys_metrics["memory_usage"] = memory_usage()
+                sys_metrics["disk_usage"]   = disk_usage()
+                last_system_update          = now
+
+            # LVA state
+            lva_state = read_lva_state()
+            self._last_lva = lva_state
+
+            # MPD state
+            mpd = read_mpd_state()
+
+            # Build flat payload — all keys always present
+            state = {
+                "lva_state": lva_state,
+                **mpd,
+                **sys_metrics,
+            }
 
             self.publish_state(state)
-            time.sleep(WYOMING_POLL)
+            time.sleep(LVA_POLL)
 
     def stop(self):
         self.running = False

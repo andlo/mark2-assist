@@ -1,7 +1,20 @@
 #!/bin/bash
 # =============================================================================
 # modules/snapcast.sh
-# Snapcast multiroom audio client
+# Snapcast multiroom audio client for the Mark II
+#
+# Snapcast synchronizes audio across multiple speakers with sub-millisecond
+# precision. This module installs snapclient to connect to an existing
+# Snapcast server on your network.
+#
+# The Mark II will appear in the Snapcast integration in Home Assistant,
+# allowing you to control it as part of a multiroom audio group.
+#
+# Downloads the arm64 Trixie build with PipeWire support from GitHub releases.
+# Runs as a systemd user service using the PipeWire audio backend.
+#
+# Requires a Snapcast server on your network. A common setup is Snapcast
+# server running on the same machine as Home Assistant, fed by Music Assistant.
 #
 # Can be run standalone: bash modules/snapcast.sh
 # =============================================================================
@@ -12,11 +25,7 @@ source "$(dirname "$0")/../lib/common.sh"
 check_not_root
 setup_paths
 
-section "Snapcast Client"
-echo "  Snapcast turns Mark II into a synchronized multiroom audio endpoint."
-echo "  Requires a Snapcast server already running on your network (or NAS/HA)."
-echo "  In Home Assistant the 'Snapcast' integration shows Mark II as a media player."
-echo ""
+module_header "Snapcast Client" "Synchronized multiroom audio endpoint.\nRequires a Snapcast server on your network."
 
 if ! confirm_or_skip "Install Snapcast client?"; then
     log "Skipping Snapcast"
@@ -46,8 +55,8 @@ DEB_URL="https://github.com/badaix/snapcast/releases/download/v${SNAPCAST_VERSIO
 TMP_DEB="/tmp/${DEB_FILE}"
 
 curl -fsSL "$DEB_URL" -o "$TMP_DEB" || die "Failed to download: ${DEB_URL}"
-sudo apt-get install -y --no-install-recommends avahi-daemon
-sudo dpkg -i "$TMP_DEB" || sudo apt-get install -f -y
+apt_install avahi-daemon
+sudo dpkg -i "$TMP_DEB" >> "${MARK2_LOG}" 2>&1 || sudo apt-get install -f -y >> "${MARK2_LOG}" 2>&1
 rm -f "$TMP_DEB"
 
 # Disable system snapclient service - run as user instead
@@ -72,8 +81,8 @@ RestartSec=5
 WantedBy=default.target
 EOF
 
-systemctl --user daemon-reload
-systemctl --user enable snapclient.service
+systemctl --user daemon-reload 2>/dev/null
+systemctl --user enable snapclient.service 2>/dev/null
 log "Snapcast client installed and enabled"
 info "Mark II will appear in Home Assistant Snapcast integration"
 info "Server: ${SNAPCAST_HOST}"

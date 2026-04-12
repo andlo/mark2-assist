@@ -1,15 +1,27 @@
 #!/bin/bash
 # =============================================================================
 # modules/face.sh
-# Animated face display - reacts to Wyoming satellite events
+# Animated robot face overlay for the Mark II touchscreen
 #
-# Shows an animated robot face on the Mark II touchscreen:
-#   idle   - half-closed sleepy eyes, fades out after 3s
-#   wake   - eyes pop open with "!" flash
-#   listen - big open eyes, pupils wander, natural blinking
-#   think  - squinting eyes, animated "..." dots
-#   speak  - open eyes, animated mouth, blush
-#   error  - worried brows, sad mouth
+# Displays an animated face in the bottom-right corner of the screen that
+# reacts to LVA (linux-voice-assistant) voice events:
+#   idle   — half-closed sleepy eyes, fades out after 3 seconds
+#   wake   — eyes pop open with a "!" flash
+#   listen — big open eyes, pupils wander, natural blinking
+#   think  — squinting eyes, animated "..." dots
+#   speak  — open eyes, animated mouth, blush
+#   error  — worried brows, sad mouth
+#
+# The face reads /tmp/mark2-face-event.json which is written by the
+# mark2-face-events.service installed by mark2-satellite-setup.sh.
+# That service tails the lva journal and maps events to states.
+# No dependency on the LED module is required.
+#
+# The face window is launched via labwc autostart as a Chromium --app window.
+# labwc is installed alongside Weston for this purpose (Weston handles the
+# main kiosk display; labwc manages the HUD overlay windows).
+#
+# Window: 260×260 px, bottom-right of 800×480 display (position 540,220)
 #
 # Can be run standalone: bash modules/face.sh
 # =============================================================================
@@ -20,10 +32,7 @@ source "$(dirname "$0")/../lib/common.sh"
 check_not_root
 setup_paths
 
-section "Animated Face Display"
-echo "  Shows an animated robot face on the touchscreen that reacts"
-echo "  to Wyoming satellite events (wake, listen, think, speak)."
-echo ""
+module_header "Animated Face Display" "Animated robot face reacting to voice events and music"
 
 if ! confirm_or_skip "Install animated face?"; then
     log "Skipping face"
@@ -37,53 +46,21 @@ mkdir -p "$FACE_DIR"
 cp "${TEMPLATE_DIR}/face.html" "${FACE_DIR}/face.html"
 log "Copied face template to ${FACE_DIR}/face.html"
 
-# Event bridge: listens on LED socket and writes to face event file
-FACE_BRIDGE="${MARK2_DIR}/face-bridge.sh"
-cat > "$FACE_BRIDGE" << 'SHEOF'
-#!/bin/bash
-# Bridge Wyoming LED states to face events
-# Reads from mark2-leds.sock and writes /tmp/mark2-face-event.json
-SOCKET_PATH="/tmp/mark2-leds.sock"
-while true; do
-    if [ -S "$SOCKET_PATH" ]; then
-        STATE=$(echo "" | socat -T1 - UNIX-CONNECT:"$SOCKET_PATH" 2>/dev/null | head -1 || true)
-        [ -n "$STATE" ] && echo "{\"state\":\"${STATE}\"}" > /tmp/mark2-face-event.json
-    fi
-    sleep 0.15
-done
-SHEOF
-chmod +x "$FACE_BRIDGE"
+# The face reads /tmp/mark2-face-event.json, written by mark2-face-events.service.
+# That service is installed by mark2-satellite-setup.sh, so no bridge is needed here.
+# We just need to launch the Chromium window via labwc autostart.
 
-# Also write face events directly from the LED event handler
-# by patching mark2-leds.sock - face polls /tmp/mark2-face-event.json
-# We install a lightweight socat listener that mirrors states
-
-# Systemd service for face bridge
-cat > "${SYSTEMD_USER_DIR}/mark2-face-bridge.service" << EOF
-[Unit]
-Description=Mark II Face Event Bridge
-After=mark2-leds.service
-Wants=mark2-leds.service
-
-[Service]
-Type=simple
-ExecStart=${FACE_BRIDGE}
-Restart=always
-RestartSec=3
-
-[Install]
-WantedBy=default.target
-EOF
-
-# Add face window to labwc autostart
-# Positioned bottom-right, small enough not to cover HA dashboard
+# Add face window to labwc autostart.
+# labwc rc.xml (installed by mark2-satellite-setup.sh) keeps hud.html windows
+# always-on-top via windowRule matching "hud.html" in the identifier.
+# The face.html window is positioned bottom-right, small enough not to
+# cover the main HA dashboard content area.
 labwc_autostart_add "face.html" \
-    "chromium --app=\"file://${FACE_DIR}/face.html\" --window-size=260,260 --window-position=760,220 --ozone-platform=wayland --password-store=basic --no-first-run --disable-infobars --disable-background-timer-throttling --app-auto-launched &"
+    "chromium --app=\"file://${FACE_DIR}/face.html\" --window-size=260,260 --window-position=540,220 --ozone-platform=wayland --password-store=basic --no-first-run --disable-infobars --disable-background-timer-throttling --app-auto-launched &"
 
-systemctl --user daemon-reload
-systemctl --user enable mark2-face-bridge.service
+systemctl --user daemon-reload 2>/dev/null
 
 log "Animated face installed"
-info "Face appears bottom-right of screen, reacts to Wyoming events"
-info "Requires LED module (modules/leds.sh) for event bridging"
-info "Preview: file://${FACE_DIR}/face.html"
+info "Face appears bottom-right of screen (540,220), reacts to LVA events"
+info "State source: /tmp/mark2-face-event.json (written by mark2-face-events.service)"
+info "Preview in browser: file://${FACE_DIR}/face.html"

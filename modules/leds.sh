@@ -1,7 +1,7 @@
 #!/bin/bash
 # =============================================================================
 # modules/leds.sh
-# SJ201 LED ring control for Wyoming satellite events
+# SJ201 LED ring control for LVA/HA voice satellite events
 #
 # Can be run standalone: bash modules/leds.sh
 # =============================================================================
@@ -12,26 +12,15 @@ source "$(dirname "$0")/../lib/common.sh"
 check_not_root
 setup_paths
 
-section "LED Ring Control"
-echo "  Controls the SJ201 LED ring based on Wyoming satellite events:"
-echo "  · Idle:         LEDs off"
-echo "  · Wake word:    pulsing blue"
-echo "  · Listening:    solid blue"
-echo "  · Thinking:     spinning cyan"
-echo "  · Speaking:     solid green"
-echo "  · Error:        flash red"
-echo ""
+module_header "LED Ring Control" "SJ201 LED ring follows LVA satellite state"
+
 
 if ! confirm_or_skip "Install LED ring control?"; then
     log "Skipping LED control"
     exit 0
 fi
 
-sudo apt-get install -y --no-install-recommends \
-    python3-spidev \
-    python3-libgpiod \
-    python3-smbus2 \
-    i2c-tools
+apt_install python3-spidev python3-libgpiod python3-smbus2 i2c-tools socat
 
 LED_SCRIPT="${MARK2_DIR}/led_control.py"
 LED_EVENT_SCRIPT="${MARK2_DIR}/led_event_handler.py"
@@ -168,36 +157,86 @@ if __name__ == "__main__": main()
 PYEOF
 chmod +x "$LED_SCRIPT"
 
-# --- Wyoming event bridge ---
+# --- LVA event bridge ---
+# Reads face event JSON and forwards states to the LED Unix socket.
 cat > "$LED_EVENT_SCRIPT" << 'PYEOF'
 #!/usr/bin/env python3
-"""Wyoming satellite event bridge -> LED socket."""
-import json, socket, sys
+"""
+LVA face event bridge.
+Reads /tmp/mark2-face-event.json for voice state
+and forwards them as LED states to /tmp/mark2-leds.sock.
+"""
+import json, socket, threading, sys, time
 
-SOCKET_PATH = "/tmp/mark2-leds.sock"
+TCP_HOST = "127.0.0.1"
+TCP_PORT = 10500
+UNIX_SOCKET = "/tmp/mark2-leds.sock"
+
 EVENT_MAP = {
-    "detect": "wake", "detection": "listen",
-    "streaming-start": "listen", "streaming-stop": "think",
-    "transcript": "think", "synthesize": "speak",
-    "tts-start": "speak", "tts-played": "idle",
-    "error": "error", "connected": "idle", "disconnected": "error",
+    "detect":           "wake",
+    "detection":        "listen",
+    "streaming-start":  "listen",
+    "streaming-stop":   "think",
+    "transcript":       "think",
+    "synthesize":       "speak",
+    "tts-start":        "speak",
+    "tts-played":       "idle",
+    "error":            "error",
+    "connected":        "idle",
+    "disconnected":     "error",
 }
 
-def send(state):
+def send_led(state):
     try:
         s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-        s.connect(SOCKET_PATH); s.sendall(state.encode()); s.close()
+        s.connect(UNIX_SOCKET)
+        s.sendall(state.encode())
+        s.close()
     except Exception as e:
-        print(f"[EVENT] {e}", file=sys.stderr)
+        print(f"[EVENT] LED socket error: {e}", file=sys.stderr)
 
-send("idle")
-for line in sys.stdin:
+def handle_client(conn):
     try:
-        event = json.loads(line.strip())
-        state = EVENT_MAP.get(event.get("type",""))
-        if state: send(state)
+        buf = b""
+        while True:
+            data = conn.recv(4096)
+            if not data:
+                break
+            buf += data
+            while b"\n" in buf:
+                line, buf = buf.split(b"\n", 1)
+                try:
+                    event = json.loads(line.decode())
+                    etype = event.get("type", "")
+                    state = EVENT_MAP.get(etype)
+                    if state:
+                        print(f"[EVENT] {etype} → {state}")
+                        send_led(state)
+                except Exception as e:
+                    print(f"[EVENT] Parse error: {e}", file=sys.stderr)
     except Exception as e:
-        print(f"[EVENT] Parse error: {e}", file=sys.stderr)
+        print(f"[EVENT] Client error: {e}", file=sys.stderr)
+    finally:
+        conn.close()
+
+def main():
+    send_led("idle")
+    server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    server.bind((TCP_HOST, TCP_PORT))
+    server.listen(5)
+    print(f"[EVENT] Listening on {TCP_HOST}:{TCP_PORT}")
+    while True:
+        try:
+            conn, addr = server.accept()
+            t = threading.Thread(target=handle_client, args=(conn,), daemon=True)
+            t.start()
+        except Exception as e:
+            print(f"[EVENT] Accept error: {e}", file=sys.stderr)
+            time.sleep(1)
+
+if __name__ == "__main__":
+    main()
 PYEOF
 chmod +x "$LED_EVENT_SCRIPT"
 
@@ -221,7 +260,7 @@ EOF
 cat > "${SYSTEMD_USER_DIR}/mark2-led-events.service" << EOF
 [Unit]
 Description=Mark II LED Event Bridge
-After=wyoming-satellite.service mark2-leds.service
+After=lva.service mark2-leds.service
 Requires=mark2-leds.service
 
 [Service]
@@ -234,22 +273,17 @@ RestartSec=3
 WantedBy=default.target
 EOF
 
-# Patch wyoming-satellite service to emit events
-WYOMING_SERVICE="${SYSTEMD_USER_DIR}/wyoming-satellite.service"
-if [ -f "$WYOMING_SERVICE" ]; then
-    if ! grep -q "event-uri" "$WYOMING_SERVICE"; then
-        sed -i "s|--wake-word-name.*|&  \\\\\n    --event-uri 'tcp://127.0.0.1:10500'|" "$WYOMING_SERVICE"
-        log "Patched wyoming-satellite.service with --event-uri"
-    else
-        log "wyoming-satellite.service already has --event-uri"
-    fi
-else
-    warn "wyoming-satellite.service not found - run mark2-satellite-setup.sh first"
-    warn "Manually add: --event-uri 'tcp://127.0.0.1:10500' to ExecStart"
-fi
+# Note: Wyoming --event-uri patching is no longer needed with LVA.
+# LVA state is read via HA API by face-event-bridge.
+# This block kept for reference only.
+# We add --event-uri on a new line AFTER --wake-word-name line.
+# Uses Python for reliable multi-line sed replacement to avoid
+# shell escaping issues that cause double backslash (\ \) corruption.
+# Note: Wyoming --event-uri patching is no longer needed with LVA.
+# LVA state is read via HA API by mark2-face-events.service.
 
-systemctl --user daemon-reload
-systemctl --user enable mark2-leds.service mark2-led-events.service
+systemctl --user daemon-reload 2>/dev/null
+systemctl --user enable mark2-leds.service mark2-led-events.service 2>/dev/null
 
 log "LED ring control installed"
 info "Test: echo 'listen' | socat - UNIX-CONNECT:/tmp/mark2-leds.sock"
