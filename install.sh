@@ -506,21 +506,21 @@ fi
 echo "Full documentation: https://github.com/andlo/mark2-assist"
 } > "$SUMMARY_FILE"
 
-# Add SSH login reminder to .bash_profile (shown once after install)
-BASH_PROFILE="${USER_HOME}/.bash_profile"
-if ! grep -q "mark2-install-summary" "$BASH_PROFILE" 2>/dev/null; then
-    cat >> "$BASH_PROFILE" << HOOKEOF
+# Install MOTD banner (shows on every SSH login)
+if [ -f "${SCRIPT_DIR}/lib/motd.sh" ]; then
+    sudo cp "${SCRIPT_DIR}/lib/motd.sh" /etc/update-motd.d/10-mark2
+    sudo chmod +x /etc/update-motd.d/10-mark2
+    # Remove old default uname motd if it exists
+    sudo rm -f /etc/update-motd.d/10-uname
+    # Clear static /etc/motd — dynamic scripts handle it
+    sudo truncate -s 0 /etc/motd
+    log "Installed MOTD banner"
+fi
 
-# mark2-install-summary
-if [ -f "${SUMMARY_FILE}" ]; then
-    echo ""
-    echo -e "\033[0;36m  Mark II Assist installation summary:\033[0m"
-    echo "  cat ${SUMMARY_FILE}"
-    echo ""
-fi
-# mark2-install-summary-end
-HOOKEOF
-fi
+# Remove any old bash_profile install summary snippet
+BASH_PROFILE="${USER_HOME}/.bash_profile"
+sed -i '/# mark2-install-summary/,/# mark2-install-summary-end/d' \
+    "$BASH_PROFILE" 2>/dev/null || true
 
 # Ask reboot in plain terminal (not whiptail) so summary stays visible
 echo ""
