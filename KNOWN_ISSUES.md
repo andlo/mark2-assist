@@ -199,19 +199,15 @@ dtoverlay=sj201-rev10-pwm-fan-overlay,poe_fan_temp0=35000,poe_fan_temp0_hyst=500
 
 ---
 
-## Issue 13: MQTT sensors publish wrong JSON format ❌
+## Issue 13: MQTT sensors publish wrong JSON format ✅
 
-**Labels:** `bug`, `mqtt`
+**Status:** Fixed.
 
-**Description:**
-HA logs show template warnings when MQTT sensors publish:
-```
-'dict object' has no attribute 'disk_usage'
-'dict object' has no attribute 'cpu_temp'
-```
-This means `mqtt-bridge.py` is publishing a nested dict instead of flat
-key-value pairs expected by the MQTT sensor templates in `mqtt-sensors.sh`.
+System metrics (`cpu_temp`, `cpu_usage`, `memory_usage`, `disk_usage`) were
+only added to the state dict after the first `POLL_INTERVAL` (10 seconds).
+During those first 10 seconds HA's `value_template` tried to read missing
+keys and logged `'dict object' has no attribute 'disk_usage'` etc.
 
-**Fix needed:**
-Review `lib/mqtt-bridge.py` publish format and align with the templates
-defined in `modules/mqtt-sensors.sh`.
+Fixed in `lib/mqtt-bridge.py`: sys_metrics dict is now initialised with
+`None` values before the loop, so all keys are always present in every
+published payload. `None` serialises as JSON `null` which HA handles fine.
