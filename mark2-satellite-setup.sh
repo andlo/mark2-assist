@@ -175,8 +175,8 @@ ExecStartPre=-/bin/sh -c 'fuser -k 10700/tcp 2>/dev/null; sleep 1'
 ExecStart=${WYOMING_SAT_DIR}/script/run \\
     --name '${SATELLITE_NAME}' \\
     --uri 'tcp://0.0.0.0:10700' \\
-    --mic-command 'arecord -D ${MIC_DEVICE} -r 16000 -c 1 -f S16_LE -t raw' \\
-    --snd-command 'aplay -D ${SPK_DEVICE} -r 48000 -c 2 -f S16_LE -t raw' \\
+    --mic-command 'arecord -D ${MIC_DEVICE} -r 16000 -c 1 -f S16_LE -t raw --period-size=1024 --buffer-size=4096' \\
+    --snd-command 'aplay -D ${SPK_DEVICE} -r 48000 -c 2 -f S16_LE -t raw --period-size=1024 --buffer-size=4096' \\
     --mic-auto-gain 5 \\
     --mic-noise-suppression 2 \\
     --wake-uri 'tcp://127.0.0.1:10400' \\
