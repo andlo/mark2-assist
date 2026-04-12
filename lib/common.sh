@@ -194,7 +194,7 @@ detect_boot_dir() {
 
 # --- Detect Pi model ---
 detect_pi_model() {
-    PI_MODEL=$(cat /proc/device-tree/model 2>/dev/null || echo "unknown")
+    PI_MODEL=$(tr -d '\0' < /proc/device-tree/model 2>/dev/null || echo "unknown")
     if echo "$PI_MODEL" | grep -q "Raspberry Pi 5"; then
         PI5_SUFFIX="-pi5"
     else

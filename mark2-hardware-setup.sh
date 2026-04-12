@@ -67,7 +67,7 @@ BOOT_OVERLAYS="${BOOT_DIR}/overlays"
 log "Boot directory: ${BOOT_DIR}"
 
 # --- Detect Pi model (Pi 4 vs Pi 5) ---
-PI_MODEL=$(cat /proc/device-tree/model 2>/dev/null || echo "unknown")
+PI_MODEL=$(tr -d '\0' < /proc/device-tree/model 2>/dev/null || echo "unknown")
 if echo "$PI_MODEL" | grep -q "Raspberry Pi 5"; then
     PI5_SUFFIX="-pi5"
     log "Detected: Raspberry Pi 5"
@@ -145,7 +145,6 @@ system_upgrade() {
 
 install_kernel_headers() {
     log "Installing kernel headers and build tools..."
-    sudo chmod 1777 /tmp
     apt_install \
         "${KERNEL_HEADERS_PKG}" build-essential git \
         python3-venv python3-pip python3-dev
