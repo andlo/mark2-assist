@@ -262,10 +262,11 @@ PYEOF
         sox "$RECFILE" -r 48000 -c 2 "$RECFILE_48" 2>/dev/null
         timeout 6 aplay -D plughw:CARD=sj201,DEV=0 "$RECFILE_48" 2>/dev/null || true
     fi
-    case $(ask_result "Could you roughly hear what you said? (quality will be poor — that is normal)") in
-        0) result "Mic → Speaker roundtrip" PASS; RECFILE_PLAYED=true ;;
+    _rt_ans=$(ask_result "Could you roughly hear what you said? (quality will be poor — that is normal)"; echo $?)
+    case "$_rt_ans" in
+        0) result "Mic → Speaker roundtrip" PASS;  RECFILE_PLAYED=true ;;
         1) result "Mic → Speaker roundtrip" FAIL "no recognisable audio — check XMOS routing"; RECFILE_PLAYED=false ;;
-        2) result "Mic → Speaker roundtrip" SKIP; RECFILE_PLAYED=false ;;
+        *) result "Mic → Speaker roundtrip" SKIP;  RECFILE_PLAYED=false ;;
     esac
 else
     result "Microphone record" FAIL "arecord failed — device busy or not available"
