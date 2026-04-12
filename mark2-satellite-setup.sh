@@ -5,13 +5,17 @@
 #
 # Run AFTER mark2-hardware-setup.sh and a reboot.
 #
+# Uses linux-voice-assistant (OHF-Voice/linux-voice-assistant) which replaces
+# the deprecated wyoming-satellite. Uses ESPHome protocol — same as HA Voice PE.
+# Features: local OWW wake word, timers, announcements, media player, auto-discovery.
+#
 # What this script does:
 #   1. Detects SJ201 audio device automatically
-#   2. Installs Wyoming Satellite + openWakeWord (voice satellite for HA)
-#   3. Creates wyoming-satellite.service + wyoming-openwakeword.service
+#   2. Installs Linux Voice Assistant (ESPHome protocol, replaces Wyoming Satellite)
+#   3. Creates lva.service (auto-discovered by HA as ESPHome device)
 #   4. Installs face event bridge (Wyoming state → /tmp/mark2-face-event.json)
 #   5. Installs hardware volume button handler (vol up/down/mute → TAS5806)
-#   5. Installs Weston + Chromium kiosk showing Home Assistant dashboard
+#   6. Installs Weston + Chromium kiosk showing Home Assistant dashboard
 #   6. Configures auto-login on tty1 + Weston session startup
 #   7. Fixes Chromium GPU flags for Pi4 + Trixie (invalid gles ANGLE backend)
 #   8. Disables screen blanking
@@ -51,8 +55,7 @@ SATELLITE_NAME="${SATELLITE_NAME:-$(hostname)}"
 # NOTE: pyopen_wakeword uses 'okay_nabu' (not 'ok_nabu') — must match exactly
 WAKE_WORD="${WAKE_WORD:-okay_nabu}"
 
-WYOMING_SAT_DIR="${USER_HOME}/wyoming-satellite"
-WYOMING_OWW_DIR="${USER_HOME}/wyoming-openwakeword"
+LVA_DIR="${USER_HOME}/lva"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 # =============================================================================
@@ -102,109 +105,57 @@ install_dependencies() {
         alsa-utils curl wget unzip
 }
 
-install_wyoming_satellite() {
-    section "Installing Wyoming Satellite"
-    info "Cloning/updating wyoming-satellite..."
-    git_clone_or_pull "https://github.com/rhasspy/wyoming-satellite.git" "$WYOMING_SAT_DIR"
-    systemctl --user stop wyoming-satellite.service 2>/dev/null || true
-    rm -rf "${WYOMING_SAT_DIR}/.venv"
-    info "Running wyoming-satellite setup (creates venv + installs Python deps)..."
-    cd "$WYOMING_SAT_DIR"
-    python3 script/setup >> "${MARK2_LOG}" 2>&1 \
-        || die "Wyoming Satellite setup failed — check ${MARK2_LOG}"
-    # Install webrtc-noise-gain for --mic-noise-suppression support
-    # This is an optional extra not installed by script/setup by default
-    info "Installing webrtc-noise-gain for microphone noise suppression..."
-    "${WYOMING_SAT_DIR}/.venv/bin/pip" install --quiet webrtc-noise-gain \
-        >> "${MARK2_LOG}" 2>&1 \
-        || warn "webrtc-noise-gain install failed — noise suppression disabled"
-    log "Wyoming Satellite installed"
-}
+install_lva() {
+    section "Installing Linux Voice Assistant"
+    # linux-voice-assistant uses ESPHome protocol — same as HA Voice Preview Edition.
+    # It replaces the deprecated wyoming-satellite and integrates OWW wake word,
+    # timers, announcements, media player, and auto-discovery in one service.
+    # HA discovers it automatically as an ESPHome device (no manual integration needed).
+    apt_install libmpv2 python3-evdev
 
-install_wyoming_openwakeword() {
-    section "Installing Wyoming openWakeWord"
-    info "Cloning/updating wyoming-openwakeword..."
-    git_clone_or_pull "https://github.com/rhasspy/wyoming-openwakeword.git" "$WYOMING_OWW_DIR"
-    systemctl --user stop wyoming-openwakeword.service 2>/dev/null || true
-    rm -rf "${WYOMING_OWW_DIR}/.venv"
-    info "Running openWakeWord setup (downloads wake word models)..."
-    cd "$WYOMING_OWW_DIR"
-    python3 script/setup >> "${MARK2_LOG}" 2>&1 \
-        || die "openWakeWord setup failed — check ${MARK2_LOG}"
-    log "openWakeWord installed"
-}
+    LVA_DIR="${USER_HOME}/lva"
+    info "Cloning/updating linux-voice-assistant..."
+    git_clone_or_pull "https://github.com/OHF-Voice/linux-voice-assistant.git" "$LVA_DIR"
 
-create_openwakeword_service() {
-    section "Creating wyoming-openwakeword.service"
+    systemctl --user stop lva.service 2>/dev/null || true
+    rm -rf "${LVA_DIR}/.venv"
+    info "Running LVA setup (creates venv + installs Python deps)..."
+    cd "$LVA_DIR"
+    python3 script/setup >> "${MARK2_LOG}" 2>&1         || die "LVA setup failed — check ${MARK2_LOG}"
+    log "Linux Voice Assistant installed"
+
+    section "Creating lva.service"
     mkdir -p "$SYSTEMD_USER_DIR"
-    cat > "${SYSTEMD_USER_DIR}/wyoming-openwakeword.service" << EOF
+    cat > "${SYSTEMD_USER_DIR}/lva.service" << EOF
 [Unit]
-Description=Wyoming openWakeWord — local wake word detection for Mark II
+Description=Linux Voice Assistant (ESPHome protocol) for Home Assistant
 After=network-online.target sj201.service
-
-[Service]
-Type=simple
-ExecStartPre=-/bin/sh -c 'fuser -k 10400/tcp 2>/dev/null; sleep 1'
-ExecStart=${WYOMING_OWW_DIR}/script/run \\
-    --uri 'tcp://127.0.0.1:10400' \\
-    --preload-model '${WAKE_WORD}'
-WorkingDirectory=${WYOMING_OWW_DIR}
-Restart=always
-RestartSec=5
-
-[Install]
-WantedBy=default.target
-EOF
-    log "Created wyoming-openwakeword.service (loopback 127.0.0.1:10400)"
-}
-
-create_satellite_service() {
-    section "Creating wyoming-satellite.service"
-    cat > "${SYSTEMD_USER_DIR}/wyoming-satellite.service" << EOF
-[Unit]
-Description=Wyoming Satellite (${SATELLITE_NAME}) — HA voice satellite
 Wants=network-online.target
-After=network-online.target sj201.service wyoming-openwakeword.service
-Requires=wyoming-openwakeword.service
 
 [Service]
 Type=simple
-# Clear port before starting — handles stale processes after unclean shutdown
-ExecStartPre=-/bin/sh -c 'fuser -k 10700/tcp 2>/dev/null; sleep 1'
-ExecStart=${WYOMING_SAT_DIR}/script/run \\
+ExecStart=${LVA_DIR}/.venv/bin/python3 -m linux_voice_assistant \\
     --name '${SATELLITE_NAME}' \\
-    --uri 'tcp://0.0.0.0:10700' \\
-    --mic-command 'arecord -r 16000 -c 1 -f S16_LE -t raw' \\
-    --snd-command 'aplay -D ${SPK_DEVICE} -r 48000 -c 2 -f S16_LE -t raw --period-size=1024 --buffer-size=4096' \\
-    --mic-auto-gain 5 \\
-    --mic-noise-suppression 2 \\
-    --wake-uri 'tcp://127.0.0.1:10400' \\
-    --wake-word-name '${WAKE_WORD}' \\
-    --awake-wav ${WYOMING_SAT_DIR}/sounds/awake.wav \\
-    --done-wav ${WYOMING_SAT_DIR}/sounds/done.wav
-WorkingDirectory=${WYOMING_SAT_DIR}
-# PATH, XDG_RUNTIME_DIR and DBUS are required for zeroconf/avahi mDNS discovery
+    --wake-model '${WAKE_WORD}' \\
+    --audio-output-device pipewire
+WorkingDirectory=${LVA_DIR}
 Environment=PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 Environment=XDG_RUNTIME_DIR=/run/user/$(id -u "$CURRENT_USER")
 Environment=DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/$(id -u "$CURRENT_USER")/bus
 Restart=always
 RestartSec=5
+StandardOutput=journal
+StandardError=journal
 
 [Install]
 WantedBy=default.target
 EOF
-    # Note: --event-uri is NOT added here.
-    # The LED module (modules/leds.sh) adds it when installed,
-    # because --event-uri crashes Wyoming if nothing is listening on that port.
-    log "Created wyoming-satellite.service (0.0.0.0:10700, zeroconf/mDNS enabled)"
-}
 
-enable_satellite_services() {
-    section "Enabling Wyoming services"
     systemctl --user daemon-reload 2>/dev/null
-    systemctl --user enable wyoming-openwakeword.service wyoming-satellite.service 2>/dev/null
-    log "Wyoming services enabled — will start on next boot"
-    log "To start now: systemctl --user start wyoming-openwakeword wyoming-satellite"
+    systemctl --user enable lva.service 2>/dev/null
+    log "lva.service created and enabled"
+    log "LVA auto-discovers in HA as ESPHome device — no manual integration needed"
+    log "To start now: systemctl --user start lva"
 }
 
 install_face_event_bridge() {
@@ -625,11 +576,7 @@ echo ""
 prompt_ha_url
 detect_sj201_audio
 install_dependencies
-install_wyoming_satellite
-install_wyoming_openwakeword
-create_openwakeword_service
-create_satellite_service
-enable_satellite_services
+install_lva
 install_face_event_bridge
 install_volume_buttons
 install_kiosk_packages

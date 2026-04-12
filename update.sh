@@ -39,8 +39,7 @@ setup_paths
 config_load
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-WYOMING_SAT_DIR="${USER_HOME}/wyoming-satellite"
-WYOMING_OWW_DIR="${USER_HOME}/wyoming-openwakeword"
+LVA_DIR="${USER_HOME}/lva"
 
 # --- Parse flags ---
 SKIP_APT=false
@@ -141,54 +140,30 @@ fi
 # =============================================================================
 
 if [ "$SKIP_WYOMING" = false ]; then
-    # Wyoming Satellite
-    section "Step 3/4 — Wyoming Satellite"
-    if [ -d "$WYOMING_SAT_DIR" ]; then
-        SAT_BEFORE=$(git -C "$WYOMING_SAT_DIR" rev-parse --short HEAD 2>/dev/null || echo "unknown")
-        if git -C "$WYOMING_SAT_DIR" pull --quiet >> "${MARK2_LOG}" 2>&1; then
-            SAT_AFTER=$(git -C "$WYOMING_SAT_DIR" rev-parse --short HEAD 2>/dev/null || echo "unknown")
-            if [ "$SAT_BEFORE" != "$SAT_AFTER" ]; then
+    # Linux Voice Assistant (replaces Wyoming Satellite + openWakeWord)
+    section "Step 3/4 — Linux Voice Assistant"
+    LVA_DIR="${USER_HOME}/lva"
+    if [ -d "$LVA_DIR" ]; then
+        LVA_BEFORE=$(git -C "$LVA_DIR" rev-parse --short HEAD 2>/dev/null || echo "unknown")
+        if git -C "$LVA_DIR" pull --quiet >> "${MARK2_LOG}" 2>&1; then
+            LVA_AFTER=$(git -C "$LVA_DIR" rev-parse --short HEAD 2>/dev/null || echo "unknown")
+            if [ "$LVA_BEFORE" != "$LVA_AFTER" ]; then
                 info "New version detected — running setup..."
-                systemctl --user stop wyoming-satellite.service 2>/dev/null || true
-                cd "$WYOMING_SAT_DIR"
+                systemctl --user stop lva.service 2>/dev/null || true
+                cd "$LVA_DIR"
+                rm -rf .venv
                 python3 script/setup >> "${MARK2_LOG}" 2>&1 \
-                    && log "Wyoming Satellite updated: ${SAT_BEFORE} → ${SAT_AFTER}" \
-                    || { warn "Wyoming Satellite setup failed — check ${MARK2_LOG}"; ERRORS=$((ERRORS + 1)); }
-                # Upgrade webrtc-noise-gain if needed
-                .venv/bin/pip install --quiet --upgrade webrtc-noise-gain \
-                    >> "${MARK2_LOG}" 2>&1 || true
+                    && log "LVA updated: ${LVA_BEFORE} → ${LVA_AFTER}" \
+                    || { warn "LVA setup failed — check ${MARK2_LOG}"; ERRORS=$((ERRORS + 1)); }
             else
-                log "Wyoming Satellite already up to date (${SAT_AFTER})"
+                log "Linux Voice Assistant already up to date (${LVA_AFTER})"
             fi
         else
-            warn "Wyoming Satellite git pull failed"
+            warn "LVA git pull failed"
             ERRORS=$((ERRORS + 1))
         fi
     else
-        warn "Wyoming Satellite not found at ${WYOMING_SAT_DIR} — skipping"
-    fi
-
-    # Wyoming openWakeWord
-    if [ -d "$WYOMING_OWW_DIR" ]; then
-        OWW_BEFORE=$(git -C "$WYOMING_OWW_DIR" rev-parse --short HEAD 2>/dev/null || echo "unknown")
-        if git -C "$WYOMING_OWW_DIR" pull --quiet >> "${MARK2_LOG}" 2>&1; then
-            OWW_AFTER=$(git -C "$WYOMING_OWW_DIR" rev-parse --short HEAD 2>/dev/null || echo "unknown")
-            if [ "$OWW_BEFORE" != "$OWW_AFTER" ]; then
-                info "New version detected — running setup..."
-                systemctl --user stop wyoming-openwakeword.service 2>/dev/null || true
-                cd "$WYOMING_OWW_DIR"
-                python3 script/setup >> "${MARK2_LOG}" 2>&1 \
-                    && log "openWakeWord updated: ${OWW_BEFORE} → ${OWW_AFTER}" \
-                    || { warn "openWakeWord setup failed — check ${MARK2_LOG}"; ERRORS=$((ERRORS + 1)); }
-            else
-                log "openWakeWord already up to date (${OWW_AFTER})"
-            fi
-        else
-            warn "openWakeWord git pull failed"
-            ERRORS=$((ERRORS + 1))
-        fi
-    else
-        warn "openWakeWord not found at ${WYOMING_OWW_DIR} — skipping"
+        warn "LVA not found at ${LVA_DIR} — skipping (run mark2-satellite-setup.sh)"
     fi
 else
     info "Skipping Wyoming update (--skip-wyoming)"
@@ -201,16 +176,14 @@ fi
 if [ "$SKIP_RESTART" = false ]; then
     section "Step 4/4 — Restarting services"
 
-    # Clear ports before restart to avoid 'address already in use' errors
-    fuser -k 10400/tcp 2>/dev/null || true
-    fuser -k 10700/tcp 2>/dev/null || true
+    # Clear LVA ESPHome port before restart
+    fuser -k 6053/tcp 2>/dev/null || true
     sleep 1
 
     systemctl --user daemon-reload
 
     SERVICES=(
-        wyoming-openwakeword
-        wyoming-satellite
+        lva
         mark2-face-events
         mark2-mqtt-bridge
         mark2-leds
