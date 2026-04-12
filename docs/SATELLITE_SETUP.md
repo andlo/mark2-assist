@@ -74,12 +74,80 @@ Key points:
 - `After=pipewire.service wireplumber.service` — PipeWire must be ready before LVA starts
 - `pipewire/sj201-output` — named PipeWire sink; generic 'pipewire' device freezes MPV on aarch64/Python 3.13
 
-### 7. mark2-face-events.service
+### 7. mark2-wait-pipewire
 
-Polls HA satellite entity state and writes `/tmp/mark2-face-event.json` for HUD overlays.
+Installed as `/usr/local/bin/mark2-wait-pipewire`. Used as `ExecStartPre` in `lva.service`.
+
+`wireplumber` is `Type=simple` and does not signal readiness to systemd. Without this,
+`After=wireplumber.service` only waits for the process to start — not for the virtual
+devices to appear in the PipeWire graph.
+
+Polls `wpctl status` for both `SJ201 ASR` and `SJ201 Speaker` with up to 30s timeout.
+
+### 8. mark2-face-events.service
+
+Polls the HA assist_satellite REST API every 0.5s and writes voice state to
+`/tmp/mark2-face-event.json`. Used by the LED ring and HUD overlay.
 
 ```
-idle → idle | listening → listen | processing → think | responding → speak
+HA state      → face state
+idle          → idle
+listening     → listen
+processing    → think
+responding    → speak
+```
+
+Entity auto-discovered by hostname slug: `assist_satellite.<hostname>_lva_assist_satellite`
+
+---
+
+## LED ring
+
+The SJ201 LED ring is 12x WS2812 NeoPixel LEDs on GPIO12 — **not I2C**.
+
+### Architecture
+
+```
+HA satellite state
+  → mark2-face-events (polls HA API, 0.5s)
+  → /tmp/mark2-face-event.json
+  → mark2-led-events (polls JSON, 0.3s)
+  → /tmp/mark2-leds.sock (Unix socket)
+  → mark2-leds (NeoPixel controller, root)
+  → GPIO12 → LED ring hardware
+```
+
+### Services
+
+**`mark2-leds.service`** — system service (root, NeoPixel needs GPIO access):
+```ini
+User=root
+Environment=BLINKA_FORCEBOARD=RASPBERRY_PI_4B
+TimeoutStopSec=15
+KillMode=process
+```
+`BLINKA_FORCEBOARD` is required — without it, `pixels.show()` hangs under systemd
+due to a DMA interaction issue on RPi4.
+
+**`mark2-led-events.service`** — user service (pi), polls JSON, sends to socket.
+
+### LED states
+
+| Voice state | LED pattern | Color |
+|-------------|-------------|-------|
+| idle | off | — |
+| listen | solid | blue |
+| think | spinning comet | cyan |
+| speak | solid | green |
+| error | flash | red |
+| mute | solid dim | amber |
+
+### Manual test
+```bash
+echo "listen" | socat - UNIX-CONNECT:/tmp/mark2-leds.sock
+echo "think"  | socat - UNIX-CONNECT:/tmp/mark2-leds.sock
+echo "speak"  | socat - UNIX-CONNECT:/tmp/mark2-leds.sock
+echo "idle"   | socat - UNIX-CONNECT:/tmp/mark2-leds.sock
 ```
 
 ---
@@ -89,8 +157,11 @@ idle → idle | listening → listen | processing → think | responding → spe
 ```
 sj201.service
 pipewire.service + wireplumber.service
+    └── [mark2-wait-pipewire polls for SJ201 devices]
     └── lva.service
             └── mark2-face-events.service
+                    └── mark2-led-events.service
+mark2-leds.service             (system service, root)
 mark2-volume-buttons.service   (independent)
 ```
 
@@ -179,7 +250,19 @@ wpctl status | grep Speaker  # should show: SJ201 Speaker
 systemctl --user restart pipewire pipewire-pulse wireplumber
 ```
 
+**LED ring not lighting up:**
+```bash
+sudo systemctl status mark2-leds
+systemctl --user status mark2-led-events
+ls -la /tmp/mark2-leds.sock      # socket must exist
+cat /tmp/mark2-face-event.json   # face state should match HA state
+echo "listen" | socat - UNIX-CONNECT:/tmp/mark2-leds.sock  # manual test
+```
+
 **All services:**
 ```bash
-systemctl --user status lva sj201 mark2-volume-buttons mark2-face-events
+mark2-status  # shows all services, audio, HA connection
+# or individually:
+systemctl --user status lva sj201 mark2-volume-buttons mark2-face-events mark2-led-events
+sudo systemctl status mark2-leds
 ```

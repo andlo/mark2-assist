@@ -49,6 +49,7 @@ or AI-powered using OpenAI, Claude, OVOS, or any other conversation agent HA int
 - **Linux Voice Assistant** — Voice satellite using [linux-voice-assistant](https://github.com/OHF-Voice/linux-voice-assistant) (ESPHome protocol). Includes local OWW wake word detection, timers, announcements and continue-conversation. Replaces the deprecated wyoming-satellite.
 - **Touchscreen kiosk** — Weston Wayland compositor + Chromium in kiosk mode showing your HA dashboard
 - **Face event bridge** — Monitors LVA states via HA API, writes `/tmp/mark2-face-event.json` for HUD overlays
+- **mark2-status** — CLI command showing all service states, audio levels, HA connection and satellite state
 
 ### Optional modules (choose during install)
 
@@ -338,9 +339,15 @@ cat /tmp/mark2-startup.log
 cat /tmp/weston.log
 ```
 
-**Check all service statuses**
+**Check all service statuses at a glance**
 ```bash
-systemctl --user status lva sj201 mark2-volume-buttons mark2-face-events
+mark2-status
+```
+
+Or individually:
+```bash
+systemctl --user status lva sj201 mark2-volume-buttons mark2-face-events mark2-led-events
+sudo systemctl status mark2-leds
 ```
 
 ---
@@ -359,8 +366,8 @@ systemctl --user status lva sj201 mark2-volume-buttons mark2-face-events
 | `/tmp/mark2-startup.log` | Weston startup runtime log (recreated each boot) |
 | `/tmp/mark2-kiosk.log` | Kiosk runtime log |
 | `/tmp/weston.log` | Weston Wayland compositor log |
-| `/tmp/mark2-face-event.json` | Current voice satellite state written by face-event bridge for HUD |
-| `/tmp/mark2-leds.sock` | Unix socket — send state strings to control LED ring |
+| `/tmp/mark2-face-event.json` | Current voice satellite state written by face-event bridge for HUD and LED ring |
+| `/tmp/mark2-leds.sock` | Unix socket — send state strings to control LED ring (e.g. `echo listen \| socat - UNIX-CONNECT:/tmp/mark2-leds.sock`) |
 
 ---
 
@@ -376,6 +383,8 @@ See the `docs/` directory for detailed technical documentation:
 - [`docs/HA_INTEGRATION.md`](docs/HA_INTEGRATION.md) — HA companion integration spec
 - [`docs/HA_SETUP.md`](docs/HA_SETUP.md) — HA user, trusted network auto-login, and dashboard setup
 - [`docs/mark2-dashboard.yaml`](docs/mark2-dashboard.yaml) — Ready-to-paste Mark II dashboard YAML
+
+**Issues** are tracked on GitHub: https://github.com/andlo/mark2-assist/issues
 
 ---
 
