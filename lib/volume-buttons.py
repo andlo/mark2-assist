@@ -11,13 +11,20 @@ DEVICE   = "/dev/input/event0"
 VOL_FILE = "/tmp/mark2-volume.json"
 TAS_ADDR = 0x2f
 TAS_VOL  = 0x4c
-TAS_MAX  = 26    # register at 100% = -13dB (loudest safe for Mark II speaker)
+TAS_MAX  = 84    # register at 100% = -42dB (max safe for Mark II 5W speaker)
 TAS_MIN  = 210   # register at 0% (near silence)
 STEP     = 5     # percent per button press
-DEFAULT  = 70    # restore level after unmute
+DEFAULT  = 50    # restore level after unmute (50% log = reg 0x85 = -66.5dB)
 
-def pct_to_reg(p): return int(TAS_MAX + (TAS_MIN-TAS_MAX)*(1.0-max(0,min(100,p))/100.0))
-def reg_to_pct(r): return round(100.0*(1.0-(max(TAS_MAX,min(TAS_MIN,r))-TAS_MAX)/(TAS_MIN-TAS_MAX)))
+from math import log as _log, exp as _exp
+def pct_to_reg(p):
+    p = max(0, min(100, p))
+    if p == 0: return TAS_MIN
+    pval = (p/100.0) * (_log(TAS_MAX) - _log(TAS_MIN)) + _log(TAS_MIN)
+    return round(_exp(pval))
+def reg_to_pct(r):
+    r = max(TAS_MAX, min(TAS_MIN, r))
+    return round(100.0 * (_log(TAS_MIN) - _log(r)) / (_log(TAS_MIN) - _log(TAS_MAX)))
 
 def get_vol(bus): return reg_to_pct(bus.read_byte_data(TAS_ADDR, TAS_VOL))
 
