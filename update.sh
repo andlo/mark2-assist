@@ -64,11 +64,22 @@ done
 # BANNER
 # =============================================================================
 
+clear
+echo -e "${CYAN}"
+echo '    __  ___           __      ________     ___              _      __ '
+echo '   /  |/  /___ ______/ /__   /  _/  _/    /   |  __________(_)____/ /_'
+echo '  / /|_/ / __ `/ ___/ //_/   / / / /     / /| | / ___/ ___/ / ___/ __/'
+echo ' / /  / / /_/ / /  / ,<    _/ /_/ /     / ___ |(__  |__  ) (__  ) /_  '
+echo '/_/  /_/\__,_/_/  /_/|_|  /___/___/    /_/  |_/____/____/_/____/\__/  '
+echo -e "${NC}"
+echo -e "${BLUE}  Mark II Assist — Update${NC}"
+echo -e "${BLUE}  github.com/andlo/mark2-assist${NC}"
 echo ""
-echo -e "${CYAN}========================================"
-echo    "  Mark II Assist — Update"
-echo    "  $(date '+%Y-%m-%d %H:%M')"
-echo -e "========================================${NC}"
+echo -e "  Updates:"
+echo -e "  · System packages  (apt upgrade)"
+echo -e "  · mark2-assist scripts  (git pull)"
+echo -e "  · Wyoming satellite + openWakeWord  (git pull + setup)"
+echo -e "  · Restarts all mark2 services"
 echo ""
 
 if [ "$YES" = false ]; then
