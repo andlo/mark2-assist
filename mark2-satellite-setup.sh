@@ -124,6 +124,17 @@ install_lva() {
     python3 script/setup >> "${MARK2_LOG}" 2>&1         || die "LVA setup failed — check ${MARK2_LOG}"
     log "Linux Voice Assistant installed"
 
+    section "Installing PipeWire virtual source for SJ201 ASR"
+    # Creates a PipeWire source that reads from ALSA VF_ASR_(L) — the XMOS XVF-3510's
+    # dedicated ASR channel. Without this, PipeWire uses raw 48kHz stereo (RMS~20,
+    # too low for openWakeWord). VF_ASR_(L) gives RMS~500+ which works reliably.
+    mkdir -p "${USER_HOME}/.config/pipewire/pipewire.conf.d"
+    cp "${SCRIPT_DIR}/assets/pipewire-sj201-asr.conf"        "${USER_HOME}/.config/pipewire/pipewire.conf.d/sj201-asr.conf"
+    log "PipeWire SJ201 ASR source installed"
+    # Reload PipeWire so new source is available immediately
+    systemctl --user restart pipewire pipewire-pulse wireplumber 2>/dev/null || true
+    sleep 3
+
     section "Creating lva.service"
     mkdir -p "$SYSTEMD_USER_DIR"
     cat > "${SYSTEMD_USER_DIR}/lva.service" << EOF
@@ -137,6 +148,7 @@ Type=simple
 ExecStart=${LVA_DIR}/.venv/bin/python3 -m linux_voice_assistant \\
     --name '${SATELLITE_NAME}' \\
     --wake-model '${WAKE_WORD}' \\
+    --audio-input-device 'SJ201 ASR (VF_ASR_L)' \\
     --audio-output-device pipewire
 WorkingDirectory=${LVA_DIR}
 Environment=PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
