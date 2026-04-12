@@ -32,14 +32,41 @@ echo ""
 
 # Service status — motd runs as root via run-parts, query pi user services via machine
 echo -e "${CYAN}  Services:${NC}"
-declare -A SVC_LABELS
-SVC_LABELS[lva]="Voice assistant (LVA)"
-SVC_LABELS[sj201]="SJ201 audio hardware"
-SVC_LABELS[mark2-volume-buttons]="Volume buttons"
 
-for svc in lva sj201 mark2-volume-buttons; do
-    LABEL="${SVC_LABELS[$svc]}"
-    STATUS=$(systemctl --machine pi@.host --user is-active "$svc" 2>/dev/null || echo "inactive")
+# Core services — always shown
+declare -A CORE
+CORE[lva]="Voice assistant (LVA)"
+CORE[sj201]="SJ201 audio hardware"
+CORE[mark2-volume-buttons]="Volume buttons"
+CORE[mark2-leds]="LED ring"
+CORE[mark2-face-events]="Face / HUD events"
+
+for svc in lva sj201 mark2-volume-buttons mark2-leds mark2-face-events; do
+    LABEL="${CORE[$svc]}"
+    STATUS=$(systemctl --machine pi@.host --user is-active "$svc" 2>/dev/null | head -1 | tr -d "[:space:]")
+    [ -z "$STATUS" ] && STATUS="inactive"
+    if [ "$STATUS" = "active" ]; then
+        printf "  ${GREEN}✓${NC} %-28s %s\n" "$LABEL" "running"
+    else
+        printf "  ${YELLOW}✗${NC} %-28s %s\n" "$LABEL" "$STATUS"
+    fi
+done
+
+# Optional services — only shown if installed/enabled
+declare -A OPT
+OPT[mark2-mqtt-bridge]="MQTT sensors"
+OPT[mark2-screensaver]="Screensaver"
+OPT[snapclient]="Snapcast (multiroom audio)"
+OPT[shairport-sync]="AirPlay"
+OPT[mpd]="MPD music player"
+
+for svc in mark2-mqtt-bridge mark2-screensaver snapclient shairport-sync mpd; do
+    ENABLED=$(systemctl --machine pi@.host --user is-enabled "$svc" 2>/dev/null | head -1 | tr -d "[:space:]")
+    [ -z "$ENABLED" ] && ENABLED="not-found"
+    case "$ENABLED" in not-found|masked|static|disabled) continue ;; esac
+    LABEL="${OPT[$svc]}"
+    STATUS=$(systemctl --machine pi@.host --user is-active "$svc" 2>/dev/null | head -1 | tr -d "[:space:]")
+    [ -z "$STATUS" ] && STATUS="inactive"
     if [ "$STATUS" = "active" ]; then
         printf "  ${GREEN}✓${NC} %-28s %s\n" "$LABEL" "running"
     else
