@@ -60,9 +60,9 @@ def init_tas5806():
         # Set SAP format: I2S, 32-bit
         write_reg(bus, TAS5806_REG_SAP_CTRL1, 0x01)
 
-        # Set volume to -13dB (TAS5806: 0x00=0dB, each step=-0.5dB, 0x1a=26*0.5=-13dB)
-        # Previous value 0x60 (-48dB) was almost inaudible
-        write_reg(bus, TAS5806_REG_VOL_CTL, 0x1a)
+        # Set volume to 70% = -40.5dB (0x51)
+        # Scale: 0x1a(-13dB)=100% .. 0xd2(-105dB)=0% — adjustable via hardware buttons
+        write_reg(bus, TAS5806_REG_VOL_CTL, 0x51)
 
         # HIZ -> Play
         write_reg(bus, TAS5806_REG_DEVICE_CTRL_2, 0x03)

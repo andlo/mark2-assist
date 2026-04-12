@@ -11,7 +11,7 @@ DEVICE   = "/dev/input/event0"
 VOL_FILE = "/tmp/mark2-volume.json"
 TAS_ADDR = 0x2f
 TAS_VOL  = 0x4c
-TAS_MAX  = 84    # register at 100% (loudest safe)
+TAS_MAX  = 26    # register at 100% = -13dB (loudest safe for Mark II speaker)
 TAS_MIN  = 210   # register at 0% (near silence)
 STEP     = 5     # percent per button press
 DEFAULT  = 70    # restore level after unmute
