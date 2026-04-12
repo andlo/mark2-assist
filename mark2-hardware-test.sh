@@ -281,8 +281,10 @@ fi
 # =============================================================================
 
 section "5. Speaker"
-echo "  Playing test tone (440 Hz) through SJ201 → XMOS → TAS5806 amplifier..."
+echo "  Will play a 440 Hz test tone through the speaker (2 seconds)."
 echo "  Note: Audio path is Pi I2S → XMOS XVF-3510 → TAS5806 → Speaker"
+echo ""
+read -rp "  Press Enter to play the test tone — listen for a beep..." _dummy
 echo ""
 
 # Generate tone file
@@ -344,7 +346,9 @@ if ! command -v python3 &>/dev/null; then
     result "LED ring" SKIP "python3 not available"
 else
     echo "  Testing LED ring — NeoPixel WS2812 on GPIO12..."
-    echo "  Watch the LED ring on the Mark II."
+    echo "  The ring will cycle through red, green, blue and white."
+    echo ""
+    read -rp "  Press Enter to start — watch the LED ring on the device..." _dummy
     echo ""
 
     # LED ring is NeoPixel WS2812 on GPIO12 (D12) — NOT I2C
@@ -439,6 +443,11 @@ fi
 # =============================================================================
 
 section "8. Touchscreen & Display"
+echo "  Checking DSI display connection and touch controller."
+echo "  Look at the Mark II screen — it should be on (even if blank/black)."
+echo ""
+read -rp "  Press Enter to continue..." _dummy
+echo ""
 
 # Check DRM/KMS sees the display
 if ls /sys/class/drm/card*/card*-DSI* &>/dev/null 2>&1; then
@@ -459,6 +468,11 @@ done)
 
 if [ -n "$TOUCH_DEV" ]; then
     result "Touch input device" PASS "$TOUCH_DEV"
+    case $(ask_result "Is the display lit up and visible on the screen?") in
+        0) result "Display visible" PASS ;;
+        1) result "Display visible" FAIL "display is off or blank — check DSI ribbon cable" ;;
+        2) result "Display visible" SKIP ;;
+    esac
 else
     result "Touch input device" FAIL "no touch input device found — check vc4-kms-dsi-waveshare-800x480 overlay"
 fi
