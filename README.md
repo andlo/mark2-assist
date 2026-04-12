@@ -360,6 +360,8 @@ See the `docs/` directory for detailed technical documentation:
 - [`docs/SATELLITE_SETUP.md`](docs/SATELLITE_SETUP.md) — Wyoming satellite setup deep dive
 - [`docs/MODULES.md`](docs/MODULES.md) — All optional modules documented in detail
 - [`docs/HA_INTEGRATION.md`](docs/HA_INTEGRATION.md) — HA companion integration spec
+- [`docs/HA_SETUP.md`](docs/HA_SETUP.md) — HA user, trusted network auto-login, and dashboard setup
+- [`docs/mark2-dashboard.yaml`](docs/mark2-dashboard.yaml) — Ready-to-paste Mark II dashboard YAML
 
 ---
 
