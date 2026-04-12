@@ -197,6 +197,44 @@ sudo rm -f /etc/cron.d/mark2-updates
 log "System scripts removed"
 
 # =============================================================================
+# MOTD — restore default Debian login banner
+# =============================================================================
+
+section "Restoring default login banner"
+
+# Remove our custom MOTD script
+sudo rm -f /etc/update-motd.d/10-mark2
+
+# Restore standard Debian uname script if missing
+if [ ! -f /etc/update-motd.d/10-uname ]; then
+    sudo tee /etc/update-motd.d/10-uname > /dev/null << 'EOF'
+#!/bin/sh
+uname -snrvm
+EOF
+    sudo chmod +x /etc/update-motd.d/10-uname
+    log "Restored default uname MOTD"
+fi
+
+# Restore standard Debian /etc/motd text
+sudo tee /etc/motd > /dev/null << 'EOF'
+
+The programs included with the Debian GNU/Linux system are free software;
+the exact distribution terms for each program are described in the
+individual files in /usr/share/doc/*/copyright.
+
+Debian GNU/Linux comes with ABSOLUTELY NO WARRANTY, to the extent
+permitted by applicable law.
+EOF
+log "Restored default /etc/motd"
+
+# Remove any leftover install summary snippet from .bash_profile
+BASH_PROFILE="${USER_HOME}/.bash_profile"
+if grep -q "mark2-install-summary" "$BASH_PROFILE" 2>/dev/null; then
+    sed -i '/# mark2-install-summary/,/# mark2-install-summary-end/d' "$BASH_PROFILE"
+    log "Removed install summary from .bash_profile"
+fi
+
+# =============================================================================
 # WIREPLUMBER CONFIG
 # =============================================================================
 
