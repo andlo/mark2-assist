@@ -12,7 +12,7 @@
 </p>
 
 <p align="center">
-  No Mycroft. No OVOS. Just Home Assistant Assist — local or cloud, your choice.
+  Powered by Home Assistant Assist — you choose the pipeline.
 </p>
 
 ---
