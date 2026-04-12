@@ -11,8 +11,8 @@
 #   1. SJ201 service        — firmware flashed and amp initialized
 #   2. Audio devices        — ALSA sees SJ201 card for capture and playback
 #   3. Microphone           — records audio and checks signal level
-#   4. Speaker              — plays a test tone via SJ201 amplifier
-#   5. Microphone → Speaker — records then plays back so you can verify
+#   4. Microphone → Speaker — records then plays back so you can verify
+#   5. Speaker              — plays a test tone via SJ201 amplifier
 #   6. LED ring             — cycles through colors via I2C
 #   7. Buttons              — detects volume up/down and action button presses
 #   8. Touchscreen          — checks DSI display is detected by DRM
@@ -237,13 +237,52 @@ else
 fi
 
 # =============================================================================
-# TEST 4: Speaker — play test tone
+# TEST 4: Microphone → Speaker roundtrip
 # =============================================================================
 
-section "4. Speaker"
+section "4. Microphone → Speaker Roundtrip"
+echo "  Records 4 seconds then plays it back through the speaker."
+echo "  NOTE: Audio quality may sound processed/distorted — this is normal!"
+echo "  The XMOS XVF-3510 chip processes microphone audio for noise reduction."
+echo "  What matters: can you roughly hear what you said? (words recognisable)"
+echo ""
+echo "  When you press Enter, recording starts immediately (4 seconds)."
+echo "  Count slowly: 'one... two... three... four...'"
+read -rp "  Press Enter when ready to record..." _dummy
+echo "  🎤 Recording now..."
+echo ""
+
+ROUNDFILE="/tmp/mark2-roundtrip.wav"
+ROUNDFILE_48="/tmp/mark2-roundtrip-48k.wav"
+if arecord -D "${MIC_DEV}" -r 16000 -c 1 -f S16_LE -d 4 "$ROUNDFILE" 2>/dev/null; then
+    echo "  Converting and playing back..."
+    if command -v sox &>/dev/null; then
+        sox "$ROUNDFILE" -r 48000 -c 2 "$ROUNDFILE_48" 2>/dev/null
+        timeout 6 aplay -D plughw:CARD=sj201,DEV=0 "$ROUNDFILE_48" 2>/dev/null || true
+    else
+        sudo apt-get install -y --no-install-recommends sox \
+            >> "${MARK2_LOG:-/dev/null}" 2>&1 || true
+        if command -v sox &>/dev/null; then
+            sox "$ROUNDFILE" -r 48000 -c 2 "$ROUNDFILE_48" 2>/dev/null
+            timeout 6 aplay -D plughw:CARD=sj201,DEV=0 "$ROUNDFILE_48" 2>/dev/null || true
+        fi
+    fi
+    case $(ask_result "Could you roughly hear what you said? (quality will be poor — that is normal)") in
+        0) result "Mic → Speaker roundtrip" PASS ;;
+        1) result "Mic → Speaker roundtrip" FAIL "no recognisable audio — check XMOS routing" ;;
+        2) result "Mic → Speaker roundtrip" SKIP ;;
+    esac
+else
+    result "Mic → Speaker roundtrip" FAIL "recording failed"
+fi
+
+# =============================================================================
+# TEST 5: Speaker — play test tone
+# =============================================================================
+
+section "5. Speaker"
 echo "  Playing test tone (440 Hz) through SJ201 → XMOS → TAS5806 amplifier..."
 echo "  Note: Audio path is Pi I2S → XMOS XVF-3510 → TAS5806 → Speaker"
-echo "  Trying multiple formats as XMOS may require specific sample rate/width."
 echo ""
 
 # Generate tone file
@@ -293,48 +332,6 @@ else
         1) result "Speaker audio output" FAIL "aplay ran but no sound — check TAS5806 amp or volume" ;;
         2) result "Speaker audio output" SKIP "manual check skipped" ;;
     esac
-fi
-
-# =============================================================================
-# TEST 5: Microphone → Speaker roundtrip
-# =============================================================================
-
-section "5. Microphone → Speaker Roundtrip"
-echo "  Records 4 seconds then plays it back through the speaker."
-echo "  NOTE: Audio quality may sound processed/distorted — this is normal!"
-echo "  The XMOS XVF-3510 chip processes microphone audio for noise reduction."
-echo "  What matters: can you roughly hear what you said? (words recognisable)"
-echo ""
-echo "  When you press Enter, recording starts immediately (4 seconds)."
-echo "  Count slowly: 'one... two... three... four...'"
-read -rp "  Press Enter when ready to record..." _dummy
-echo "  🎤 Recording now..."
-echo ""
-
-ROUNDFILE="/tmp/mark2-roundtrip.wav"
-ROUNDFILE_48="/tmp/mark2-roundtrip-48k.wav"
-if arecord -D "${MIC_DEV}" -r 16000 -c 1 -f S16_LE -d 4 "$ROUNDFILE" 2>/dev/null; then
-    echo "  Converting and playing back..."
-    # Use sox for proper resampling (much better quality than manual upsample)
-    if command -v sox &>/dev/null; then
-        sox "$ROUNDFILE" -r 48000 -c 2 "$ROUNDFILE_48" 2>/dev/null
-        timeout 6 aplay -D plughw:CARD=sj201,DEV=0 "$ROUNDFILE_48" 2>/dev/null || true
-    else
-        # Fallback: install sox and retry
-        sudo apt-get install -y --no-install-recommends sox \
-            >> "${MARK2_LOG:-/dev/null}" 2>&1 || true
-        if command -v sox &>/dev/null; then
-            sox "$ROUNDFILE" -r 48000 -c 2 "$ROUNDFILE_48" 2>/dev/null
-            timeout 6 aplay -D plughw:CARD=sj201,DEV=0 "$ROUNDFILE_48" 2>/dev/null || true
-        fi
-    fi
-    case $(ask_result "Could you roughly hear what you said? (quality will be poor — that is normal)") in
-        0) result "Mic → Speaker roundtrip" PASS ;;
-        1) result "Mic → Speaker roundtrip" FAIL "no recognisable audio — check XMOS routing" ;;
-        2) result "Mic → Speaker roundtrip" SKIP ;;
-    esac
-else
-    result "Mic → Speaker roundtrip" FAIL "recording failed"
 fi
 
 # =============================================================================
