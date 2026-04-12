@@ -1,14 +1,26 @@
-# mark2-assist
+# Mycroft Mark II Assist
 
-**Turn a Mycroft Mark II into a Home Assistant voice satellite with touchscreen kiosk display.**
+<p align="center">
+  <img src="https://img.shields.io/badge/Mycroft-Mark%20II-blue?style=for-the-badge&logo=data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCI+PHBhdGggZmlsbD0id2hpdGUiIGQ9Ik0xMiAyQzYuNDggMiAyIDYuNDggMiAxMnM0LjQ4IDEwIDEwIDEwIDEwLTQuNDggMTAtMTBTMTcuNTIgMiAxMiAyem0tMiAxNWwtNS01IDEuNDEtMS40MUwxMCAxNC4xN2w3LjU5LTcuNTlMMTkgOGwtOSA5eiIvPjwvc3ZnPg==" alt="Mycroft Mark II">
+  <img src="https://img.shields.io/badge/Home%20Assistant-Assist-41BDF5?style=for-the-badge&logo=home-assistant&logoColor=white" alt="Home Assistant Assist">
+  <img src="https://img.shields.io/badge/Wyoming-Satellite-green?style=for-the-badge" alt="Wyoming Satellite">
+  <img src="https://img.shields.io/badge/Debian-Trixie-A81D33?style=for-the-badge&logo=debian&logoColor=white" alt="Debian Trixie">
+</p>
 
-mark2-assist installs everything needed to use a Mark II as a fully featured HA voice satellite:
-Wyoming Protocol integration, wake word detection, touchscreen HA dashboard, LED ring feedback,
-animated face, volume overlay, screensaver, MQTT sensors, and optional audio streaming.
+<p align="center">
+  <strong>Repurpose your Mycroft Mark II as a Home Assistant voice satellite with touchscreen kiosk display.</strong>
+</p>
 
-No cloud. No Mycroft. No OVOS. Pure Home Assistant local voice.
+<p align="center">
+  No cloud. No Mycroft. No OVOS. Pure Home Assistant local voice.
+</p>
 
 ---
+
+**mark2-assist** installs everything needed to use a Mycroft Mark II as a fully featured
+Home Assistant voice satellite: Wyoming Protocol integration, wake word detection,
+touchscreen HA dashboard, LED ring feedback, animated face, volume overlay, screensaver,
+MQTT sensors, and optional audio streaming.
 
 ## Hardware
 
