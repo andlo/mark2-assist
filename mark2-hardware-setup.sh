@@ -123,11 +123,29 @@ create_directories() {
     mkdir -p "$WIREPLUMBER_CONF_DIR"
 }
 
+system_upgrade() {
+    section "System upgrade"
+    # Run apt upgrade BEFORE building the VocalFusion kernel module.
+    # This ensures we build against the latest installed kernel.
+    # If a new kernel was installed, the subsequent reboot will boot into it
+    # and VocalFusion will be built against the correct version.
+    info "Running apt upgrade to ensure latest kernel is installed..."
+    apt_update
+    if sudo apt-get upgrade -y --no-install-recommends >> "${MARK2_LOG}" 2>&1; then
+        log "System packages upgraded"
+        # Re-detect kernel version after upgrade — it may have changed
+        KERNEL_VERSION=$(uname -r)
+        MODULE_PATH="/lib/modules/${KERNEL_VERSION}/${VOCALFUSION_MODULE}.ko"
+        log "Kernel version: ${KERNEL_VERSION}"
+    else
+        warn "apt upgrade had errors — check ${MARK2_LOG}"
+        warn "Continuing anyway — VocalFusion will be built against current kernel"
+    fi
+}
+
 install_kernel_headers() {
     log "Installing kernel headers and build tools..."
-    info "Installing kernel headers and build tools..."
     sudo chmod 1777 /tmp
-    apt_update
     apt_install \
         "${KERNEL_HEADERS_PKG}" build-essential git \
         python3-venv python3-pip python3-dev
@@ -453,6 +471,7 @@ echo ""
 
 check_requirements
 create_directories
+system_upgrade
 install_kernel_headers
 update_eeprom
 build_vocalfusion_driver
