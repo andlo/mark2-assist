@@ -188,6 +188,9 @@ RestartSec=5
 [Install]
 WantedBy=default.target
 EOF
+    # Note: --event-uri is NOT added here.
+    # The LED module (modules/leds.sh) adds it when installed,
+    # because --event-uri crashes Wyoming if nothing is listening on that port.
     log "Created wyoming-satellite.service (0.0.0.0:10700, zeroconf/mDNS enabled)"
 }
 

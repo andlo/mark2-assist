@@ -158,35 +158,86 @@ PYEOF
 chmod +x "$LED_SCRIPT"
 
 # --- Wyoming event bridge ---
+# Listens on TCP port 10500 (Wyoming --event-uri target) and forwards
+# Wyoming events to the LED Unix socket.
 cat > "$LED_EVENT_SCRIPT" << 'PYEOF'
 #!/usr/bin/env python3
-"""Wyoming satellite event bridge -> LED socket."""
-import json, socket, sys
+"""
+Wyoming satellite event bridge.
+Listens on TCP port 10500 for Wyoming events (--event-uri tcp://127.0.0.1:10500)
+and forwards them as LED states to /tmp/mark2-leds.sock.
+"""
+import json, socket, threading, sys, time
 
-SOCKET_PATH = "/tmp/mark2-leds.sock"
+TCP_HOST = "127.0.0.1"
+TCP_PORT = 10500
+UNIX_SOCKET = "/tmp/mark2-leds.sock"
+
 EVENT_MAP = {
-    "detect": "wake", "detection": "listen",
-    "streaming-start": "listen", "streaming-stop": "think",
-    "transcript": "think", "synthesize": "speak",
-    "tts-start": "speak", "tts-played": "idle",
-    "error": "error", "connected": "idle", "disconnected": "error",
+    "detect":           "wake",
+    "detection":        "listen",
+    "streaming-start":  "listen",
+    "streaming-stop":   "think",
+    "transcript":       "think",
+    "synthesize":       "speak",
+    "tts-start":        "speak",
+    "tts-played":       "idle",
+    "error":            "error",
+    "connected":        "idle",
+    "disconnected":     "error",
 }
 
-def send(state):
+def send_led(state):
     try:
         s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-        s.connect(SOCKET_PATH); s.sendall(state.encode()); s.close()
+        s.connect(UNIX_SOCKET)
+        s.sendall(state.encode())
+        s.close()
     except Exception as e:
-        print(f"[EVENT] {e}", file=sys.stderr)
+        print(f"[EVENT] LED socket error: {e}", file=sys.stderr)
 
-send("idle")
-for line in sys.stdin:
+def handle_client(conn):
     try:
-        event = json.loads(line.strip())
-        state = EVENT_MAP.get(event.get("type",""))
-        if state: send(state)
+        buf = b""
+        while True:
+            data = conn.recv(4096)
+            if not data:
+                break
+            buf += data
+            while b"\n" in buf:
+                line, buf = buf.split(b"\n", 1)
+                try:
+                    event = json.loads(line.decode())
+                    etype = event.get("type", "")
+                    state = EVENT_MAP.get(etype)
+                    if state:
+                        print(f"[EVENT] {etype} → {state}")
+                        send_led(state)
+                except Exception as e:
+                    print(f"[EVENT] Parse error: {e}", file=sys.stderr)
     except Exception as e:
-        print(f"[EVENT] Parse error: {e}", file=sys.stderr)
+        print(f"[EVENT] Client error: {e}", file=sys.stderr)
+    finally:
+        conn.close()
+
+def main():
+    send_led("idle")
+    server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    server.bind((TCP_HOST, TCP_PORT))
+    server.listen(5)
+    print(f"[EVENT] Listening on {TCP_HOST}:{TCP_PORT}")
+    while True:
+        try:
+            conn, addr = server.accept()
+            t = threading.Thread(target=handle_client, args=(conn,), daemon=True)
+            t.start()
+        except Exception as e:
+            print(f"[EVENT] Accept error: {e}", file=sys.stderr)
+            time.sleep(1)
+
+if __name__ == "__main__":
+    main()
 PYEOF
 chmod +x "$LED_EVENT_SCRIPT"
 
