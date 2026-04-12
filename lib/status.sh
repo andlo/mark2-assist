@@ -24,14 +24,33 @@ run_sc() {
     systemctl $MACHINE_FLAG --user "$@" 2>/dev/null
 }
 
+run_sc_system() {
+    # For system services (not user services) — needs sudo when run as pi
+    if [ "$(id -u)" = "0" ]; then
+        systemctl "$@" 2>/dev/null
+    else
+        sudo systemctl "$@" 2>/dev/null
+    fi
+}
+
 print_svc() {
     local svc="$1" label="$2"
+    _print_svc_inner "$svc" "$label" "run_sc"
+}
+
+print_system_svc() {
+    local svc="$1" label="$2"
+    _print_svc_inner "$svc" "$label" "run_sc_system"
+}
+
+_print_svc_inner() {
+    local svc="$1" label="$2" runner="$3"
     local active sub since err
 
-    active=$(run_sc is-active "$svc" | head -1 | tr -d '[:space:]')
+    active=$($runner is-active "$svc" | head -1 | tr -d '[:space:]')
     [ -z "$active" ] && active="inactive"
-    sub=$(run_sc show "$svc" -p SubState --value | head -1 | tr -d '[:space:]')
-    since=$(run_sc show "$svc" -p ActiveEnterTimestamp --value | head -1 | sed 's/ CEST//;s/ CET//')
+    sub=$($runner show "$svc" -p SubState --value | head -1 | tr -d '[:space:]')
+    since=$($runner show "$svc" -p ActiveEnterTimestamp --value | head -1 | sed 's/ CEST//;s/ CET//')
 
     case "$active" in
         active)
@@ -44,7 +63,7 @@ print_svc() {
             ;;
         failed)
             printf "  ${RED}✗${NC} %-28s ${RED}failed${NC}\n" "$label"
-            err=$(run_sc status "$svc" --no-pager -n 5 2>/dev/null \
+            err=$($runner status "$svc" --no-pager -n 5 2>/dev/null \
                 | grep -i 'error\|fail\|Error' | tail -1 \
                 | sed 's/^[^:]*: //' | cut -c1-70)
             [ -n "$err" ] && printf "    ${RED}→${NC} %s\n" "$err"
@@ -78,7 +97,7 @@ echo -e "${BLUE}  Core services${NC}"
 print_svc lva                  "Voice assistant (LVA)"
 print_svc sj201                "SJ201 audio hardware"
 print_svc mark2-volume-buttons "Volume buttons"
-print_svc mark2-leds           "LED ring"
+print_system_svc mark2-leds    "LED ring"
 print_svc mark2-face-events    "Face / HUD events"
 echo ""
 

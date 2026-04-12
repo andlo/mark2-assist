@@ -41,7 +41,7 @@ CORE[mark2-volume-buttons]="Volume buttons"
 CORE[mark2-leds]="LED ring"
 CORE[mark2-face-events]="Face / HUD events"
 
-for svc in lva sj201 mark2-volume-buttons mark2-leds mark2-face-events; do
+for svc in lva sj201 mark2-volume-buttons mark2-face-events; do
     LABEL="${CORE[$svc]}"
     STATUS=$(systemctl --machine pi@.host --user is-active "$svc" 2>/dev/null | head -1 | tr -d "[:space:]")
     [ -z "$STATUS" ] && STATUS="inactive"
@@ -51,6 +51,15 @@ for svc in lva sj201 mark2-volume-buttons mark2-leds mark2-face-events; do
         printf "  ${YELLOW}✗${NC} %-28s %s\n" "$LABEL" "$STATUS"
     fi
 done
+
+# mark2-leds is a system service (runs as root for GPIO) — query directly
+LED_STATUS=$(systemctl is-active mark2-leds 2>/dev/null | head -1 | tr -d "[:space:]")
+[ -z "$LED_STATUS" ] && LED_STATUS="inactive"
+if [ "$LED_STATUS" = "active" ]; then
+    printf "  ${GREEN}✓${NC} %-28s %s\n" "${CORE[mark2-leds]}" "running"
+else
+    printf "  ${YELLOW}✗${NC} %-28s %s\n" "${CORE[mark2-leds]}" "$LED_STATUS"
+fi
 
 # Optional services — only shown if installed/enabled
 declare -A OPT
