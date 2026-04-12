@@ -23,9 +23,9 @@ touchscreen HA dashboard, LED ring feedback, animated face, volume overlay, scre
 MQTT sensors, and optional audio streaming.
 
 The voice pipeline runs entirely through Home Assistant Assist — meaning you choose what
-powers each step. Wake word runs locally on the device. STT, TTS and conversation can be
-anything HA supports: fully local (Whisper, Piper), cloud (Nabu Casa), or AI-powered
-(OpenAI, Claude via custom conversation agents, OVOS, or any other HA integration).
+powers each step. Wake word detection runs locally on the device. STT, TTS and conversation
+can be anything HA supports: fully local (Whisper + Piper, no cloud required), via Nabu Casa,
+or AI-powered using OpenAI, Claude, OVOS, or any other conversation agent HA integrates with.
 
 ## Hardware
 
@@ -51,22 +51,25 @@ anything HA supports: fully local (Whisper, Piper), cloud (Nabu Casa), or AI-pow
 - **Face event bridge** — Monitors Wyoming states, writes `/tmp/mark2-face-event.json` for HUD overlays
 
 ### Optional modules (choose during install)
-| Module | What it does |
-|--------|-------------|
-| **homeassistant** | Show HA dashboard on the touchscreen (on by default) |
-| **leds** | SJ201 LED ring reacts to wake/listen/speak/error/idle states |
-| **face** | Animated face overlay — zooms in on voice, dances to music |
-| **overlay** | On-screen volume bar — appears on volume change, auto-hides |
-| **screensaver** | Fullscreen clock + live weather from HA, activates after 2 min idle |
-| **mqtt-sensors** | Publishes Wyoming state, MPD playback, CPU/memory/disk/temp to HA via MQTT |
-| **snapcast** | Snapcast multiroom audio endpoint |
-| **airplay** | AirPlay 1 speaker via shairport-sync |
-| **mpd** | Local music player (works with Music Assistant in HA) |
-| **kdeconnect** | Android phone integration — notifications, media control |
-| **usb-audio** | Fallback audio device if SJ201 fails at boot |
 
-> Without the **homeassistant** module the touchscreen still shows the
-> animated face and clock — Mark II works as a pure voice satellite.
+Modules are selected during install via a checklist. Defaults are marked with ✓.
+
+| Module | Default | What it does |
+|--------|:-------:|-------------|
+| **homeassistant** | ✓ | Show your HA dashboard full-screen on the touchscreen |
+| **leds** | ✓ | LED ring reacts to voice states — idle pulse, listening spin, speaking glow, error red |
+| **face** | ✓ | Animated face overlay — reacts to voice, dances to music playback |
+| **overlay** | ✓ | On-screen volume bar — appears on volume change, auto-hides after 3 seconds |
+| **screensaver** | ✓ | Fullscreen clock + live weather pulled from HA, activates after 2 min idle |
+| **mqtt-sensors** | ✓ | Publishes Wyoming state, audio playback, CPU/memory/disk/temp to HA via MQTT |
+| **snapcast** |  | Multiroom audio — synced playback as a Snapcast endpoint |
+| **airplay** |  | AirPlay 1 speaker — stream audio from iPhone, Mac or any AirPlay source |
+| **mpd** |  | Local music player — integrates with Music Assistant in HA |
+| **kdeconnect** |  | Android phone integration — notifications on screen, media control |
+| **usb-audio** |  | USB audio fallback — uses a USB sound card if SJ201 fails at boot |
+
+> Without the **homeassistant** module the touchscreen still shows the animated
+> face and clock — Mark II works as a pure voice satellite without any dashboard.
 
 ---
 
@@ -179,7 +182,9 @@ After restarting HA and rebooting Mark II, the dashboard loads automatically —
 
 ## Adding Mark II to Home Assistant
 
-After installation add the Wyoming integration in HA:
+After installation Mark II announces itself on the network via **Zeroconf/mDNS**,
+so Home Assistant will often discover it automatically and show a notification to
+add it. If not, you can add it manually:
 
 1. Settings → Devices & Services → Add Integration
 2. Search for **Wyoming Protocol**
