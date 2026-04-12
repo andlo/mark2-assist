@@ -228,9 +228,11 @@ class Mark2Bridge:
         pwd  = self.cfg.get("MQTT_PASS", "")
 
         self.client = mqtt.Client(
-            client_id=f"mark2-{self.dev_id}",
+            client_id=f"mark2-{self.dev_id}-{os.getpid()}",
             clean_session=True,
+            callback_api_version=mqtt.CallbackAPIVersion.VERSION2,
         )
+        self.client.reconnect_delay_set(min_delay=5, max_delay=60)
         self.client.will_set(
             f"{self.base}/availability", "offline", retain=True
         )
@@ -240,22 +242,24 @@ class Mark2Bridge:
         self.client.on_connect    = self._on_connect
         self.client.on_disconnect = self._on_disconnect
 
-        print(f"[MQTT] Connecting to {host}:{port}")
+        print(f"[MQTT] Connecting to {host}:{port}", flush=True)
         self.client.connect(host, port, keepalive=60)
-        self.client.loop_start()
+        # Don't call loop_start() — run() uses loop_forever() instead
 
-    def _on_connect(self, client, userdata, flags, rc):
+    def _on_connect(self, client, userdata, flags, reason_code, properties=None):
+        rc = reason_code if isinstance(reason_code, int) else reason_code.value
         if rc == 0:
-            print("[MQTT] Connected")
+            print("[MQTT] Connected", flush=True)
             self._publish_discovery()
             client.publish(
                 f"{self.base}/availability", "online", retain=True
             )
         else:
-            print(f"[MQTT] Connect failed: rc={rc}")
+            print(f"[MQTT] Connect failed: rc={rc}", flush=True)
 
-    def _on_disconnect(self, client, userdata, rc):
-        print(f"[MQTT] Disconnected: rc={rc}")
+    def _on_disconnect(self, client, userdata, disconnect_flags=None, reason_code=None, properties=None):
+        rc = reason_code if isinstance(reason_code, int) else (reason_code.value if reason_code else 0)
+        print(f"[MQTT] Disconnected: rc={rc}", flush=True)
 
     def _publish_discovery(self):
         for args in SENSORS:
@@ -276,56 +280,53 @@ class Mark2Bridge:
     def run(self):
         self.connect()
 
-        # Give connection a moment
-        time.sleep(2)
-
-        # Initialise system metrics so they are always present in every
-        # published payload. HA's value_template raises an error if a key
-        # is missing — None serialises as JSON null which HA handles fine.
-        sys_metrics = {
-            "cpu_temp":     None,
-            "cpu_usage":    None,
-            "memory_usage": None,
-            "disk_usage":   None,
-        }
-        last_system_update = 0
-
-        while self.running:
-            now = time.time()
-
-            # System metrics — update every POLL_INTERVAL seconds
-            if now - last_system_update > POLL_INTERVAL:
-                sys_metrics["cpu_temp"]     = cpu_temp()
-                sys_metrics["cpu_usage"]    = cpu_usage()
-                sys_metrics["memory_usage"] = memory_usage()
-                sys_metrics["disk_usage"]   = disk_usage()
-                last_system_update          = now
-
-            # LVA state
-            lva_state = read_lva_state()
-            self._last_lva = lva_state
-
-            # MPD state
-            mpd = read_mpd_state()
-
-            # Build flat payload — all keys always present
-            state = {
-                "lva_state": lva_state,
-                **mpd,
-                **sys_metrics,
+        # Publish loop runs in a background thread so loop_forever() can
+        # drive the paho network loop on the main thread — this is the
+        # correct way to use paho with automatic reconnect.
+        def _publish_loop():
+            sys_metrics = {
+                "cpu_temp":     None,
+                "cpu_usage":    None,
+                "memory_usage": None,
+                "disk_usage":   None,
             }
+            last_system_update = 0
 
-            self.publish_state(state)
-            time.sleep(LVA_POLL)
+            while self.running:
+                now = time.time()
+
+                # System metrics — update every POLL_INTERVAL seconds
+                if now - last_system_update > POLL_INTERVAL:
+                    sys_metrics["cpu_temp"]     = cpu_temp()
+                    sys_metrics["cpu_usage"]    = cpu_usage()
+                    sys_metrics["memory_usage"] = memory_usage()
+                    sys_metrics["disk_usage"]   = disk_usage()
+                    last_system_update          = now
+
+                state = {
+                    "lva_state": read_lva_state(),
+                    **read_mpd_state(),
+                    **sys_metrics,
+                }
+                self.publish_state(state)
+                time.sleep(LVA_POLL)
+
+        t = threading.Thread(target=_publish_loop, daemon=True)
+        t.start()
+
+        # loop_forever() blocks here and handles reconnect automatically
+        self.client.loop_forever(retry_first_connection=True)
 
     def stop(self):
         self.running = False
         if self.client:
-            self.client.publish(
-                f"{self.base}/availability", "offline", retain=True
-            )
-            self.client.loop_stop()
-            self.client.disconnect()
+            try:
+                self.client.publish(
+                    f"{self.base}/availability", "offline", retain=True
+                )
+            except Exception:
+                pass
+            self.client.disconnect()  # causes loop_forever() to return
 
 
 def main():
