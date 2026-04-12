@@ -127,8 +127,12 @@ echo ""
 
 section "1. SJ201 Service"
 
+# Wait briefly for XMOS XVF-3510 to fully initialize after boot
+# Without this, lsmod may not yet show vocalfusion_soundcard
 if systemctl --user is-active sj201.service &>/dev/null; then
     result "sj201.service" PASS "active (firmware loaded)"
+    echo "  Waiting 3 seconds for XMOS XVF-3510 to fully initialize..."
+    sleep 3
 else
     STATUS=$(systemctl --user show sj201.service -p ActiveState --value 2>/dev/null || echo "unknown")
     if [ "$STATUS" = "failed" ]; then
@@ -193,6 +197,8 @@ result "Speaker device" PASS "${SPK_DEV}"
 # =============================================================================
 
 section "3. Microphone"
+echo "  Waiting 2 seconds for XMOS XVF-3510 to be ready..."
+sleep 2
 echo "  Recording 3 seconds... Say something or clap your hands!"
 echo ""
 
