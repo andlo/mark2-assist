@@ -30,14 +30,20 @@ printf "  %-12s %s\n" "Uptime:"   "$(uptime -p | sed 's/up //')"
 printf "  %-12s %s\n" "IP:"       "$(hostname -I | awk '{print $1}')"
 echo ""
 
-# Service status — motd runs as root via run-parts, query pi user services via su
+# Service status — motd runs as root via run-parts, query pi user services via machine
 echo -e "${CYAN}  Services:${NC}"
+declare -A SVC_LABELS
+SVC_LABELS[lva]="Voice assistant (LVA)"
+SVC_LABELS[sj201]="SJ201 audio hardware"
+SVC_LABELS[mark2-volume-buttons]="Volume buttons"
+
 for svc in lva sj201 mark2-volume-buttons; do
-    STATUS=$(systemctl --machine pi@.host --user is-active "$svc" 2>/dev/null || echo "unknown")
+    LABEL="${SVC_LABELS[$svc]}"
+    STATUS=$(systemctl --machine pi@.host --user is-active "$svc" 2>/dev/null || echo "inactive")
     if [ "$STATUS" = "active" ]; then
-        printf "  ${GREEN}✓${NC} %-30s %s\n" "$svc" "running"
+        printf "  ${GREEN}✓${NC} %-28s %s\n" "$LABEL" "running"
     else
-        printf "  ${YELLOW}·${NC} %-30s %s\n" "$svc" "$STATUS"
+        printf "  ${YELLOW}✗${NC} %-28s %s\n" "$LABEL" "$STATUS"
     fi
 done
 echo ""
