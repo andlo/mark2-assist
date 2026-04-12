@@ -134,23 +134,34 @@ section "1. SJ201 Service"
 # Without this, lsmod may not yet show vocalfusion_soundcard
 if systemctl --user is-active sj201.service &>/dev/null; then
     result "sj201.service" PASS "active (firmware loaded)"
-    # Wait for XMOS XVF-3510 to fully initialize — poll until vocalfusion module appears
-    echo "  Waiting for XMOS XVF-3510 to initialize (up to 15 seconds)..."
-    for i in $(seq 1 15); do
-        if lsmod 2>/dev/null | grep -q "vocalfusion"; then
-            echo "  Ready after ${i}s."
-            break
-        fi
+elif systemctl --user is-active sj201.service --quiet 2>/dev/null || \
+     [ "$(systemctl --user show sj201.service -p ActiveState --value 2>/dev/null)" = "activating" ]; then
+    echo "  sj201.service is starting — waiting..."
+    for i in $(seq 1 20); do
         sleep 1
+        systemctl --user is-active sj201.service &>/dev/null && break
     done
+    systemctl --user is-active sj201.service &>/dev/null \
+        && result "sj201.service" PASS "active (firmware loaded)" \
+        || result "sj201.service" FAIL "did not start in time"
 else
     STATUS=$(systemctl --user show sj201.service -p ActiveState --value 2>/dev/null || echo "unknown")
-    if [ "$STATUS" = "failed" ]; then
-        result "sj201.service" FAIL "service failed — run: systemctl --user status sj201"
-    else
-        result "sj201.service" FAIL "not active (status: ${STATUS})"
-    fi
+    [ "$STATUS" = "failed" ] \
+        && result "sj201.service" FAIL "service failed — run: systemctl --user status sj201" \
+        || result "sj201.service" FAIL "not active (status: ${STATUS})"
 fi
+
+# Wait for vocalfusion kernel module — poll until loaded (max 15s)
+echo "  Waiting for XMOS XVF-3510 and vocalfusion module (up to 15 seconds)..."
+VOCAL_OK=false
+for i in $(seq 1 15); do
+    if lsmod 2>/dev/null | grep -q "vocalfusion"; then
+        echo "  Ready after ${i}s."
+        VOCAL_OK=true
+        break
+    fi
+    sleep 1
+done
 
 # Check XVF3510 firmware file exists
 if [ -f "/opt/sj201/app_xvf3510_int_spi_boot_v4_2_0.bin" ]; then
@@ -160,11 +171,11 @@ else
 fi
 
 # Check VocalFusion kernel module loaded (module name uses underscore)
-if lsmod 2>/dev/null | grep -q "vocalfusion"; then
+if [ "$VOCAL_OK" = "true" ]; then
     MOD_NAME=$(lsmod | grep vocalfusion | awk '{print $1}')
     result "vocalfusion kernel module" PASS "loaded (${MOD_NAME})"
 else
-    result "vocalfusion kernel module" FAIL "not loaded — check dmesg for errors"
+    result "vocalfusion kernel module" FAIL "not loaded after 15s — check dmesg for errors"
 fi
 
 # =============================================================================
