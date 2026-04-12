@@ -98,28 +98,30 @@ echo '/_/  /_/\__,_/_/  /_/|_|  /___/___/\____(_)   '
 echo -e "${NC}"
 echo -e "${BLUE}  Mark II Hardware Test Suite${NC}"
 echo ""
-echo "  This script tests all Mark II hardware components."
-echo "  Some tests require you to listen/look at the device."
-echo ""
 if [ "$AUTO" = true ]; then
     echo -e "  ${YELLOW}Running in automatic mode — manual checks skipped${NC}"
+    echo ""
 fi
+echo -e "${CYAN}  What this test covers:${NC}"
 echo ""
-echo -e "${CYAN}  Hardware:${NC}"
-echo "  · Mycroft Mark II carrier board"
-echo "  · Raspberry Pi 4 Model B"
-echo "  · SJ201 (XMOS XVF-3510 mic array + TAS5806 amp)"
-echo "  · Waveshare 4.3\" DSI 800×480 touchscreen"
+echo "   1. SJ201 Service      — firmware loaded, XMOS chip ready"
+echo "   2. Audio Devices      — ALSA sees microphone and speaker"
+echo "   3. Microphone         — speak into mic, check signal level   🎤"
+echo "   4. Mic → Speaker      — speak and hear it played back        🔊"
+echo "   5. Speaker            — listen for a beep tone               🔔"
+echo "   6. LED Ring           — watch ring cycle through colours      💡"
+echo "   7. Buttons            — press any hardware button             🔘"
+echo "   8. Touchscreen        — look at the display                  🖥"
+echo "   9. Backlight          — watch display dim and restore         🌓"
+echo "  10. I2C Bus            — scan for SJ201 chip addresses"
+echo "  11. SPI Bus            — check XVF3510 firmware interface"
 echo ""
-
+echo -e "${YELLOW}  Tests 3–9 require your attention — follow the prompts.${NC}"
+echo ""
 if [ "$AUTO" = false ]; then
-    if ! ask_yes_no "Start hardware test?"; then
-        echo "Cancelled."
-        exit 0
-    fi
+    read -rp "  Press Enter to start the hardware test..." _dummy
+    echo ""
 fi
-
-echo ""
 
 # =============================================================================
 # TEST 1: SJ201 service
