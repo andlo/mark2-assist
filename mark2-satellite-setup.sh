@@ -149,7 +149,7 @@ ExecStart=${LVA_DIR}/.venv/bin/python3 -m linux_voice_assistant \\
     --name '${SATELLITE_NAME}' \\
     --wake-model '${WAKE_WORD}' \\
     --audio-input-device 'SJ201 ASR (VF_ASR_L)' \\
-    --audio-output-device 'alsa/plughw:CARD=sj201,DEV=0'
+    --audio-output-device 'alsa/VocalFusion'
 WorkingDirectory=${LVA_DIR}
 Environment=PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 Environment=XDG_RUNTIME_DIR=/run/user/$(id -u "$CURRENT_USER")
