@@ -52,8 +52,11 @@ def mute_toggle(bus):
 def main():
     dev = evdev.InputDevice(DEVICE); dev.grab()
     bus = smbus2.SMBus(1)
-    _write(get_vol(bus), False)
-    print(f"Started, vol={get_vol(bus)}%", flush=True)
+    # Sync ALSA PCM to match TAS5806 at startup so both controls are aligned
+    current_pct = get_vol(bus)
+    subprocess.run(["amixer", "set", "PCM", f"{current_pct}%"], capture_output=True)
+    _write(current_pct, False)
+    print(f"Started, vol={current_pct}% (TAS5806+PCM synced)", flush=True)
     signal.signal(signal.SIGTERM, lambda *_: (dev.ungrab(), bus.close(), sys.exit(0)))
     for ev in dev.read_loop():
         if ev.type != evdev.ecodes.EV_KEY or ev.value != 1: continue

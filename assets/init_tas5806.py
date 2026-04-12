@@ -64,6 +64,13 @@ def init_tas5806():
         # Scale: 0x54(-42dB)=100% .. 0xd2(-105dB)=0%, log curve matches Mycroft sj201-interface
         write_reg(bus, TAS5806_REG_VOL_CTL, 0x79)
 
+        # Also set ALSA PCM to 60% to keep both volume controls in sync.
+        # ALSA PCM persists across reboots via alsactl — without this it
+        # can be at a different level and the two controls multiply each other.
+        import subprocess
+        subprocess.run(["amixer", "set", "PCM", "60%"],
+                       capture_output=True, check=False)
+
         # HIZ -> Play
         write_reg(bus, TAS5806_REG_DEVICE_CTRL_2, 0x03)
         time.sleep(0.01)
