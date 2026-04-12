@@ -513,12 +513,8 @@ echo "========================================"
 log "Hardware setup complete!"
 echo ""
 if [ "${MARK2_MODULE_CONFIRMED:-0}" = "1" ]; then
-    echo "  The device will now reboot automatically."
-    echo "  After reboot, SSH back in and run:"
-    echo ""
-    echo "    ./mark2-assist/install.sh"
-    echo ""
-    echo "  Installation will continue from where it left off."
+    # Called from install.sh — install.sh handles the reboot prompt itself
+    echo "  Drivers installed. install.sh will handle next steps."
 else
     echo "  Next steps:"
     echo "  1. Reboot the device:  sudo reboot"
