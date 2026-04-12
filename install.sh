@@ -287,13 +287,20 @@ if [ "$RESUME" = true ]; then
     echo -e "  ${GREEN}✓${NC} Hardware drivers installed"
     echo -e "  ${GREEN}✓${NC} Reboot complete"
     echo ""
-    echo "  Ready to continue with:"
-    echo "  · Wyoming Satellite + Kiosk"
-    echo "  · Selected optional modules"
+
+    # Offer hardware test before continuing
+    echo -e "  ${YELLOW}Recommended:${NC} Run hardware test to verify all components"
+    echo "  before proceeding with satellite/kiosk installation."
     echo ""
-    _ans=""
-    read -rp "  Continue installation? [Y/n]: " _ans
-    [[ "${_ans,,}" == "n" ]] && { echo "Cancelled."; exit 0; }
+    if ask_yes_no "Run hardware test now? (recommended)"; then
+        bash "${SCRIPT_DIR}/mark2-hardware-test.sh" || true
+        echo ""
+        if ! ask_yes_no "Continue with installation?"; then
+            echo "Cancelled. Fix hardware issues and re-run ./install.sh"
+            exit 0
+        fi
+    fi
+
     echo ""
     remove_resume_hook
     config_load
