@@ -58,8 +58,7 @@ fi
 section "Stopping and disabling services"
 
 USER_SERVICES=(
-    wyoming-satellite
-    wyoming-openwakeword
+    lva
     ha-kiosk
     mark2-leds
     mark2-led-events
@@ -258,15 +257,15 @@ if [ -f "${USER_HOME}/.config/mpd/mpd.conf" ]; then
 fi
 
 # =============================================================================
-# WYOMING CLONES
+# LVA CLONE
 # =============================================================================
 
-WYOMING_SAT_DIR="${USER_HOME}/wyoming-satellite"
-WYOMING_OWW_DIR="${USER_HOME}/wyoming-openwakeword"
+LVA_DIR="${USER_HOME}/lva"
 
-if [ -d "$WYOMING_SAT_DIR" ] || [ -d "$WYOMING_OWW_DIR" ]; then
+
+if [ -d "$LVA_DIR" ]; then
     if ask_yes_no "Remove Wyoming satellite and openWakeWord clones?"; then
-        rm -rf "$WYOMING_SAT_DIR" "$WYOMING_OWW_DIR"
+        rm -rf "$LVA_DIR"
         log "Wyoming clones removed"
     else
         log "Keeping Wyoming clones"

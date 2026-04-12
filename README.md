@@ -3,7 +3,7 @@
 <p align="center">
   <img src="https://img.shields.io/badge/Mycroft-Mark%20II-blue?style=for-the-badge&logo=data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCI+PHBhdGggZmlsbD0id2hpdGUiIGQ9Ik0xMiAyQzYuNDggMiAyIDYuNDggMiAxMnM0LjQ4IDEwIDEwIDEwIDEwLTQuNDggMTAtMTBTMTcuNTIgMiAxMiAyem0tMiAxNWwtNS01IDEuNDEtMS40MUwxMCAxNC4xN2w3LjU5LTcuNTlMMTkgOGwtOSA5eiIvPjwvc3ZnPg==" alt="Mycroft Mark II">
   <img src="https://img.shields.io/badge/Home%20Assistant-Assist-41BDF5?style=for-the-badge&logo=home-assistant&logoColor=white" alt="Home Assistant Assist">
-  <img src="https://img.shields.io/badge/Wyoming-Satellite-green?style=for-the-badge" alt="Wyoming Satellite">
+  <img src="https://img.shields.io/badge/Linux%20Voice%20Assistant-ESPHome-green?style=for-the-badge" alt="Linux Voice Assistant">
   <img src="https://img.shields.io/badge/Debian-Trixie-A81D33?style=for-the-badge&logo=debian&logoColor=white" alt="Debian Trixie">
 </p>
 
@@ -18,7 +18,7 @@
 ---
 
 **mark2-assist** installs everything needed to use a Mycroft Mark II as a fully featured
-Home Assistant voice satellite: Wyoming Protocol integration, wake word detection,
+Home Assistant voice satellite: voice integration via [Linux Voice Assistant](https://github.com/OHF-Voice/linux-voice-assistant) (ESPHome protocol), local wake word detection,
 touchscreen HA dashboard, LED ring feedback, animated face, volume overlay, screensaver,
 MQTT sensors, and optional audio streaming.
 
@@ -46,9 +46,9 @@ or AI-powered using OpenAI, Claude, OVOS, or any other conversation agent HA int
 
 ### Core (always installed)
 - **SJ201 hardware driver** — VocalFusion kernel module, XVF-3510 firmware flash, TAS5806 amp init, WirePlumber profile
-- **Wyoming satellite** — Voice satellite using [wyoming-satellite](https://github.com/rhasspy/wyoming-satellite) + [wyoming-openwakeword](https://github.com/rhasspy/wyoming-openwakeword)
+- **Linux Voice Assistant** — Voice satellite using [linux-voice-assistant](https://github.com/OHF-Voice/linux-voice-assistant) (ESPHome protocol). Includes local OWW wake word detection, timers, announcements and continue-conversation. Replaces the deprecated wyoming-satellite.
 - **Touchscreen kiosk** — Weston Wayland compositor + Chromium in kiosk mode showing your HA dashboard
-- **Face event bridge** — Monitors Wyoming states, writes `/tmp/mark2-face-event.json` for HUD overlays
+- **Face event bridge** — Monitors LVA states via HA API, writes `/tmp/mark2-face-event.json` for HUD overlays
 
 ### Optional modules (choose during install)
 
@@ -61,7 +61,7 @@ Modules are selected during install via a checklist. Defaults are marked with �
 | **face** | ✓ | Animated face overlay — reacts to voice, dances to music playback |
 | **overlay** | ✓ | On-screen volume bar — appears on volume change, auto-hides after 3 seconds |
 | **screensaver** | ✓ | Fullscreen clock + live weather pulled from HA, activates after 2 min idle |
-| **mqtt-sensors** | ✓ | Publishes Wyoming state, audio playback, CPU/memory/disk/temp to HA via MQTT |
+| **mqtt-sensors** | ✓ | Publishes voice satellite state, audio playback, CPU/memory/disk/temp to HA via MQTT |
 | **snapcast** |  | Multiroom audio — synced playback as a Snapcast endpoint |
 | **airplay** |  | AirPlay 1 speaker — stream audio from iPhone, Mac or any AirPlay source |
 | **mpd** |  | Local music player — integrates with Music Assistant in HA |
@@ -131,7 +131,7 @@ cd mark2-assist
 The installer will:
 1. Ask all questions upfront (HA URL, token, MQTT credentials, which modules to install)
 2. Run hardware setup and reboot automatically
-3. Resume after reboot and install Wyoming satellite + kiosk
+3. Resume after reboot and install Linux Voice Assistant + kiosk
 4. Install your chosen optional modules
 5. Reboot to the finished system
 
@@ -182,16 +182,24 @@ After restarting HA and rebooting Mark II, the dashboard loads automatically —
 
 ## Adding Mark II to Home Assistant
 
-After installation Mark II announces itself on the network via **Zeroconf/mDNS**,
-so Home Assistant will often discover it automatically and show a notification to
-add it. If not, you can add it manually:
+After installation Mark II announces itself on the network via **Zeroconf/mDNS**
+using the ESPHome protocol. Home Assistant will discover it automatically and show
+a notification to add it as an ESPHome device — no manual configuration needed.
+
+If auto-discovery doesn't appear, add it manually:
 
 1. Settings → Devices & Services → Add Integration
-2. Search for **Wyoming Protocol**
-3. Host: `<Mark II IP address>` — Port: `10700`
+2. Search for **ESPHome**
+3. Host: `<Mark II IP address>` — Port: `6053`
 
-Mark II will appear as your **hostname** (e.g. `Nabu-1`) and is immediately ready
-to use as an Assist satellite. Say your wake word to test it.
+Mark II will appear as your **hostname** (e.g. `Nabu-1`) under ESPHome devices and
+is immediately ready to use as an Assist satellite.
+
+**Set the voice pipeline:**
+In HA go to Settings → Voice Assistants → your Mark II device → select which
+pipeline to use (e.g. "preferred", "Whisper+Piper local", "Claude", etc).
+
+Say your wake word to test it.
 
 ---
 
@@ -208,10 +216,10 @@ Default wake word is **"Ok Nabu"**.
 
 To change the wake word after installation:
 ```bash
-nano ~/.config/systemd/user/wyoming-satellite.service
-# Edit the --wake-word-name value
+nano ~/.config/systemd/user/lva.service
+# Edit the --wake-model value
 systemctl --user daemon-reload
-systemctl --user restart wyoming-satellite
+systemctl --user restart lva
 ```
 
 ---
@@ -225,11 +233,11 @@ cd ~/mark2-assist
 ./update.sh
 ```
 
-This updates system packages, mark2-assist scripts, Wyoming satellite and openWakeWord, and restarts all services. Wyoming setup only re-runs if new commits were pulled.
+This updates system packages, mark2-assist scripts, Linux Voice Assistant, and restarts all services. LVA setup only re-runs if new commits were pulled.
 
 Optional flags:
 - `--skip-apt` — skip system package update
-- `--skip-wyoming` — skip Wyoming update
+- `--skip-lva` — skip Linux Voice Assistant update
 - `--skip-restart` — skip service restart
 - `--yes` — non-interactive, no confirmation prompt
 
@@ -250,7 +258,7 @@ git pull
 
 Re-run the relevant setup script to apply changes:
 ```bash
-./mark2-satellite-setup.sh   # Update kiosk/Wyoming configuration
+./mark2-satellite-setup.sh   # Update kiosk/LVA configuration
 ./mark2-hardware-setup.sh    # Update hardware/driver configuration (rare)
 ```
 
@@ -261,11 +269,11 @@ bash modules/mqtt-sensors.sh
 # etc.
 ```
 
-### Wyoming satellite and openWakeWord
+### Linux Voice Assistant
 ```bash
-cd ~/wyoming-satellite && git pull && python3 script/setup
-cd ~/wyoming-openwakeword && git pull && python3 script/setup
-systemctl --user restart wyoming-satellite wyoming-openwakeword
+cd ~/lva && git pull
+rm -rf .venv && python3 script/setup
+systemctl --user restart lva
 ```
 
 ---
@@ -287,7 +295,7 @@ This removes:
 It does **not** remove:
 - The VocalFusion kernel module (rebooting clears it from memory; `.ko` file stays)
 - Boot overlay entries in `/boot/firmware/config.txt` (remove manually if needed)
-- The `~/wyoming-satellite` and `~/wyoming-openwakeword` directories
+- The `~/lva` directory
 - The mark2-assist git repository itself
 
 ---
@@ -301,10 +309,10 @@ grep vc4-kms-dsi-waveshare /boot/firmware/config.txt
 # If missing: ./mark2-hardware-setup.sh && sudo reboot
 ```
 
-**Wyoming satellite not showing in HA**
+**LVA not showing in HA**
 ```bash
-systemctl --user status wyoming-satellite
-journalctl --user -u wyoming-satellite -n 30
+systemctl --user status lva
+journalctl --user -u lva -n 50
 ```
 
 **Test microphone directly**
@@ -326,7 +334,7 @@ cat /tmp/weston.log
 
 **Check all service statuses**
 ```bash
-systemctl --user status wyoming-satellite wyoming-openwakeword sj201 mark2-face-events
+systemctl --user status lva sj201 mark2-volume-buttons mark2-face-events
 ```
 
 ---
@@ -345,7 +353,7 @@ systemctl --user status wyoming-satellite wyoming-openwakeword sj201 mark2-face-
 | `/tmp/mark2-startup.log` | Weston startup runtime log (recreated each boot) |
 | `/tmp/mark2-kiosk.log` | Kiosk runtime log |
 | `/tmp/weston.log` | Weston Wayland compositor log |
-| `/tmp/mark2-face-event.json` | Current Wyoming state written by face-event bridge for HUD |
+| `/tmp/mark2-face-event.json` | Current voice satellite state written by face-event bridge for HUD |
 | `/tmp/mark2-leds.sock` | Unix socket — send state strings to control LED ring |
 
 ---
@@ -357,7 +365,7 @@ See the `docs/` directory for detailed technical documentation:
 - [`docs/HISTORY.md`](docs/HISTORY.md) — History of Mark II, Mycroft, OVOS and HA Assist
 - [`docs/INSTALL_SH.md`](docs/INSTALL_SH.md) — Install script architecture and flow
 - [`docs/HARDWARE_SETUP.md`](docs/HARDWARE_SETUP.md) — Hardware setup technical deep dive
-- [`docs/SATELLITE_SETUP.md`](docs/SATELLITE_SETUP.md) — Wyoming satellite setup deep dive
+- [`docs/SATELLITE_SETUP.md`](docs/SATELLITE_SETUP.md) — Linux Voice Assistant setup deep dive
 - [`docs/MODULES.md`](docs/MODULES.md) — All optional modules documented in detail
 - [`docs/HA_INTEGRATION.md`](docs/HA_INTEGRATION.md) — HA companion integration spec
 - [`docs/HA_SETUP.md`](docs/HA_SETUP.md) — HA user, trusted network auto-login, and dashboard setup

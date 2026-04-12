@@ -40,7 +40,7 @@ However there is no post-detection verification that the device actually records
 
 **Fix needed:**
 Add a short test recording after detection to confirm the device works before
-writing it to wyoming-satellite.service.
+writing it to lva.service.
 
 ---
 
@@ -214,7 +214,7 @@ published payload. `None` serialises as JSON `null` which HA handles fine.
 
 ---
 
-## Issue 14: Speaker audio — XMOS XVF-3510 requires specific audio format ⚠️
+## Issue 14: Speaker audio — XMOS XVF-3510 requires specific audio format ✅
 
 **Labels:** `audio`, `hardware`, `needs-testing`
 
@@ -225,23 +225,101 @@ Audio does NOT go directly from Pi to TAS5806. XMOS sits in the middle.
 The correct aplay format for XMOS output has not been confirmed — likely
 48kHz stereo. Playing 16kHz mono (TTS format) may require resampling.
 
-**Symptoms:**
-- aplay runs without error but no sound
-- aplay sometimes hangs indefinitely at 22050Hz mono
-- TAS5806 shows correct play state but no output
+**Status:** Fixed.
 
-**Fix needed:**
-Confirm correct format, update Wyoming `--snd-command` accordingly.
+Pi's I2S bus is half-duplex — direct ALSA playback crashes the kernel when LVA holds
+the mic capture open. Fixed via PipeWire virtual sink (`sj201-output.conf`) that owns
+`plughw:CARD=sj201,DEV=0` and multiplexes capture + playback safely. Audio format is
+48kHz stereo S32_LE (plughw auto-converts). See `docs/SATELLITE_SETUP.md`.
 
 ---
 
-## Issue 15: openWakeWord wake word detection not verified in production ⚠️
+## Issue 15: Wake word detection — verified working ✅
 
-**Labels:** `audio`, `wyoming`, `needs-testing`
+**Labels:** `audio`, `lva`, `needs-testing`
 
 **Description:**
 Wake word detection works when tested directly against the OWW service
 (score 0.96 on okay_nabu.wav test file). However end-to-end detection via
-Wyoming satellite + microphone has not been confirmed working.
+LVA + microphone has not been confirmed working.
 
-**Status:** Needs re-testing after Issue 14 (audio routing) is resolved.
+**Status:** Fixed. LVA with PipeWire virtual source `SJ201 ASR (VF_ASR_L)` gives RMS~500+,
+resulting in reliable OWW detection (prob > 0.5 on "Ok Nabu"). Full pipeline
+idle→listening→processing→responding confirmed working.
+
+---
+
+## Issue 16: python-mpv end-file callback freezes on aarch64/Python 3.13 with PipeWire ✅
+
+**Labels:** `audio`, `lva`, `fixed`
+
+**Status:** Fixed.
+
+With the generic `pipewire` audio device, `python-mpv`'s `end-file` callback never
+fires — MPV opens, loads the file (duration visible), but playback position freezes
+at 0.021s indefinitely. This caused LVA to hang after wake word detection.
+
+Root cause: PipeWire AO in mpv v0.40.0 has a thread-loop interaction issue on aarch64
+that prevents the stream from advancing. Using a named PipeWire sink
+(`pipewire/sj201-output`, created by `sj201-output.conf`) works correctly.
+
+---
+
+## Issue 17: LVA pipeline not set after first ESPHome discovery ⚠️
+
+**Labels:** `lva`, `ha-integration`, `needs-documentation`
+
+**Description:**
+When LVA is first discovered by HA as an ESPHome device, the Assist pipeline
+defaults to "preferred" (HA's default pipeline). If you want a specific pipeline
+(e.g. Claude, local Whisper+Piper), you must set it manually.
+
+**Workaround:**
+```bash
+# Via HA service call
+curl -X POST http://<HA_IP>:8123/api/services/select/select_option \
+  -H "Authorization: Bearer <TOKEN>" \
+  -H "Content-Type: application/json" \
+  -d '{"entity_id": "select.<device>_assistant", "option": "Claude"}'
+```
+Or in HA UI: Settings → Voice Assistants → your device → select pipeline.
+
+---
+
+## Issue 18: mark2-satellite-setup.sh does not verify PipeWire devices after install ⚠️
+
+**Labels:** `enhancement`, `audio`
+
+**Description:**
+After installing PipeWire configs and restarting PipeWire, the setup script does not
+verify that `SJ201 ASR (VF_ASR_L)` and `SJ201 Speaker` are visible in `wpctl status`.
+If PipeWire fails to load the configs (e.g. due to a syntax error or missing ALSA device),
+the failure is silent and LVA will use wrong audio devices.
+
+**Fix needed:**
+Add a post-install check: `wpctl status | grep -q "SJ201 ASR" || warn "PipeWire ASR source not found"`
+
+---
+
+## Issue 19: LVA service starts before PipeWire virtual devices are ready ⚠️
+
+**Labels:** `audio`, `lva`, `boot`
+
+**Description:**
+On some boots, LVA starts before wireplumber has fully loaded the PipeWire
+virtual sinks/sources from `pipewire.conf.d/`. This causes LVA to fall back
+to the default PipeWire device (which freezes MPV) or the raw ALSA device
+(which crashes on concurrent capture+playback).
+
+`lva.service` has `After=wireplumber.service` but wireplumber does not signal
+readiness until the graph is fully set up.
+
+**Workaround:**
+If LVA fails to produce sound after boot, restart it:
+```bash
+systemctl --user restart lva
+```
+
+**Fix needed:**
+Add `ExecStartPre=/bin/sh -c 'sleep 3'` or poll `wpctl status` for the named
+devices before starting LVA.

@@ -4,7 +4,7 @@
 # Animated robot face overlay for the Mark II touchscreen
 #
 # Displays an animated face in the bottom-right corner of the screen that
-# reacts to Wyoming satellite voice events:
+# reacts to LVA (linux-voice-assistant) voice events:
 #   idle   — half-closed sleepy eyes, fades out after 3 seconds
 #   wake   — eyes pop open with a "!" flash
 #   listen — big open eyes, pupils wander, natural blinking
@@ -14,7 +14,7 @@
 #
 # The face reads /tmp/mark2-face-event.json which is written by the
 # mark2-face-events.service installed by mark2-satellite-setup.sh.
-# That service tails the wyoming-satellite journal and maps events to states.
+# That service tails the lva journal and maps events to states.
 # No dependency on the LED module is required.
 #
 # The face window is launched via labwc autostart as a Chromium --app window.
@@ -61,6 +61,6 @@ labwc_autostart_add "face.html" \
 systemctl --user daemon-reload 2>/dev/null
 
 log "Animated face installed"
-info "Face appears bottom-right of screen (540,220), reacts to Wyoming events"
+info "Face appears bottom-right of screen (540,220), reacts to LVA events"
 info "State source: /tmp/mark2-face-event.json (written by mark2-face-events.service)"
 info "Preview in browser: file://${FACE_DIR}/face.html"

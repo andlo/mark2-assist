@@ -32,7 +32,7 @@ echo ""
 
 # Service status
 echo -e "${CYAN}  Services:${NC}"
-for svc in wyoming-satellite wyoming-openwakeword sj201; do
+for svc in lva sj201; do
     if systemctl --user is-active "$svc" &>/dev/null 2>&1; then
         printf "  ${GREEN}✓${NC} %-30s %s\n" "$svc" "running"
     else

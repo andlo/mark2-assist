@@ -85,6 +85,31 @@ The satellite is designed to be resource-efficient — it runs comfortably on a 
 Zero 2 W. The Mark II is considerably more powerful, which means it can also run
 wake word detection locally without impacting performance.
 
+
+## Linux Voice Assistant — The Next Generation
+
+In January 2026 the wyoming-satellite project was deprecated by Nabu Casa in favour of
+a new approach: [linux-voice-assistant](https://github.com/OHF-Voice/linux-voice-assistant)
+(LVA), developed by the [Open Home Foundation](https://www.openhomefoundation.org/).
+
+Where Wyoming used a custom TCP protocol, LVA uses the **ESPHome protocol** — the same
+protocol used by HA Voice Preview Edition hardware. This brings the Mark II onto exactly
+the same integration path as purpose-built HA voice hardware.
+
+LVA provides significant improvements over Wyoming Satellite:
+
+- **Single service** — wake word detection (OpenWakeWord or MicroWakeWord) is built in,
+  no separate wyoming-openwakeword process needed
+- **Timer support** — set and cancel timers by voice ("set a timer for 10 minutes")
+- **Announcement support** — HA can push announcements through the satellite speaker
+- **Continue conversation** — after responding, LVA automatically listens again without
+  needing to say the wake word
+- **Media player entity** — exposed to HA for media control
+- **Auto-discovery** — HA finds it via Zeroconf as an ESPHome device, no manual
+  integration configuration needed
+
+mark2-assist migrated from Wyoming Satellite to LVA in April 2026 (commit `8ff3823`).
+
 ## mark2-assist
 
 mark2-assist was created in 2025 to combine the best of both worlds:
@@ -127,6 +152,34 @@ without any window decorations or taskbars.
 in the name refers to the VideoCore GPU firmware handling the display pipeline —
 on newer kernels this causes `No displays found` errors. `vc4-kms-v3d` (full KMS)
 uses the kernel's DRM subsystem directly and is the correct overlay for Debian Trixie.
+
+
+### Why Linux Voice Assistant instead of Wyoming Satellite?
+
+Wyoming Satellite was deprecated by Nabu Casa in January 2026 and replaced by LVA.
+Beyond following upstream, LVA offers several advantages for the Mark II specifically:
+
+- The ESPHome protocol is the same used by HA Voice Preview Edition — tight HA integration
+- Timers, announcements and continue-conversation work out of the box
+- One service instead of two (no separate openWakeWord daemon)
+- No port conflicts or mDNS quirks — ESPHome discovery is robust and well-tested in HA
+
+The migration also required solving two Mark II-specific hardware challenges:
+
+**Microphone signal level:** LVA uses `soundcard` (PipeWire/PulseAudio) for mic input.
+PipeWire exposed only the raw `plughw:sj201,DEV=1` at 48kHz stereo (RMS~17), which is
+too low for OWW. A PipeWire virtual source reading from ALSA's `VF_ASR_(L)` device
+gives RMS~500+ — the same fix that was applied for Wyoming's `arecord` command.
+
+**Half-duplex I2S bus:** Pi's I2S bus cannot support simultaneous capture and playback
+at the ALSA driver level. When LVA holds the mic open and MPV attempts direct ALSA
+playback, the kernel panics (system reboot). The fix is a PipeWire virtual sink that
+owns the ALSA playback device — PipeWire's internal graph multiplexes both streams
+without ALSA-level conflicts.
+
+Additionally, `python-mpv`'s `end-file` callback never fires on aarch64/Python 3.13
+with the generic `pipewire` device (MPV freezes at position 0.021s). Using the named
+`pipewire/sj201-output` sink gives reliable callbacks.
 
 ### Why Wyoming instead of OVOS?
 
