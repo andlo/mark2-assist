@@ -91,16 +91,17 @@ Shairport-sync on Trixie (Debian 13) with PipeWire backend may log:
 
 ---
 
-## Issue 6: install.sh reboot flow over SSH requires manual resume ⚠️
+## Issue 6: install.sh reboot flow over SSH requires manual resume ✅
 
-**Labels:** `enhancement`, `ux`
+**Status:** Fixed.
 
-**Status:** Partially improved — after reboot, `.bash_profile` shows a clear
-message with the exact command to resume. However the user still needs to
-SSH back in and run `./install.sh` manually.
-
-**Fix needed:** Consider a systemd service that auto-continues the install
-after reboot without SSH interaction, for headless setups.
+`install.sh` has a full resume system:
+- After hardware setup completes, `install_resume_hook()` writes a block to
+  `~/.bash_profile` that displays a clear message on next login
+- After reboot, `install.sh` auto-detects that hardware is done but satellite
+  is not, and sets `RESUME=true` automatically
+- Simply re-run `./install.sh` after SSH reconnect — no `--resume` flag needed
+- `remove_resume_hook()` cleans up `.bash_profile` once installation completes
 
 ---
 
@@ -109,13 +110,13 @@ after reboot without SSH interaction, for headless setups.
 **Labels:** `security`, `enhancement`
 
 **Description:**
-The HA long-lived access token is embedded in
-`~/.config/mark2-screensaver/screensaver.html` as a JavaScript variable.
-This file is world-readable.
+`modules/screensaver.sh` embeds the HA long-lived access token directly into
+`~/.config/mark2-screensaver/screensaver.html` (line 39 in screensaver.sh,
+line 45 in templates/screensaver.html). This file is world-readable.
 
 **Fix needed:**
-Fetch the token at runtime from `~/.config/mark2/config` (which is chmod 600)
-via a local proxy script, rather than embedding it in HTML.
+Fetch the token at runtime from `~/.config/mark2/config` (chmod 600) via a
+local proxy script or small backend, rather than embedding it in HTML.
 
 ---
 
