@@ -22,6 +22,11 @@ Home Assistant voice satellite: Wyoming Protocol integration, wake word detectio
 touchscreen HA dashboard, LED ring feedback, animated face, volume overlay, screensaver,
 MQTT sensors, and optional audio streaming.
 
+The voice pipeline runs entirely through Home Assistant Assist — meaning you choose what
+powers each step. Wake word runs locally on the device. STT, TTS and conversation can be
+anything HA supports: fully local (Whisper, Piper), cloud (Nabu Casa), or AI-powered
+(OpenAI, Claude via custom conversation agents, OVOS, or any other HA integration).
+
 ## Hardware
 
 | Component | Details |
