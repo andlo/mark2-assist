@@ -107,17 +107,16 @@ echo -e "${CYAN}  What this test covers:${NC}"
 echo ""
 echo "   1. SJ201 Service      — firmware loaded, XMOS chip ready"
 echo "   2. Audio Devices      — ALSA sees microphone and speaker"
-echo "   3. Microphone         — speak into mic, check signal level   🎤"
-echo "   4. Mic → Speaker      — speak and hear it played back        🔊"
-echo "   5. Speaker            — listen for a beep tone               🔔"
-echo "   6. LED Ring           — watch ring cycle through colours      💡"
-echo "   7. Buttons            — press any hardware button             🔘"
-echo "   8. Touchscreen        — look at the display                  🖥"
-echo "   9. Backlight          — watch display dim and restore         🌓"
-echo "  10. I2C Bus            — scan for SJ201 chip addresses"
-echo "  11. SPI Bus            — check XVF3510 firmware interface"
+echo "   3. Microphone         — speak into mic, checks level + plays back  🎤🔊"
+echo "   4. Speaker            — listen for a beep tone               🔔"
+echo "   5. LED Ring           — watch ring cycle through colours      💡"
+echo "   6. Buttons            — press any hardware button             🔘"
+echo "   7. Touchscreen        — look at the display                  🖥"
+echo "   8. Backlight          — watch display dim and restore         🌓"
+echo "   9. I2C Bus            — scan for SJ201 chip addresses"
+echo "  10. SPI Bus            — check XVF3510 firmware interface"
 echo ""
-echo -e "${YELLOW}  Tests 3–9 require your attention — follow the prompts.${NC}"
+echo -e "${YELLOW}  Tests 3–8 require your attention — follow the prompts.${NC}"
 echo ""
 if [ "$AUTO" = false ]; then
     read -rp "  Press Enter to start the hardware test..." _dummy
@@ -217,19 +216,19 @@ result "Speaker device" PASS "${SPK_DEV}"
 # TEST 3: Microphone — record and check signal level
 # =============================================================================
 
-section "3. Microphone"
-echo "  Waiting 2 seconds for XMOS XVF-3510 to be ready..."
-sleep 2
+section "3. Microphone & Roundtrip"
+echo "  This test records 4 seconds, checks the signal level, then plays it back."
+echo "  Two tests in one recording — no need to record twice."
 echo ""
-echo "  When you press Enter, recording starts immediately (3 seconds)."
-echo "  Speak clearly into the microphone — e.g. 'testing one two three'."
+echo "  When you press Enter, recording starts immediately (4 seconds)."
+echo "  Speak clearly — e.g. count 'one... two... three... four...'"
 read -rp "  Press Enter when ready to record..." _dummy
 echo "  🎤 Recording now..."
 echo ""
 
 RECFILE="/tmp/mark2-mic-test.wav"
-if arecord -D "${MIC_DEV}" -r 16000 -c 1 -f S16_LE -d 3 "$RECFILE" 2>/dev/null; then
-    # Check signal level using Python
+if arecord -D "${MIC_DEV}" -r 16000 -c 1 -f S16_LE -d 4 "$RECFILE" 2>/dev/null; then
+    # Check signal level
     LEVEL=$(python3 - "$RECFILE" << 'PYEOF'
 import sys, wave, struct, math
 try:
@@ -240,7 +239,7 @@ try:
     peak = max(abs(s) for s in samples) if samples else 0
     print(f"{rms:.0f}/{peak}")
 except Exception as e:
-    print(f"0/0")
+    print("0/0")
 PYEOF
 )
     RMS=$(echo "$LEVEL" | cut -d/ -f1)
@@ -249,44 +248,19 @@ PYEOF
     if [ "${RMS:-0}" -gt 200 ]; then
         result "Microphone signal" PASS "RMS=${RMS} Peak=${PEAK} (good level)"
     elif [ "${RMS:-0}" -gt 50 ]; then
-        result "Microphone signal" PASS "RMS=${RMS} Peak=${PEAK} (low — speak louder)"
+        result "Microphone signal" PASS "RMS=${RMS} Peak=${PEAK} (low — speak louder next time)"
     else
         result "Microphone signal" FAIL "RMS=${RMS} Peak=${PEAK} (no signal — check SJ201)"
     fi
-else
-    result "Microphone record" FAIL "arecord failed — device busy or not available"
-fi
 
-# =============================================================================
-# TEST 4: Microphone → Speaker roundtrip
-# =============================================================================
-
-section "4. Microphone → Speaker Roundtrip"
-echo "  Records 4 seconds then plays it back through the speaker."
-echo "  NOTE: Audio quality may sound processed/distorted — this is normal!"
-echo "  The XMOS XVF-3510 chip processes microphone audio for noise reduction."
-echo "  What matters: can you roughly hear what you said? (words recognisable)"
-echo ""
-echo "  When you press Enter, recording starts immediately (4 seconds)."
-echo "  Count slowly: 'one... two... three... four...'"
-read -rp "  Press Enter when ready to record..." _dummy
-echo "  🎤 Recording now..."
-echo ""
-
-ROUNDFILE="/tmp/mark2-roundtrip.wav"
-ROUNDFILE_48="/tmp/mark2-roundtrip-48k.wav"
-if arecord -D "${MIC_DEV}" -r 16000 -c 1 -f S16_LE -d 4 "$ROUNDFILE" 2>/dev/null; then
-    echo "  Converting and playing back..."
+    # Reuse the same recording for roundtrip playback
+    echo ""
+    echo "  Playing back your recording through the speaker..."
+    echo "  NOTE: Audio quality will sound processed — XMOS noise reduction is normal."
+    RECFILE_48="/tmp/mark2-roundtrip-48k.wav"
     if command -v sox &>/dev/null; then
-        sox "$ROUNDFILE" -r 48000 -c 2 "$ROUNDFILE_48" 2>/dev/null
-        timeout 6 aplay -D plughw:CARD=sj201,DEV=0 "$ROUNDFILE_48" 2>/dev/null || true
-    else
-        sudo apt-get install -y --no-install-recommends sox \
-            >> "${MARK2_LOG:-/dev/null}" 2>&1 || true
-        if command -v sox &>/dev/null; then
-            sox "$ROUNDFILE" -r 48000 -c 2 "$ROUNDFILE_48" 2>/dev/null
-            timeout 6 aplay -D plughw:CARD=sj201,DEV=0 "$ROUNDFILE_48" 2>/dev/null || true
-        fi
+        sox "$RECFILE" -r 48000 -c 2 "$RECFILE_48" 2>/dev/null
+        timeout 6 aplay -D plughw:CARD=sj201,DEV=0 "$RECFILE_48" 2>/dev/null || true
     fi
     case $(ask_result "Could you roughly hear what you said? (quality will be poor — that is normal)") in
         0) result "Mic → Speaker roundtrip" PASS ;;
@@ -294,14 +268,15 @@ if arecord -D "${MIC_DEV}" -r 16000 -c 1 -f S16_LE -d 4 "$ROUNDFILE" 2>/dev/null
         2) result "Mic → Speaker roundtrip" SKIP ;;
     esac
 else
-    result "Mic → Speaker roundtrip" FAIL "recording failed"
+    result "Microphone record" FAIL "arecord failed — device busy or not available"
+    result "Mic → Speaker roundtrip" FAIL "skipped — recording failed"
 fi
 
 # =============================================================================
 # TEST 5: Speaker — play test tone
 # =============================================================================
 
-section "5. Speaker"
+section "4. Speaker"
 echo "  Will play a 440 Hz test tone through the speaker (2 seconds)."
 echo "  Note: Audio path is Pi I2S → XMOS XVF-3510 → TAS5806 → Speaker"
 echo ""
@@ -361,7 +336,7 @@ fi
 # TEST 6: LED ring
 # =============================================================================
 
-section "6. LED Ring"
+section "5. LED Ring"
 
 if ! command -v python3 &>/dev/null; then
     result "LED ring" SKIP "python3 not available"
@@ -417,7 +392,7 @@ fi
 # TEST 7: Hardware buttons
 # =============================================================================
 
-section "7. Hardware Buttons"
+section "6. Hardware Buttons"
 
 if [ "$AUTO" = true ]; then
     result "Hardware buttons" SKIP "skipped in auto mode"
@@ -463,7 +438,7 @@ fi
 # TEST 8: Touchscreen / DSI display
 # =============================================================================
 
-section "8. Touchscreen & Display"
+section "7. Touchscreen & Display"
 echo "  Checking DSI display connection and touch controller."
 echo "  Look at the Mark II screen — it should be on (even if blank/black)."
 echo ""
@@ -502,7 +477,7 @@ fi
 # TEST 9: Backlight
 # =============================================================================
 
-section "9. Backlight"
+section "8. Backlight"
 
 BACKLIGHT=$(find /sys/class/backlight -name '*rpi*' -o -name '*dsi*' 2>/dev/null | head -1)
 if [ -n "$BACKLIGHT" ]; then
@@ -529,7 +504,7 @@ fi
 # TEST 10: I2C bus scan
 # =============================================================================
 
-section "10. I2C Bus"
+section "9. I2C Bus"
 
 # Install i2c-tools if missing
 if ! command -v i2cdetect &>/dev/null; then
@@ -559,7 +534,7 @@ fi
 # TEST 11: SPI bus
 # =============================================================================
 
-section "11. SPI Bus"
+section "10. SPI Bus"
 
 if [ -c "/dev/spidev0.0" ]; then
     result "SPI device /dev/spidev0.0" PASS "exists (for XVF3510 firmware flash)"
