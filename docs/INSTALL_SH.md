@@ -50,6 +50,11 @@ install.sh
 │   [resume hook detects post-reboot state]
 │   [install.sh --resume called automatically]
 │
+├── [Optional] Hardware Test
+│   ├── ask_yes_no "Run hardware test now? (recommended)"
+│   ├── [if yes] run mark2-hardware-test.sh
+│   └── ask_yes_no "Continue with installation?"
+│
 ├── Step 2: Satellite + Kiosk
 │   ├── [if not done] run mark2-satellite-setup.sh
 │   └── progress_set "satellite" "done"
@@ -113,6 +118,21 @@ Errors are caught and reported as warnings rather than fatal failures.
 
 Shows a summary table of all installation steps and their status
 (✓ done / ✗ failed / - skipped).
+
+### Hardware test (post-reboot)
+
+After hardware setup reboots, `install.sh` offers to run `mark2-hardware-test.sh`
+before proceeding with satellite/kiosk installation. This catches hardware problems
+early — a failed speaker or missing I2C device is better discovered now than after
+a full satellite install.
+
+The user can skip the test and continue directly. If the test reveals failures,
+the user can exit the installer, fix the hardware, and re-run — the hardware step
+is already marked `done` in progress so it won't re-run unnecessarily.
+
+See [HARDWARE_TEST.md](HARDWARE_TEST.md) for full test documentation.
+
+---
 
 ### `print_final_summary()`
 
