@@ -55,8 +55,8 @@ DEB_URL="https://github.com/badaix/snapcast/releases/download/v${SNAPCAST_VERSIO
 TMP_DEB="/tmp/${DEB_FILE}"
 
 curl -fsSL "$DEB_URL" -o "$TMP_DEB" || die "Failed to download: ${DEB_URL}"
-sudo apt-get install -y --no-install-recommends avahi-daemon
-sudo dpkg -i "$TMP_DEB" || sudo apt-get install -f -y
+apt_install avahi-daemon
+sudo dpkg -i "$TMP_DEB" >> "${MARK2_LOG}" 2>&1 || sudo apt-get install -f -y >> "${MARK2_LOG}" 2>&1
 rm -f "$TMP_DEB"
 
 # Disable system snapclient service - run as user instead

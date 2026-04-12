@@ -390,7 +390,7 @@ echo "[$(date)] Module missing for ${KERNEL} - rebuilding..." | sudo tee -a "$LO
 DEBIAN_VERSION=$(. /etc/os-release && echo "${VERSION_ID:-0}")
 HEADERS_PKG=$( [ "$DEBIAN_VERSION" = "13" ] && echo "linux-headers-rpi-v8" || echo "raspberrypi-kernel-headers" )
 sudo apt-get update -qq
-sudo apt-get install -y --no-install-recommends "$HEADERS_PKG" build-essential
+sudo apt-get install -y --no-install-recommends "$HEADERS_PKG" build-essential >> "$LOG" 2>&1
 
 if [ -d "$SRC_PATH/.git" ]; then
     (cd "$SRC_PATH" && sudo git pull --quiet)

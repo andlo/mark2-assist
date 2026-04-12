@@ -20,11 +20,7 @@ if ! confirm_or_skip "Install LED ring control?"; then
     exit 0
 fi
 
-sudo apt-get install -y --no-install-recommends \
-    python3-spidev \
-    python3-libgpiod \
-    python3-smbus2 \
-    i2c-tools
+apt_install python3-spidev python3-libgpiod python3-smbus2 i2c-tools socat
 
 LED_SCRIPT="${MARK2_DIR}/led_control.py"
 LED_EVENT_SCRIPT="${MARK2_DIR}/led_event_handler.py"

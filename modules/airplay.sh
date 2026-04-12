@@ -32,10 +32,7 @@ fi
 
 AIRPLAY_NAME="${AIRPLAY_NAME:-Mark II}"
 
-sudo apt-get install -y --no-install-recommends \
-    shairport-sync \
-    avahi-daemon \
-    libavahi-client3
+apt_install shairport-sync avahi-daemon libavahi-client3
 
 SHAIRPORT_CONF="/etc/shairport-sync.conf"
 sudo tee "$SHAIRPORT_CONF" > /dev/null << EOF

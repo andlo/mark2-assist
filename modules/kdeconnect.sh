@@ -40,9 +40,7 @@ if ! confirm_or_skip "Install KDE Connect?"; then
     exit 0
 fi
 
-sudo apt-get install -y --no-install-recommends \
-    kdeconnect \
-    python3-requests
+apt_install kdeconnect python3-requests
 
 # Open firewall ports (if ufw is active)
 if command -v ufw >/dev/null 2>&1 && sudo ufw status | grep -q "active"; then

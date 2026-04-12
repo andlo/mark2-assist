@@ -35,10 +35,7 @@ if ! confirm_or_skip "Install MPD?"; then
     exit 0
 fi
 
-sudo apt-get install -y --no-install-recommends \
-    mpd \
-    mpc \
-    ncmpc
+apt_install mpd mpc ncmpc
 
 MPD_CONF_DIR="${USER_HOME}/.config/mpd"
 MPD_DB="${USER_HOME}/.local/share/mpd"
