@@ -46,8 +46,9 @@ config_load
 # Satellite name shown in HA — use hostname so each device is unique
 SATELLITE_NAME="${SATELLITE_NAME:-$(hostname)}"
 
-# Wake word: ok_nabu, hey_mycroft, alexa, hey_jarvis
-WAKE_WORD="${WAKE_WORD:-ok_nabu}"
+# Wake word: okay_nabu, hey_mycroft, alexa, hey_jarvis, hey_rhasspy
+# NOTE: pyopen_wakeword uses 'okay_nabu' (not 'ok_nabu') — must match exactly
+WAKE_WORD="${WAKE_WORD:-okay_nabu}"
 
 WYOMING_SAT_DIR="${USER_HOME}/wyoming-satellite"
 WYOMING_OWW_DIR="${USER_HOME}/wyoming-openwakeword"
@@ -73,27 +74,23 @@ detect_sj201_audio() {
     section "Detecting SJ201 audio device"
     sleep 2  # give ALSA a moment after boot
 
-    MIC_DEVICE=""; SPK_DEVICE=""
+    # Microphone: use ALSA 'default' device which resolves via ~/.asoundrc
+    # to VF_ASR_(L) — XMOS XVF-3510's dedicated ASR output channel.
+    # Do NOT use plughw:CARD=sj201,DEV=1 directly: that bypasses .asoundrc
+    # and delivers raw 48kHz stereo from the XMOS chip before resampling,
+    # which produces RMS~20 (unusable) vs RMS~500+ via the ASR channel.
+    MIC_DEVICE="default"
 
-    if arecord -L 2>/dev/null | grep -q "soc_sound\|xvf3510\|sj201"; then
-        MIC_DEVICE=$(arecord -L 2>/dev/null \
-               | grep -i "soc_sound\|xvf3510\|sj201" \
-               | grep "^plughw:" | head -1)
-        # Speaker uses DEV=0 (playback), mic uses DEV=1 (capture)
-        # Replace DEV=1 with DEV=0 for speaker, or derive from aplay
+    # Speaker: detect plughw device for aplay (needs explicit device + format)
+    SPK_DEVICE=""
+    if aplay -L 2>/dev/null | grep -q "soc_sound\|xvf3510\|sj201"; then
         SPK_DEVICE=$(aplay -L 2>/dev/null \
                | grep -i "soc_sound\|xvf3510\|sj201" \
                | grep "^plughw:" | head -1)
-        [ -z "$SPK_DEVICE" ] && SPK_DEVICE="${MIC_DEVICE/DEV=1/DEV=0}"
-        [ -z "$SPK_DEVICE" ] && SPK_DEVICE="plughw:CARD=sj201,DEV=0"
-        log "Mic device:     ${MIC_DEVICE}"
-        log "Speaker device: ${SPK_DEVICE}"
-    else
-        MIC_DEVICE="plughw:0,0"
-        SPK_DEVICE="plughw:0,0"
-        warn "Could not auto-detect SJ201 — defaulting to plughw:0,0"
-        warn "If audio does not work, run: arecord -L and check card name"
     fi
+    [ -z "$SPK_DEVICE" ] && SPK_DEVICE="plughw:CARD=sj201,DEV=0"
+    log "Mic device:     default (→ VF_ASR_(L) via .asoundrc)"
+    log "Speaker device: ${SPK_DEVICE}"
 }
 
 install_dependencies() {
@@ -176,7 +173,7 @@ ExecStartPre=-/bin/sh -c 'fuser -k 10700/tcp 2>/dev/null; sleep 1'
 ExecStart=${WYOMING_SAT_DIR}/script/run \\
     --name '${SATELLITE_NAME}' \\
     --uri 'tcp://0.0.0.0:10700' \\
-    --mic-command 'arecord -D ${MIC_DEVICE} -r 16000 -c 1 -f S16_LE -t raw --period-size=1024 --buffer-size=4096' \\
+    --mic-command 'arecord -r 16000 -c 1 -f S16_LE -t raw' \\
     --snd-command 'aplay -D ${SPK_DEVICE} -r 48000 -c 2 -f S16_LE -t raw --period-size=1024 --buffer-size=4096' \\
     --mic-auto-gain 5 \\
     --mic-noise-suppression 2 \\
