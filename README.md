@@ -96,17 +96,16 @@ The test covers all Mark II hardware components interactively:
 
 | # | Test | What it checks |
 |---|------|---------------|
-| 1 | SJ201 service | Firmware loaded, kernel module, XMOS init wait |
-| 2 | Audio devices | ALSA sees SJ201 for capture and playback |
-| 3 | Microphone | Records 3s, checks RMS signal level |
-| 4 | Mic → Speaker roundtrip | Records then plays back (sox resampling) |
-| 5 | Speaker | Plays 440Hz test tone |
-| 6 | LED ring | NeoPixel GPIO12 cycles red/green/blue/white |
-| 7 | Buttons | evdev events from volume up/down/action |
-| 8 | Touchscreen & Display | DSI display + touch input device |
-| 9 | Backlight | Dims and restores display brightness |
-| 10 | I2C Bus | Scans bus 1 for 0x2c and 0x2f |
-| 11 | SPI Bus | /dev/spidev0.0 exists |
+| 1 | SJ201 Service | Firmware loaded, kernel module, XMOS init wait |
+| 2 | Audio Devices | ALSA sees SJ201 for capture and playback |
+| 3 | Microphone + Roundtrip | One recording: checks signal level AND plays back |
+| 4 | Speaker | Verified by roundtrip, or separate beep if needed |
+| 5 | LED Ring | NeoPixel GPIO12 cycles red/green/blue/white |
+| 6 | Buttons | evdev events from volume up/down/action |
+| 7 | Touchscreen & Display | DSI display + touch input device |
+| 8 | Backlight | Dims and restores display brightness |
+| 9 | I2C Bus | Scans bus 1 for 0x2c and 0x2f |
+| 10 | SPI Bus | /dev/spidev0.0 exists |
 
 If any tests fail, fix them before running `./install.sh` — the installer
 also offers to run the hardware test automatically after reboot.

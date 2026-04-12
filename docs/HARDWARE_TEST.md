@@ -26,28 +26,48 @@ the hardware setup reboot.
 
 | # | Test | What it checks |
 |---|------|---------------|
-| 1 | SJ201 Service | Firmware loaded, kernel module, 5s XMOS init wait |
+| 1 | SJ201 Service | Firmware loaded, kernel module, XMOS init wait |
 | 2 | Audio Devices | ALSA sees SJ201 for capture and playback |
-| 3 | Microphone | Records 3s, checks RMS signal level |
-| 4 | Mic → Speaker Roundtrip | Records then plays back (sox resampling) |
-| 5 | Speaker | Plays 440Hz test tone |
-| 6 | LED Ring | NeoPixel GPIO12 cycles red/green/blue/white |
-| 7 | Buttons | evdev events from volume up/down/action |
-| 8 | Touchscreen & Display | DSI display + touch input device |
-| 9 | Backlight | Dims and restores display brightness |
-| 10 | I2C Bus | Scans bus 1 for 0x2c and 0x2f |
-| 11 | SPI Bus | /dev/spidev0.0 exists |
+| 3 | Microphone + Roundtrip | One recording: checks level AND plays back |
+| 4 | Speaker | Verified by roundtrip, or separate beep if needed |
+| 5 | LED Ring | NeoPixel GPIO12 cycles red/green/blue/white |
+| 6 | Buttons | evdev events from volume up/down/action |
+| 7 | Touchscreen & Display | DSI display + touch input device |
+| 8 | Backlight | Dims and restores display brightness |
+| 9 | I2C Bus | Scans bus 1 for 0x2c and 0x2f |
+| 10 | SPI Bus | /dev/spidev0.0 exists |
 
 ---
 
-## Dependencies installed by hardware setup
+## Design principles
+
+- **One recording, two tests** — test 3 records once, checks signal level
+  automatically, then plays back the same recording. No need to record twice.
+- **Speaker verified by roundtrip** — if the user confirms they heard the
+  roundtrip playback, test 4 marks speaker as PASS automatically. The beep
+  tone only plays if roundtrip was skipped or failed.
+- **Press Enter before every interactive action** — each test that requires
+  the user's attention explains what will happen, then waits for Enter.
+- **Poll instead of fixed sleep** — vocalfusion module readiness is polled
+  each second (up to 15s) rather than a fixed wait, so tests run faster
+  when hardware is ready early.
+
+---
+
+
+## Dependencies
 
 `mark2-hardware-setup.sh` installs these tools needed by the test:
 - `sox` — audio resampling for mic→speaker roundtrip
 - `i2c-tools` — I2C bus scan (`i2cdetect`)
 - `evtest` — button input event testing
 
-If missing, the test auto-installs `i2c-tools` and `sox` on demand.
+The test auto-installs `i2c-tools` and `sox` on demand if missing.
+
+For LED ring tests, the neopixel library must be installed as root:
+```bash
+sudo pip3 install adafruit-circuitpython-neopixel --break-system-packages
+```
 
 ---
 
@@ -55,18 +75,12 @@ If missing, the test auto-installs `i2c-tools` and `sox` on demand.
 
 ### 1. SJ201 Service
 
-Checks that the SJ201 hardware initialization completed successfully:
-
 - **sj201.service active** — `systemctl --user is-active sj201.service`
-  Should be `active (exited)` — oneshot service that runs at boot
-- **5 second wait** — XMOS XVF-3510 needs time after firmware is loaded via SPI
-  before the kernel module appears in `lsmod` and the microphone is ready.
-  Without this wait, tests 1 and 3 will incorrectly fail.
+  Should be `active (exited)` — oneshot service that runs at boot.
+- **Poll for vocalfusion module** — waits up to 15 seconds, checking each
+  second until `vocalfusion_soundcard` appears in `lsmod`. Shows how many
+  seconds it took. Avoids false failures from fixed sleep timers.
 - **XVF3510 firmware file** — `/opt/sj201/app_xvf3510_int_spi_boot_v4_2_0.bin`
-  Must exist; loaded into XMOS chip RAM on each boot via SPI
-- **VocalFusion kernel module** — `lsmod | grep vocalfusion`
-  Module name is `vocalfusion_soundcard` (underscore). Must be loaded for
-  SJ201 to appear as an ALSA sound card.
 
 If sj201.service failed:
 ```bash
@@ -76,116 +90,79 @@ journalctl --user -u sj201 -n 20
 
 ### 2. Audio Devices (ALSA)
 
-Verifies that ALSA sees the SJ201 sound card for both capture and playback:
-
 - **SJ201 capture device** — `arecord -l | grep sj201`
-  Card 1, device 1: `bcm2835-i2s-dir-hifi` (microphone array input)
+  Card 1, device 1: `bcm2835-i2s-dir-hifi`
 - **SJ201 playback device** — `aplay -l | grep sj201`
-  Card 1, device 0: `bcm2835-i2s-dit-hifi` (speaker output via XMOS)
-- Detects the correct `plughw:CARD=sj201,DEV=X` device names for subsequent tests
+  Card 1, device 0: `bcm2835-i2s-dit-hifi`
 
-### 3. Microphone
+### 3. Microphone + Roundtrip
 
-Records 3 seconds and analyses the signal level. Waits an additional 2 seconds
-before recording to ensure XMOS is fully ready.
+One recording serves both tests:
 
-Press Enter when prompted — recording starts immediately afterwards.
-Speak clearly or clap your hands during the 3 second window.
+1. Waits 2 extra seconds for XMOS to be ready for capture
+2. Prompts "Press Enter when ready" — recording starts immediately after
+3. Records 4 seconds at 16kHz mono (`plughw:CARD=sj201,DEV=1`)
+4. Automatically checks RMS/Peak signal level → PASS/FAIL
+5. Converts to 48kHz stereo with `sox` for playback via XMOS
+6. Plays back through speaker
+7. Asks: "Could you roughly hear what you said?"
 
-```bash
-arecord -D plughw:CARD=sj201,DEV=1 -r 16000 -c 1 -f S16_LE -d 3 /tmp/test.wav
-```
+**About roundtrip audio quality:** The XMOS XVF-3510 applies noise reduction
+and beamforming to the microphone signal. This is designed for speech
+recognition, not hi-fi playback. Roundtrip audio will sound processed and
+distorted — this is completely normal and not a failure. What matters is
+that you can roughly recognise what was said.
 
 Signal level thresholds:
 - RMS > 200 — good level ✅
 - RMS 50–200 — low (speak louder) ✅
-- RMS < 50 — no signal, check SJ201 timing ❌
+- RMS < 50 — no signal ❌
 
-### 4. Microphone → Speaker Roundtrip
+### 4. Speaker
 
-Records 4 seconds, resamples with sox from 16kHz mono to 48kHz stereo,
-then plays back through the speaker.
+If the user answered "yes" to the roundtrip question, speaker is marked
+PASS automatically — no separate test needed.
 
-Press Enter when ready — then speak clearly for 4 seconds.
+Only runs a separate beep tone test if roundtrip was skipped or failed.
+The tone is 440 Hz, 48kHz stereo, 2 seconds — the format XMOS expects.
 
-**Important:** Playback quality will sound processed and distorted — this is
-completely normal. The XMOS XVF-3510 applies noise reduction and beamforming
-to the microphone signal, which is optimised for speech recognition, not
-hi-fi playback. What matters is that you can roughly recognise what was said.
+### 5. LED Ring
 
-sox resampling provides proper sinc interpolation. The earlier naive Python
-sample-repeat method caused severe clicking and is no longer used.
-
-### 5. Speaker
-
-Generates a 440 Hz sine wave tone at 48kHz stereo and attempts to play it
-through the SJ201 amplifier.
-
-**Audio routing on SJ201:**
-```
-Raspberry Pi I2S → XMOS XVF-3510 → TAS5806 amplifier → Speakers
-```
-Audio does NOT go directly from the Pi to the TAS5806. The XMOS chip
-sits in the middle and routes/processes audio. This means:
-- The correct format for playback is 48kHz stereo
-- Playing 16kHz mono may not produce sound even if aplay reports no error
-- aplay can hang indefinitely if XMOS is not ready or expects a different format
-
-The test tries multiple formats with a 5-second timeout each:
-1. `plughw:CARD=sj201,DEV=0 -r 48000 -c 2` ← most likely to work
-2. `plughw:CARD=sj201,DEV=0 -r 16000 -c 2`
-3. `plughw:CARD=sj201,DEV=0`
-4. `default`
-
-### 6. LED Ring
-
-**Important discovery:** The SJ201 LED ring is **NeoPixel WS2812B connected
-to GPIO12 (PWM pin)** — it is NOT an I2C device.
-
-The `0x2c` address seen on I2C bus 1 is a different component on the SJ201
-board, not the LED ring controller.
+**Important:** The SJ201 LED ring is **NeoPixel WS2812B on GPIO12 (PWM)**
+— NOT an I2C device. The `0x2c` address on I2C bus 1 is a different
+component whose function is not yet determined.
 
 LED control uses `adafruit-circuitpython-neopixel` + `adafruit-blinka`:
 - 12 pixels, GRB colour order, brightness 0.2
-- Requires running as `sudo` (GPIO12/PWM access)
+- Must run as `sudo` (GPIO12 PWM access requires root)
 - Cycles: Red → Green → Blue → White → Off
 
-If neopixel is not installed:
-```bash
-sudo pip3 install adafruit-circuitpython-neopixel --break-system-packages
-```
+### 6. Hardware Buttons
 
-### 7. Hardware Buttons
+Tests volume up/down/action buttons via Linux evdev (`/dev/input/event0`).
+Uses `evtest` to detect `EV_KEY` (type 1) events. Waits 8 seconds.
 
-Tests the three hardware buttons via Linux evdev input events:
-- Volume Up
-- Volume Down
-- Action (center, in LED ring)
+The buttons are registered by `sj201-buttons-overlay.dtbo` as
+`/devices/platform/soc/soc:sj201_buttons/input/input0`.
 
-The buttons are registered via `sj201-buttons-overlay.dtbo` as a GPIO
-input device at `/devices/platform/soc/soc:sj201_buttons/input/input0`.
+### 7. Touchscreen & Display
 
-Press Enter when prompted — then press any button within 8 seconds.
-The test uses `evtest` to detect `EV_KEY` (type 1) events.
+- Checks `/sys/class/drm/card*-DSI*` for the DSI connector
+- Checks `/dev/input/event*` for touch device (FT5x06 controller)
+- Asks: "Is the display lit up and visible?"
 
-If `evtest` is not installed: `sudo apt install evtest`
+### 8. Backlight
 
-### 8. Touchscreen & Display
+- Reads `/sys/class/backlight/rpi_backlight/brightness`
+- Dims to 10 for 2 seconds, then restores
+- Asks: "Did the display dim and return to normal?"
 
-Checks that the DSI display and touch controller are detected:
+Requires `dtoverlay=rpi-backlight` in config.txt.
 
-- **DSI display** — `/sys/class/drm/card*-DSI*` DRM connector
-- **Touch input** — `/dev/input/event*` matching `touch`, `waveshare`, or `ft5`
-  (FT5x06 touch controller in the Waveshare 4.3" display)
+### 9. I2C Bus Scan
 
-### 9. Backlight
-
-Verifies `/sys/class/backlight/rpi_backlight/`. Dims to brightness 10
-for 2 seconds then restores. Requires `dtoverlay=rpi-backlight` in config.txt.
-
-### 10. I2C Bus Scan
-
-Scans I2C bus 1 with `sudo i2cdetect -y 1`. Auto-installs `i2c-tools` if missing.
+Scans I2C bus 1 with `sudo i2cdetect -y 1`. Auto-installs `i2c-tools` if
+missing.
 
 **Known SJ201 I2C addresses (bus 1):**
 
@@ -194,13 +171,10 @@ Scans I2C bus 1 with `sudo i2cdetect -y 1`. Auto-installs `i2c-tools` if missing
 | `0x2c` | Unknown SJ201 component (NOT the LED ring) |
 | `0x2f` | TAS5806 amplifier |
 
-Note: The LED ring is on GPIO12 (NeoPixel), not I2C. `0x2c` accepts single
-byte writes but rejects block writes — its exact function is undetermined.
+### 10. SPI Bus
 
-### 11. SPI Bus
-
-Checks that `/dev/spidev0.0` exists. Required for `xvf3510-flash` to load
-the XMOS XVF-3510 firmware via SPI at boot.
+Checks `/dev/spidev0.0`. Required for `xvf3510-flash` to load XMOS firmware.
+Requires `dtparam=spi=on` in config.txt.
 
 ---
 
@@ -209,17 +183,11 @@ the XMOS XVF-3510 firmware via SPI at boot.
 | Failure | Likely cause | Fix |
 |---------|-------------|-----|
 | sj201.service not active | SPI not enabled, firmware flash failed | Check config.txt, rerun hardware setup |
-| VocalFusion not loaded | XMOS init timing | Run test again; wait longer after boot |
-| SJ201 capture missing | VocalFusion not loaded | Same as above |
+| VocalFusion not loaded after 15s | Module compile failed | Check `dmesg \| grep vocalfusion` |
 | Mic RMS = 0/1 | XMOS not ready | Run test again after fresh boot |
-| Speaker no sound | XMOS format or 12V missing | Check 12V barrel jack; try 48kHz stereo |
-| Roundtrip sounds distorted | Normal! XMOS processes audio | Expected — not a failure |
-| LED Errno 5 | Old I2C code (now fixed) | Update to latest mark2-assist |
-| Buttons no event | evtest not installed | `sudo apt install evtest` |
-| DSI display missing | Wrong overlay | Check config.txt overlays |
-
----
-
-## Exit codes
-
-The script always exits 0. Check the summary at the end for pass/fail counts.
+| Speaker no sound | XMOS format or 12V missing | Check 12V barrel jack |
+| Roundtrip sounds distorted | Normal — XMOS processes audio | Expected, not a failure |
+| LED fails with ImportError | neopixel not installed | `sudo pip3 install adafruit-circuitpython-neopixel --break-system-packages` |
+| Buttons no event | evtest not installed or not pressed in time | `sudo apt install evtest` |
+| DSI display missing | Wrong overlay | Check config.txt for `vc4-kms-dsi-waveshare-800x480` |
+| 0x2c not on I2C | SJ201 not powered | Check 12V, check i2c_arm=on |
