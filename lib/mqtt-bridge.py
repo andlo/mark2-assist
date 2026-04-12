@@ -146,11 +146,7 @@ def cpu_usage():
                         return round(100 - idle, 1)
     except Exception:
         pass
-    try:
-        import resource
-        return None
-    except Exception:
-        return None
+    return None
 
 
 def memory_usage():
@@ -283,30 +279,41 @@ class Mark2Bridge:
         # Give connection a moment
         time.sleep(2)
 
+        # Initialise system metrics so they are always present in every
+        # published payload. HA's value_template raises an error if a key
+        # is missing — None serialises as JSON null which HA handles fine.
+        sys_metrics = {
+            "cpu_temp":     None,
+            "cpu_usage":    None,
+            "memory_usage": None,
+            "disk_usage":   None,
+        }
         last_system_update = 0
 
         while self.running:
             now = time.time()
-            state = {}
 
-            # Wyoming state (fast poll)
-            wyoming = read_wyoming_state()
-            if wyoming != self._last_wyoming:
-                self._last_wyoming = wyoming
-
-            state["wyoming_state"] = wyoming
-
-            # MPD state (medium poll)
-            mpd = read_mpd_state()
-            state.update(mpd)
-
-            # System metrics (slow poll)
+            # System metrics — update every POLL_INTERVAL seconds
             if now - last_system_update > POLL_INTERVAL:
-                state["cpu_temp"]     = cpu_temp()
-                state["cpu_usage"]    = cpu_usage()
-                state["memory_usage"] = memory_usage()
-                state["disk_usage"]   = disk_usage()
-                last_system_update    = now
+                sys_metrics["cpu_temp"]     = cpu_temp()
+                sys_metrics["cpu_usage"]    = cpu_usage()
+                sys_metrics["memory_usage"] = memory_usage()
+                sys_metrics["disk_usage"]   = disk_usage()
+                last_system_update          = now
+
+            # Wyoming state
+            wyoming = read_wyoming_state()
+            self._last_wyoming = wyoming
+
+            # MPD state
+            mpd = read_mpd_state()
+
+            # Build flat payload — all keys always present
+            state = {
+                "wyoming_state": wyoming,
+                **mpd,
+                **sys_metrics,
+            }
 
             self.publish_state(state)
             time.sleep(WYOMING_POLL)
