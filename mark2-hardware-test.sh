@@ -145,9 +145,10 @@ else
     result "XVF3510 firmware file" FAIL "not found in /opt/sj201/"
 fi
 
-# Check VocalFusion kernel module loaded
+# Check VocalFusion kernel module loaded (module name uses underscore)
 if lsmod 2>/dev/null | grep -q "vocalfusion"; then
-    result "vocalfusion kernel module" PASS "loaded"
+    MOD_NAME=$(lsmod | grep vocalfusion | awk '{print $1}')
+    result "vocalfusion kernel module" PASS "loaded (${MOD_NAME})"
 else
     result "vocalfusion kernel module" FAIL "not loaded — check dmesg for errors"
 fi
@@ -344,14 +345,15 @@ import time, sys
 try:
     import smbus2
     bus = smbus2.SMBus(1)
-    I2C_ADDR = 0x04
+    # SJ201 LED ring controller is at 0x2c on I2C bus 1
+    # Protocol: write [R, G, B] * 12 LEDs in two blocks (max 32 bytes per write)
+    LED_ADDR = 0x2c
     NUM_LEDS = 12
 
     def set_leds(r, g, b):
-        payload = [r, g, b] * NUM_LEDS
-        bus.write_i2c_block_data(I2C_ADDR, 0x00, payload[:32])
-        if len(payload) > 32:
-            bus.write_i2c_block_data(I2C_ADDR, 0x20, payload[32:])
+        payload = [r, g, b] * NUM_LEDS  # 36 bytes total
+        bus.write_i2c_block_data(LED_ADDR, 0x00, payload[:32])
+        bus.write_i2c_block_data(LED_ADDR, 0x20, payload[32:36])
 
     print("  Red...")
     set_leds(80, 0, 0); time.sleep(0.5)
@@ -417,11 +419,11 @@ else
     if [ -n "$EVDEV_DEV" ]; then
         result "Button input device" PASS "$EVDEV_DEV"
         echo "  Input device found: $EVDEV_DEV"
-        echo "  Press the ACTION button (center) within 5 seconds..."
-        if timeout 5 bash -c "evtest '$EVDEV_DEV' 2>/dev/null | grep -m1 'KEY_'" 2>/dev/null | grep -q "KEY_"; then
+        echo "  Press any button (volume up, volume down or action) within 8 seconds..."
+        if timeout 8 bash -c "evtest '$EVDEV_DEV' 2>/dev/null | grep -m1 'type 1'" 2>/dev/null | grep -q "type 1"; then
             result "Button press detected" PASS
         else
-            result "Button press detected" FAIL "no event received — check sj201-buttons-overlay"
+            result "Button press detected" FAIL "no event received — did you press a button?"
         fi
     else
         # Fallback: check GPIO input events
@@ -500,20 +502,28 @@ fi
 
 section "10. I2C Bus"
 
+# Install i2c-tools if missing
+if ! command -v i2cdetect &>/dev/null; then
+    info "Installing i2c-tools..."
+    sudo apt-get install -y --no-install-recommends i2c-tools >> "${MARK2_LOG:-/dev/null}" 2>&1 || true
+fi
+
 if command -v i2cdetect &>/dev/null; then
-    I2C_SCAN=$(i2cdetect -y 1 2>/dev/null | grep -oE '[0-9a-f]{2}' | grep -v '^0[0-7]$\|^7[8-f]$' | sort -u | xargs)
+    I2C_RAW=$(sudo i2cdetect -y 1 2>/dev/null)
+    I2C_SCAN=$(echo "$I2C_RAW" | grep -oE '\b[0-9a-f]{2}\b' | grep -v '^0[0-7]$' | sort -u | xargs)
     if [ -n "$I2C_SCAN" ]; then
         result "I2C bus scan" PASS "devices found at: ${I2C_SCAN}"
-        # Check for known SJ201 addresses
-        # 0x04 = LED ring controller
-        # 0x1a = TAS5806 amplifier
-        echo "$I2C_SCAN" | grep -q "04" && result "LED controller (0x04)" PASS || result "LED controller (0x04)" FAIL "not found"
-        echo "$I2C_SCAN" | grep -q "1a" && result "TAS5806 amp (0x1a)" PASS || result "TAS5806 amp (0x1a)" FAIL "not found — amp may not be initialized"
+        echo "$I2C_SCAN" | grep -q "2c" \
+            && result "LED controller (0x2c)" PASS \
+            || result "LED controller (0x2c)" FAIL "not found — check SJ201 power and I2C"
+        echo "$I2C_SCAN" | grep -q "2f" \
+            && result "TAS5806 amp (0x2f)" PASS \
+            || result "TAS5806 amp (0x2f)" FAIL "not found — amp may not be initialized"
     else
         result "I2C bus scan" FAIL "no devices found — check dtparam=i2c_arm=on"
     fi
 else
-    result "I2C bus scan" SKIP "i2cdetect not installed (apt install i2c-tools)"
+    result "I2C bus scan" SKIP "i2c-tools install failed"
 fi
 
 # =============================================================================
