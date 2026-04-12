@@ -137,7 +137,25 @@ install_lva() {
     log "PipeWire wait script installed: /usr/local/bin/mark2-wait-pipewire"
     # Reload PipeWire so new source is available immediately
     systemctl --user restart pipewire pipewire-pulse wireplumber 2>/dev/null || true
-    sleep 3
+
+    # Verify virtual devices appear in the PipeWire graph (closes #10)
+    log "Waiting for SJ201 virtual devices in PipeWire..."
+    PW_OK=false
+    for i in $(seq 1 15); do
+        ASR=$(wpctl status 2>/dev/null | grep -c "SJ201 ASR")
+        SPK=$(wpctl status 2>/dev/null | grep -c "SJ201 Speaker")
+        if [ "$ASR" -gt 0 ] && [ "$SPK" -gt 0 ]; then
+            log "PipeWire SJ201 devices ready after ${i}s ✓"
+            PW_OK=true
+            break
+        fi
+        sleep 1
+    done
+    if [ "$PW_OK" = false ]; then
+        warn "PipeWire SJ201 devices not visible after 15s — audio may not work"
+        warn "Check: wpctl status | grep SJ201"
+        warn "Fix:   systemctl --user restart pipewire wireplumber"
+    fi
 
     section "Creating lva.service"
     mkdir -p "$SYSTEMD_USER_DIR"
@@ -433,15 +451,25 @@ print_summary() {
     echo "========================================"
     log "Mark II Satellite + Kiosk setup complete!"
     echo ""
-    echo "  LVA auto-discovers in HA as an ESPHome device."
-    echo "  Settings → Devices & Services → ESPHome → configure pipeline"
-    echo "    Host: ${IP}   Port: 10700"
+    echo "  Next steps:"
     echo ""
-    echo "  Wake word: ${WAKE_WORD}"
-    echo "  Satellite name: ${SATELLITE_NAME}"
+    echo "  1. Reboot the Mark II:"
+    echo "     sudo reboot"
     echo ""
-    echo "  After reboot, the touchscreen shows your HA dashboard."
-    echo "  For auto-login without keyboard, see README trusted_networks section."
+    echo "  2. In Home Assistant — add ESPHome device:"
+    echo "     Settings → Devices & Services → Add Integration → ESPHome"
+    echo "     Host: ${IP}   Port: 6053"
+    echo "     (or wait for auto-discovery notification)"
+    echo ""
+    echo "  3. Set the voice pipeline (IMPORTANT — #9):"
+    echo "     Settings → Voice Assistants → ${SATELLITE_NAME}"
+    echo "     → Select pipeline (e.g. 'preferred', 'Whisper+Piper', 'Claude')"
+    echo "     Without this step the satellite uses HA's default pipeline."
+    echo ""
+    echo "  4. Test: say '${WAKE_WORD}' and give a voice command."
+    echo ""
+    echo "  For auto-login on touchscreen without keyboard:"
+    echo "  See README.md → Auto-login on the touchscreen"
     echo "========================================"
     echo ""
 }

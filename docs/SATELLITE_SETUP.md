@@ -229,6 +229,24 @@ LVA auto-discovers as an ESPHome device, exposing:
 - `number.<n>_mic_volume` — gain
 - `select.<n>_finished_speaking_detection` — VAD sensitivity
 
+### ⚠️ Set the voice pipeline after first discovery
+
+When LVA is first discovered, the Assist pipeline defaults to `preferred`
+(HA's default pipeline). **You must set it manually** to your desired pipeline.
+
+In HA: **Settings → Voice Assistants → your Mark II device → select pipeline**
+
+Or via service call:
+```bash
+curl -X POST http://<HA_IP>:8123/api/services/select/select_option \
+  -H "Authorization: Bearer <TOKEN>" \
+  -H "Content-Type: application/json" \
+  -d '{"entity_id": "select.<device>_assistant", "option": "Claude"}'
+```
+
+Without this step the satellite uses HA's default pipeline, which may not
+be what you want. The setup script reminds you of this step in its summary.
+
 ---
 
 ## Troubleshooting
