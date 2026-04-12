@@ -62,9 +62,11 @@ The recommended HA setup for Mark II consists of:
 ## Step 4 — Configure trusted network auto-login
 
 This allows Mark II to log in automatically without entering a password.
-The `trusted_networks` provider grants passwordless access from a specific IP.
+The `trusted_networks` provider grants passwordless access from specific IPs.
 
 Edit `/config/configuration.yaml` (use Studio Code Server or File Editor add-on):
+
+### Single device
 
 ```yaml
 homeassistant:
@@ -74,10 +76,34 @@ homeassistant:
       trusted_networks:
         - 192.168.65.37            # Mark II's exact IP address
       trusted_users:
-        192.168.65.37:             # Same IP
+        192.168.65.37:
           - USER_ID_FOR_MARK2      # See below for how to find this
       allow_bypass_login: true
 ```
+
+### Multiple devices (e.g. nabu-1 and nabu-2)
+
+All devices share the same `mark2` user and dashboard — just add each IP:
+
+```yaml
+homeassistant:
+  auth_providers:
+    - type: homeassistant
+    - type: trusted_networks
+      trusted_networks:
+        - 192.168.65.37            # nabu-1
+        - 192.168.65.38            # nabu-2
+      trusted_users:
+        192.168.65.37:
+          - USER_ID_FOR_MARK2      # same user for all devices
+        192.168.65.38:
+          - USER_ID_FOR_MARK2
+      allow_bypass_login: true
+```
+
+Each device is identified in HA by its **hostname** (set during install, e.g.
+`nabu-1`, `nabu-2`). They share the same user and dashboard but appear as
+separate Wyoming satellites and MQTT sensors in HA.
 
 **How to find the mark2 user ID:**
 In HA go to **Settings → People → Users**, click the `mark2` user.
@@ -87,8 +113,8 @@ the last part (`abc123def456`) is the user ID.
 **Restart HA** after saving configuration.yaml.
 
 > **Security note:** `trusted_networks` with `allow_bypass_login: true` grants
-> passwordless access from that specific IP only. Using the exact device IP
-> (not a whole subnet like `192.168.65.0/24`) limits exposure to Mark II only.
+> passwordless access from those specific IPs only. Using exact device IPs
+> (not a whole subnet like `192.168.65.0/24`) limits exposure to Mark II devices only.
 > Always keep `- type: homeassistant` first so other devices still require a password.
 
 ---
