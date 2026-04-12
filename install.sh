@@ -96,6 +96,7 @@ print_banner() {
 
 print_progress() {
     local all=("hardware" "satellite"
+               "homeassistant"
                "leds" "face" "overlay" "screensaver"
                "mqtt-sensors"
                "snapcast" "airplay" "mpd"
@@ -121,12 +122,14 @@ print_progress() {
 
 configure_upfront() {
     # ── Step 1: Module selection ──
-    local defaults="screensaver leds overlay face mqtt-sensors"
-    local mod_list=("leds" "face" "overlay" "screensaver"
+    local defaults="screensaver leds overlay face mqtt-sensors homeassistant"
+    local mod_list=("homeassistant"
+                    "leds" "face" "overlay" "screensaver"
                     "mqtt-sensors"
                     "snapcast" "airplay" "mpd"
                     "kdeconnect" "usb-audio")
     local mod_desc=(
+        "[Core]    Home Assistant dashboard — show HA on touchscreen"
         "[Display] LED ring — reacts to wake/listen/speak/error"
         "[Display] Animated face — zooms in on voice, dances to music"
         "[Display] Volume overlay — on-screen bar, auto-hides"
@@ -161,8 +164,10 @@ configure_upfront() {
     # Save module selection so it survives reboot
     config_save "SELECTED_MODULES" "$SELECTED_MODULES"
 
-    # ── Step 2: Home Assistant URL ──
-    prompt_ha_url
+    # ── Step 2: Home Assistant URL (only if homeassistant module selected) ──
+    if echo "$SELECTED_MODULES" | grep -qw "homeassistant"; then
+        prompt_ha_url
+    fi
 
     # ── Step 3: HA token (only if screensaver selected) ──
     if echo "$SELECTED_MODULES" | grep -qw "screensaver"; then
@@ -385,6 +390,7 @@ configure_ha_trusted_network() {
     info "See: https://www.home-assistant.io/docs/authentication/providers/#trusted-networks"
     config_save "MARK2_IP" "$MARK2_IP"
 }
+run_module "homeassistant"  "Home Assistant dashboard — show HA on touchscreen"
 run_module "leds"         "LED ring — SJ201 ring reacts to voice events"
 run_module "face"         "Animated face — zooms in on voice, dances to music"
 run_module "overlay"      "Volume overlay — on-screen volume bar"
@@ -414,23 +420,26 @@ echo ""
 echo "  Settings → Devices → Add Integration → Wyoming Protocol"
 echo "  Host: ${MARK2_IP}   Port: 10700"
 echo ""
-echo -e "${CYAN}═══════════════════════════════════════════════════════${NC}"
-echo -e "${CYAN}  Auto-login — add to configuration.yaml in HA:${NC}"
-echo -e "${CYAN}═══════════════════════════════════════════════════════${NC}"
-echo ""
-echo "  homeassistant:"
-echo "    auth_providers:"
-echo "      - type: homeassistant"
-echo "      - type: trusted_networks"
-echo "        trusted_networks:"
-echo "          - ${MARK2_IP}"
-echo "        trusted_users:"
-echo "          ${MARK2_IP}:"
-echo "            - <YOUR_HA_USER_ID>   # Settings → People → click user → ID in URL"
-echo "        allow_bypass_login: true"
-echo ""
-echo "  Then restart Home Assistant."
-echo ""
+
+if echo "${SELECTED_MODULES:-}" | grep -qw "homeassistant"; then
+    echo -e "${CYAN}═══════════════════════════════════════════════════════${NC}"
+    echo -e "${CYAN}  Auto-login — add to configuration.yaml in HA:${NC}"
+    echo -e "${CYAN}═══════════════════════════════════════════════════════${NC}"
+    echo ""
+    echo "  homeassistant:"
+    echo "    auth_providers:"
+    echo "      - type: homeassistant"
+    echo "      - type: trusted_networks"
+    echo "        trusted_networks:"
+    echo "          - ${MARK2_IP}"
+    echo "        trusted_users:"
+    echo "          ${MARK2_IP}:"
+    echo "            - <YOUR_HA_USER_ID>   # Settings → People → click user → ID in URL"
+    echo "        allow_bypass_login: true"
+    echo ""
+    echo "  Then restart Home Assistant."
+    echo ""
+fi
 echo -e "${CYAN}═══════════════════════════════════════════════════════${NC}"
 echo "  Full documentation: https://github.com/andlo/mark2-assist"
 echo -e "${CYAN}═══════════════════════════════════════════════════════${NC}"

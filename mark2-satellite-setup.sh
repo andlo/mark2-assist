@@ -391,10 +391,11 @@ EOF
     cp "${TEMPLATE_DIR}/kiosk.html" "${KIOSK_DIR}/hud.html"
     log "Installed HUD template → ${KIOSK_DIR}/hud.html"
 
-    # ── kiosk.sh — HA Chromium kiosk launcher ──
-    # Waits for Wayland socket, clears stale Chromium lock, waits for HA,
-    # then opens Chromium in fullscreen kiosk mode.
-    # Auto-login requires trusted_networks in HA configuration.yaml — see README.
+    # ── kiosk.sh — main display launcher ──
+    # If ~/.config/mark2/ha-kiosk-enabled exists (written by modules/homeassistant.sh),
+    # Chromium opens the HA dashboard. Otherwise it opens the local HUD page,
+    # showing only the face animation and clock — useful as a pure voice satellite
+    # without an HA dashboard.
     KIOSK_SCRIPT="${USER_HOME}/kiosk.sh"
     cat > "$KIOSK_SCRIPT" << 'SCRIPTEOF'
 #!/bin/bash
@@ -408,7 +409,7 @@ CONFIG="${HOME}/.config/mark2/config"
 HA_URL=""
 [ -f "$CONFIG" ] && source "$CONFIG"
 
-# Wait for Wayland socket to appear (up to 30 seconds)
+# Wait for Wayland socket (up to 30 seconds)
 for i in $(seq 1 30); do
     [ -S "/run/user/$(id -u)/wayland-0" ] && break
     sleep 1
@@ -418,13 +419,23 @@ echo "[$(date)] Wayland ready"
 # Remove stale Chromium singleton lock (left by unclean shutdown)
 rm -f "${HOME}/.config/chromium-kiosk/Singleton"*
 
-# Wait for HA to respond — 401 Unauthorized is fine, it means HA is running
-until curl -o /dev/null -sf --max-time 3 -w "%{http_code}" "${HA_URL}" \
-    2>/dev/null | grep -qE '200|401|302'; do
+# Decide what to show:
+# - If HA kiosk is enabled (modules/homeassistant.sh was run): open HA dashboard
+# - Otherwise: open local HUD page (face + clock only, no HA)
+if [ -f "${HOME}/.config/mark2/ha-kiosk-enabled" ] && [ -n "$HA_URL" ]; then
+    # Wait for HA to respond (401 Unauthorized is fine — means HA is running)
+    until curl -o /dev/null -sf --max-time 3 -w "%{http_code}" "${HA_URL}" \
+        2>/dev/null | grep -qE '200|401|302'; do
+        sleep 3
+    done
     sleep 3
-done
-sleep 3
-echo "[$(date)] HA ready, starting Chromium"
+    START_URL="${HA_URL}"
+    echo "[$(date)] HA ready, opening dashboard: ${START_URL}"
+else
+    # No HA dashboard — open local HUD page (face animation + clock)
+    START_URL="file://${HOME}/.config/mark2-kiosk/hud.html"
+    echo "[$(date)] HA kiosk not enabled, opening local HUD"
+fi
 
 exec chromium \
     --kiosk \
@@ -440,7 +451,7 @@ exec chromium \
     --disable-background-timer-throttling \
     --no-sandbox \
     --user-data-dir="${HOME}/.config/chromium-kiosk" \
-    "${HA_URL}"
+    "${START_URL}"
 SCRIPTEOF
     chmod +x "$KIOSK_SCRIPT"
     log "Created ~/kiosk.sh"
