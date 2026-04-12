@@ -130,7 +130,8 @@ install_lva() {
     # too low for openWakeWord). VF_ASR_(L) gives RMS~500+ which works reliably.
     mkdir -p "${USER_HOME}/.config/pipewire/pipewire.conf.d"
     cp "${SCRIPT_DIR}/assets/pipewire-sj201-asr.conf"        "${USER_HOME}/.config/pipewire/pipewire.conf.d/sj201-asr.conf"
-    log "PipeWire SJ201 ASR source installed"
+    cp "${SCRIPT_DIR}/assets/pipewire-sj201-output.conf"     "${USER_HOME}/.config/pipewire/pipewire.conf.d/sj201-output.conf"
+    log "PipeWire SJ201 ASR source + Speaker sink installed"
     # Reload PipeWire so new source is available immediately
     systemctl --user restart pipewire pipewire-pulse wireplumber 2>/dev/null || true
     sleep 3
@@ -154,6 +155,9 @@ WorkingDirectory=${LVA_DIR}
 Environment=PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 Environment=XDG_RUNTIME_DIR=/run/user/$(id -u "$CURRENT_USER")
 Environment=DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/$(id -u "$CURRENT_USER")/bus
+Environment=PIPEWIRE_RUNTIME_DIR=/run/user/$(id -u "$CURRENT_USER")
+Environment=PULSE_RUNTIME_PATH=/run/user/$(id -u "$CURRENT_USER")/pulse
+Environment=WAYLAND_DISPLAY=wayland-1
 Restart=always
 RestartSec=5
 StandardOutput=journal
