@@ -186,56 +186,7 @@ install_face_event_bridge() {
     # animation. Installed here so it works even without the optional face module.
     BRIDGE_SCRIPT="${MARK2_DIR}/face-event-bridge.py"
 
-    cat > "$BRIDGE_SCRIPT" << 'PYEOF'
-#!/usr/bin/env python3
-"""
-LVA → face event bridge.
-
-Polls the HA assist_satellite entity state and writes the current
-voice state to /tmp/mark2-face-event.json (atomic write via temp file).
-
-States: idle, wake, listen, think, speak, error
-"""
-import subprocess, json, os, time
-
-OUT = "/tmp/mark2-face-event.json"
-
-STATE_MAP = {
-    "detecting":    "idle",
-    "detected":     "wake",
-    "recording":    "listen",
-    "processing":   "think",
-    "synthesizing": "think",
-    "playing":      "speak",
-    "done":         "idle",
-    "error":        "error",
-    "muted":        "idle",
-    "StreamingStarted": "listen",
-    "StreamingStopped": "idle",
-    "RunSatellite": "idle",
-}
-
-def write_state(state):
-    tmp = OUT + ".tmp"
-    with open(tmp, "w") as f:
-        json.dump({"state": state, "ts": time.time()}, f)
-    os.replace(tmp, OUT)
-
-def main():
-    write_state("idle")
-    proc = subprocess.Popen(
-        ["journalctl", "--user", "-u", "lva",  # kept for compatibility
-         "-f", "-n", "0", "--output=cat"],
-        stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True)
-    for line in proc.stdout:
-        for key, state in STATE_MAP.items():
-            if key.lower() in line.lower():
-                write_state(state)
-                break
-
-if __name__ == "__main__":
-    main()
-PYEOF
+    cp "${SCRIPT_DIR}/lib/face-event-bridge.py" "$BRIDGE_SCRIPT"
     chmod +x "$BRIDGE_SCRIPT"
 
     cat > "${SYSTEMD_USER_DIR}/mark2-face-events.service" << EOF
