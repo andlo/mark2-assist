@@ -15,8 +15,7 @@ The recommended HA setup for Mark II consists of:
 2. **Trusted network auto-login** — Mark II's IP is whitelisted so the
    touchscreen logs in without a password prompt
 3. **Mark II dashboard** — 800×480 touch-optimised, 4-column grid layout
-4. **Kiosk mode** — hides the HA header/sidebar inside the dashboard,
-   giving the full 480px to your cards
+4. **Kiosk mode** — hides the HA header/sidebar, giving the full screen to cards
 
 ---
 
@@ -42,14 +41,26 @@ Install HACS: https://hacs.xyz/docs/use/download/download/
 
 ## Step 1 — Create the mark2 user
 
+It is strongly recommended to create a dedicated HA user for Mark II rather
+than using your admin account. This gives you clean separation between the
+device and your personal account, and ensures the touchscreen always shows
+the Mark II dashboard — never your personal default view.
+
 1. In HA go to **Settings → People → Users** (tab at top)
 2. Click **Add User**
 3. Fill in:
    - Display name: `Mark II`
    - Username: `mark2`
-   - Password: something strong (only used as fallback)
+   - Password: something strong (only used as fallback if trusted network fails)
    - Uncheck **Administrator**
 4. Click **Create**
+5. Note the user ID from the URL — you will need it in Step 4.
+   The URL will look like `/config/users/edit/abc123def456` — the last part
+   is the user ID.
+
+> **Why a dedicated user?** With a separate `mark2` account you can set the
+> Mark II dashboard as the default, configure kiosk mode to hide the header
+> for this user only, and avoid the device ever landing on your personal HA view.
 
 ---
 
@@ -77,14 +88,19 @@ Install HACS: https://hacs.xyz/docs/use/download/download/
 4. Log out and log back in as your admin account
 
 After this, the `mark2` user always lands directly on the Mark II dashboard.
-The kiosk in `mark2-assist` can simply use `http://<ha-ip>:8123` as the URL —
-no need to hardcode `/lovelace/mark2`.
+The kiosk in `mark2-assist` can simply point to the base HA URL — HA redirects
+automatically to the default dashboard after login:
+
+```
+HA_URL=http://192.168.1.x:8123
+```
 
 ---
 
 ## Step 4 — Configure trusted network auto-login
 
-This allows Mark II to log in automatically without entering a password.
+This allows Mark II to log in automatically as the `mark2` user without
+showing a password prompt on the touchscreen.
 
 Edit `/config/configuration.yaml` (use Studio Code Server or File Editor add-on):
 
@@ -99,13 +115,14 @@ homeassistant:
         - 192.168.1.x              # Mark II's exact IP address
       trusted_users:
         192.168.1.x:
-          - USER_ID_FOR_MARK2      # See below for how to find this
+          - USER_ID_FOR_MARK2      # The mark2 user ID from Step 1
       allow_bypass_login: true
 ```
 
 ### Multiple devices (e.g. nabu-1 and nabu-2)
 
-All devices share the same `mark2` user and dashboard — just add each IP:
+All devices share the same `mark2` user and dashboard — just add each IP.
+The devices are distinguished in HA by their hostname (set during install):
 
 ```yaml
 homeassistant:
@@ -117,44 +134,26 @@ homeassistant:
         - 192.168.1.11             # nabu-2
       trusted_users:
         192.168.1.10:
-          - USER_ID_FOR_MARK2      # same user ID for all devices
+          - USER_ID_FOR_MARK2      # same mark2 user ID for all devices
         192.168.1.11:
           - USER_ID_FOR_MARK2
       allow_bypass_login: true
 ```
-
-Each device is identified in HA by its **hostname** (set during install).
-They share the same user and dashboard but appear as separate Wyoming
-satellites, assist satellites, and MQTT sensor devices in HA.
-
-**How to find the mark2 user ID:**
-In HA go to **Settings → People → Users**, click the `mark2` user.
-The URL ends with something like `/config/users/edit/abc123def456` —
-that last part is the user ID.
 
 **Restart HA** after saving configuration.yaml.
 
 > **Security note:** `allow_bypass_login: true` grants passwordless access
 > from those exact IPs only. Using specific device IPs (not a whole subnet
 > like `192.168.1.0/24`) limits exposure to Mark II devices only. Always
-> keep `- type: homeassistant` first so all other devices still need a password.
+> keep `- type: homeassistant` as the first provider so all other devices
+> still require a password.
 
 ---
 
 ## Step 5 — Configure Kiosk Mode for the mark2 user
 
-After installing the Kiosk Mode HACS card, add this to your
-`configuration.yaml` to hide the HA header for the `mark2` user on all
-dashboards:
-
-```yaml
-kiosk_mode:
-  non_admin_settings:
-    hide_header: true
-    hide_sidebar: true
-```
-
-Or to target only the `mark2` user specifically:
+After installing the Kiosk Mode HACS card, add this to `configuration.yaml`
+to hide the HA header and sidebar for the `mark2` user:
 
 ```yaml
 kiosk_mode:
@@ -167,8 +166,8 @@ kiosk_mode:
 
 **Restart HA** after adding this.
 
-> This gives you the full 480px height for dashboard cards on the Mark II
-> screen, while other users (your admin account) still see the normal HA UI.
+> This gives the full screen height to dashboard cards on Mark II, while
+> your admin account and other users still see the normal HA interface.
 
 ---
 
@@ -218,6 +217,6 @@ After reboot, the Mark II touchscreen should open directly to the dashboard
 without showing a login screen. If it still shows login:
 
 1. Verify the IP in `trusted_networks` matches `hostname -I` on Mark II
-2. Verify HA was restarted after editing configuration.yaml
-3. Check HA logs: Settings → System → Logs → search `trusted`
-4. Verify the user ID in `trusted_users` matches the mark2 user
+2. Verify the user ID in `trusted_users` is the `mark2` user (not admin)
+3. Verify HA was restarted after editing configuration.yaml
+4. Check HA logs: Settings → System → Logs → search `trusted`
