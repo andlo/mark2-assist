@@ -76,12 +76,18 @@ detect_sj201_audio() {
     MIC_DEVICE=""; SPK_DEVICE=""
 
     if arecord -L 2>/dev/null | grep -q "soc_sound\|xvf3510\|sj201"; then
-        CARD=$(arecord -L 2>/dev/null \
+        MIC_DEVICE=$(arecord -L 2>/dev/null \
                | grep -i "soc_sound\|xvf3510\|sj201" \
                | grep "^plughw:" | head -1)
-        MIC_DEVICE="$CARD"
-        SPK_DEVICE="$CARD"
-        log "Found SJ201 audio device: ${CARD}"
+        # Speaker uses DEV=0 (playback), mic uses DEV=1 (capture)
+        # Replace DEV=1 with DEV=0 for speaker, or derive from aplay
+        SPK_DEVICE=$(aplay -L 2>/dev/null \
+               | grep -i "soc_sound\|xvf3510\|sj201" \
+               | grep "^plughw:" | head -1)
+        [ -z "$SPK_DEVICE" ] && SPK_DEVICE="${MIC_DEVICE/DEV=1/DEV=0}"
+        [ -z "$SPK_DEVICE" ] && SPK_DEVICE="plughw:CARD=sj201,DEV=0"
+        log "Mic device:     ${MIC_DEVICE}"
+        log "Speaker device: ${SPK_DEVICE}"
     else
         MIC_DEVICE="plughw:0,0"
         SPK_DEVICE="plughw:0,0"
@@ -170,7 +176,7 @@ ExecStart=${WYOMING_SAT_DIR}/script/run \\
     --name '${SATELLITE_NAME}' \\
     --uri 'tcp://0.0.0.0:10700' \\
     --mic-command 'arecord -D ${MIC_DEVICE} -r 16000 -c 1 -f S16_LE -t raw' \\
-    --snd-command 'aplay -D ${SPK_DEVICE} -r 22050 -c 1 -f S16_LE -t raw' \\
+    --snd-command 'aplay -D ${SPK_DEVICE} -r 48000 -c 2 -f S16_LE -t raw' \\
     --mic-auto-gain 5 \\
     --mic-noise-suppression 2 \\
     --wake-uri 'tcp://127.0.0.1:10400' \\
