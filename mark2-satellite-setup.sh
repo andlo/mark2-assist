@@ -181,6 +181,7 @@ Environment=DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/$(id -u "$CURRENT_USER"
 Environment=PIPEWIRE_RUNTIME_DIR=/run/user/$(id -u "$CURRENT_USER")
 Environment=PULSE_RUNTIME_PATH=/run/user/$(id -u "$CURRENT_USER")/pulse
 Environment=WAYLAND_DISPLAY=wayland-1
+# Note: wayland-1 because pipewire/xdg-desktop-portal claim wayland-0 first on this system.
 Restart=always
 RestartSec=5
 StandardOutput=journal

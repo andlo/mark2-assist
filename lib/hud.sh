@@ -1,6 +1,16 @@
 #!/bin/bash
-export WAYLAND_DISPLAY=${WAYLAND_DISPLAY:-wayland-0}
 export XDG_RUNTIME_DIR=/run/user/$(id -u)
+
+# Use Wayland socket from parent (Weston session) or detect it
+if [ -z "${WAYLAND_DISPLAY:-}" ]; then
+    for sock in wayland-0 wayland-1 wayland-2; do
+        if [ -S "/run/user/$(id -u)/${sock}" ]; then
+            export WAYLAND_DISPLAY="$sock"
+            break
+        fi
+    done
+fi
+
 sleep 3
 exec chromium \
     --app="file://${HOME}/.config/mark2-kiosk/hud.html" \

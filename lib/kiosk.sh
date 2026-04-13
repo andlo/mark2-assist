@@ -2,19 +2,28 @@
 exec >> /tmp/mark2-kiosk.log 2>&1
 echo "[$(date)] kiosk.sh starting"
 
-export WAYLAND_DISPLAY=${WAYLAND_DISPLAY:-wayland-0}
 export XDG_RUNTIME_DIR=/run/user/$(id -u)
 
 CONFIG="${HOME}/.config/mark2/config"
 HA_URL=""
 [ -f "$CONFIG" ] && source "$CONFIG"
 
-# Wait for Wayland socket (up to 30 seconds)
-for i in $(seq 1 30); do
-    [ -S "/run/user/$(id -u)/wayland-0" ] && break
-    sleep 1
-done
-echo "[$(date)] Wayland ready"
+# Detect which Wayland socket Weston is using.
+# Weston picks the first free socket (wayland-0, wayland-1, ...).
+# Other services (pipewire, xdg-desktop-portal) may claim wayland-0 first.
+# Wait up to 30s for any wayland-N socket to appear, prefer the one Weston set.
+if [ -z "${WAYLAND_DISPLAY:-}" ]; then
+    for i in $(seq 1 30); do
+        for sock in wayland-0 wayland-1 wayland-2; do
+            if [ -S "/run/user/$(id -u)/${sock}" ]; then
+                export WAYLAND_DISPLAY="$sock"
+                break 2
+            fi
+        done
+        sleep 1
+    done
+fi
+echo "[$(date)] Wayland ready: WAYLAND_DISPLAY=${WAYLAND_DISPLAY:-unset}"
 
 # Remove stale Chromium singleton lock (left by unclean shutdown)
 rm -f "${HOME}/.config/chromium-kiosk/Singleton"*
