@@ -142,9 +142,22 @@ Total time: **20–40 minutes** depending on network speed.
 
 ## Auto-login on the touchscreen
 
-After installation the touchscreen shows your HA dashboard and prompts for login.
-To enable **automatic login without a keyboard**, add the following to your HA
-`configuration.yaml` and restart HA:
+### Required: allow HA to show in the kiosk
+
+The Mark II kiosk displays the HA dashboard inside an iframe. By default HA
+blocks this with `X-Frame-Options: SAMEORIGIN`. Add this to your
+`configuration.yaml` and **restart HA** — without it the touchscreen shows a
+blank page instead of your dashboard:
+
+```yaml
+http:
+  use_x_frame_options: false
+```
+
+### Optional: automatic login without a keyboard
+
+After the first kiosk setup the touchscreen may prompt for login.
+To log in automatically, also add the following to `configuration.yaml`:
 
 ```yaml
 homeassistant:
@@ -170,14 +183,18 @@ hostname -I
 
 **How to edit configuration.yaml in HA:**
 Use the Studio Code Server add-on or File Editor add-on.
-Navigate to `/config/configuration.yaml` and add the block above.
+Navigate to `/config/configuration.yaml` and add both blocks above.
 
 After restarting HA and rebooting Mark II, the dashboard loads automatically — no keyboard needed.
 
-> **Security note:** `allow_bypass_login: true` grants passwordless access from that specific IP.
-> Using the exact device IP (not a whole subnet like `192.168.1.0/24`) limits this to your
-> Mark II only. Always keep `- type: homeassistant` as the first provider so you can still
-> log in from other devices with a password.
+> **Security note:** `use_x_frame_options: false` allows any page on your local network to
+> embed your HA frontend in an iframe. It does not remove authentication. For most home setups
+> this is perfectly safe. `allow_bypass_login: true` grants passwordless access from that
+> specific IP only — using the exact device IP (not a subnet) limits this to your Mark II.
+> Always keep `- type: homeassistant` as the first provider so you can still log in from
+> other devices with a password.
+
+See [docs/HA_SETUP.md](docs/HA_SETUP.md) for full step-by-step instructions.
 
 ---
 

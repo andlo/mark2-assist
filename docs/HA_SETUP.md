@@ -1,8 +1,9 @@
 # Home Assistant Setup for Mark II
 
 This document covers everything needed to set up Home Assistant for Mark II:
-creating a dedicated user, configuring trusted network auto-login, and
-installing the touch-optimised dashboard.
+allowing the HA dashboard to be embedded in the kiosk, creating a dedicated
+user, configuring trusted network auto-login, and installing the
+touch-optimised dashboard.
 
 ---
 
@@ -10,16 +11,41 @@ installing the touch-optimised dashboard.
 
 The recommended HA setup for Mark II consists of:
 
-1. **A dedicated `mark2` user** — logs in automatically via trusted network,
+1. **`use_x_frame_options: false`** — required so the HA dashboard can load
+   inside the Mark II kiosk (one line in configuration.yaml)
+2. **A dedicated `mark2` user** — logs in automatically via trusted network,
    sees only the Mark II dashboard, cannot change HA settings
-2. **Trusted network auto-login** — Mark II's IP is whitelisted so the
+3. **Trusted network auto-login** — Mark II's IP is whitelisted so the
    touchscreen logs in without a password prompt
-3. **Mark II dashboard** — 800×480 touch-optimised, 4-column grid layout
-4. **Kiosk mode** — hides the HA header/sidebar, giving the full screen to cards
+4. **Mark II dashboard** — 800×480 touch-optimised, 4-column grid layout
+5. **Kiosk mode** — hides the HA header/sidebar, giving the full screen to cards
 
 ---
 
-## HACS requirements
+## Step 0 — Allow HA to be shown in the kiosk (required)
+
+The Mark II kiosk displays the HA dashboard inside an iframe. By default,
+Home Assistant sends `X-Frame-Options: SAMEORIGIN` which blocks this.
+
+Add the following to `/config/configuration.yaml` and **restart HA**:
+
+```yaml
+http:
+  use_x_frame_options: false
+```
+
+> **Security note:** This allows any page on your local network to embed
+> your HA frontend in an iframe. It does not expose HA externally or
+> remove authentication — users still need to be logged in. For most home
+> setups this is perfectly safe, but if you expose HA externally (e.g. via
+> Nabu Casa or a reverse proxy) you may want to consider the implications.
+
+Without this setting the Mark II touchscreen will show a blank grey page
+instead of your HA dashboard.
+
+---
+
+## Step 1 — HACS requirements
 
 Install these via HACS before setting up the dashboard:
 
@@ -39,7 +65,7 @@ Install HACS: https://hacs.xyz/docs/use/download/download/
 
 ---
 
-## Step 1 — Create the mark2 user
+## Step 2 — Create the mark2 user
 
 It is strongly recommended to create a dedicated HA user for Mark II rather
 than using your admin account. This gives you clean separation between the
@@ -64,7 +90,7 @@ the Mark II dashboard — never your personal default view.
 
 ---
 
-## Step 2 — Create the Mark II dashboard
+## Step 3 — Create the Mark II dashboard
 
 1. In HA go to **Settings → Dashboards**
 2. Click **Add Dashboard**
@@ -80,7 +106,7 @@ the Mark II dashboard — never your personal default view.
 
 ---
 
-## Step 3 — Set Mark II dashboard as default for the mark2 user
+## Step 4 — Set Mark II dashboard as default for the mark2 user
 
 1. Log out (or open an incognito window)
 2. Log in as `mark2`
@@ -97,7 +123,7 @@ HA_URL=http://192.168.1.x:8123
 
 ---
 
-## Step 4 — Configure trusted network auto-login
+## Step 5 — Configure trusted network auto-login
 
 This allows Mark II to log in automatically as the `mark2` user without
 showing a password prompt on the touchscreen.
@@ -150,7 +176,7 @@ homeassistant:
 
 ---
 
-## Step 5 — Configure Kiosk Mode for the mark2 user
+## Step 6 — Configure Kiosk Mode for the mark2 user
 
 After installing the Kiosk Mode HACS card, add this to `configuration.yaml`
 to hide the HA header and sidebar for the `mark2` user:
@@ -171,7 +197,7 @@ kiosk_mode:
 
 ---
 
-## Step 6 — Set the HA URL in mark2-assist
+## Step 7 — Set the HA URL in mark2-assist
 
 Since the `mark2` user has the Mark II dashboard as their default, the base
 URL is sufficient — HA redirects automatically after login:
