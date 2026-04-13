@@ -30,8 +30,8 @@ COMBINED="${KIOSK_DIR}/combined.html"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 BUILD_SCRIPT="${SCRIPT_DIR}/build-combined.py"
 
-if [ -n "$HA_URL" ] && [ -f "${KIOSK_DIR}/hud.html" ] && [ -f "$BUILD_SCRIPT" ]; then
-    python3 "$BUILD_SCRIPT" "${KIOSK_DIR}/hud.html" "$HA_URL" "$COMBINED"
+if [ -n "$HA_URL" ] && [ -f "${KIOSK_DIR}/kiosk.html" ] && [ -f "$BUILD_SCRIPT" ]; then
+    python3 "$BUILD_SCRIPT" "${KIOSK_DIR}/kiosk.html" "$HA_URL" "$COMBINED"
     echo "[$(date)] Combined HA+HUD page ready"
 
     # Serve combined.html via local HTTP to avoid file://->http:// mixed content block.

@@ -361,8 +361,8 @@ WantedBy=default.target
 EOF
 
     # HUD overlay template (face animation + volume bar)
-    cp "${TEMPLATE_DIR}/kiosk.html" "${KIOSK_DIR}/hud.html"
-    log "Installed HUD template → ${KIOSK_DIR}/hud.html"
+    cp "${TEMPLATE_DIR}/kiosk.html" "${KIOSK_DIR}/kiosk.html"
+    log "Installed kiosk template → ${KIOSK_DIR}/kiosk.html"
 
     # ── kiosk.sh — main display launcher ──
     # Uses ${HOME} for paths — works with any username, not just pi.
