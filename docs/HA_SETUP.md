@@ -178,22 +178,32 @@ homeassistant:
 
 ## Step 6 — Configure Kiosk Mode for the mark2 user
 
-After installing the Kiosk Mode HACS card, add this to `configuration.yaml`
-to hide the HA header and sidebar for the `mark2` user:
+After installing the Kiosk Mode HACS card, configure it **in your dashboard
+YAML** — not in `configuration.yaml`. Kiosk Mode is a frontend plugin, not a
+HA integration, so it has no `configuration.yaml` support.
+
+Open your Mark II dashboard → **⋮ → Edit dashboard → Raw configuration editor**
+and add a `kiosk:` block at the top level:
 
 ```yaml
-kiosk_mode:
+title: Mark II
+kiosk:
   user_settings:
     - users:
         - mark2
       hide_header: true
       hide_sidebar: true
+views:
+  ...
 ```
 
-**Restart HA** after adding this.
+This hides the HA header and sidebar for the `mark2` user only, giving the
+full 480px screen height to dashboard cards. Your admin account and other
+users still see the normal HA interface.
 
-> This gives the full screen height to dashboard cards on Mark II, while
-> your admin account and other users still see the normal HA interface.
+> **Note:** Do NOT add `kiosk_mode:` to `configuration.yaml` — HA will report
+> "Integration 'kiosk_mode' not found" because Kiosk Mode is not a HA
+> integration. It is a Lovelace frontend plugin configured via dashboard YAML.
 
 ---
 
