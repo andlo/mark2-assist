@@ -16,10 +16,10 @@ src = open(src_path).read()
 src = src.replace('%%HA_URL%%', ha_url)
 
 # 2. Inject HA iframe as the very first child of body (z-index:1)
-# Use the /ha/ reverse-proxy path so mark2-httpd strips X-Frame-Options.
+# Load HA directly — use_x_frame_options: false in HA config removes the block.
 iframe_layer = (
     '<div id="ha-layer" style="position:absolute;inset:0;z-index:1;">\n'
-    '  <iframe src="http://localhost:8088/ha/" style="width:100%;height:100%;border:none;"></iframe>\n'
+    '  <iframe src="' + ha_url + '" style="width:100%;height:100%;border:none;"></iframe>\n'
     '</div>\n'
 )
 src = re.sub(r'(<body[^>]*>)', r'\1\n' + iframe_layer, src, count=1)
