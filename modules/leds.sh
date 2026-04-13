@@ -7,7 +7,8 @@
 # =============================================================================
 set -euo pipefail
 # shellcheck source=../lib/common.sh
-source "$(dirname "$0")/../lib/common.sh"
+SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+source "${SCRIPT_DIR}/lib/common.sh"
 
 check_not_root
 setup_paths
