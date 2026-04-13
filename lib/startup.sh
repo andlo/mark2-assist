@@ -5,7 +5,5 @@
 exec >> /tmp/mark2-startup.log 2>&1
 echo "[$(date)] startup.sh starting"
 "${HOME}/kiosk.sh" &
-sleep 3
-"${HOME}/hud.sh" &
 # Keep running so Weston does not exit
 wait
