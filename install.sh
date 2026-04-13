@@ -129,17 +129,17 @@ configure_upfront() {
                     "snapcast" "airplay" "mpd"
                     "kdeconnect" "usb-audio")
     local mod_desc=(
-        "[Core]    Home Assistant dashboard — show HA on touchscreen"
-        "[Display] LED ring — reacts to wake/listen/speak/error"
-        "[Display] Animated face — zooms in on voice, dances to music"
-        "[Display] Volume overlay — on-screen bar, auto-hides"
-        "[Display] Screensaver — clock + weather from HA"
-        "[HA]      MQTT sensors — LVA/MPD/CPU state to HA"
-        "[Audio]   Snapcast — synchronized multiroom audio"
-        "[Audio]   AirPlay — Mark II as AirPlay speaker"
-        "[Audio]   MPD — local music player (Music Assistant)"
-        "[Extra]   KDE Connect — Android phone integration"
-        "[Extra]   USB audio — fallback if SJ201 fails"
+        "Home Assistant dashboard on touchscreen"
+        "LED ring — reacts to voice states"
+        "Animated face — voice + music animation"
+        "Volume overlay — on-screen bar"
+        "Screensaver — clock + weather from HA"
+        "MQTT sensors — LVA/CPU/MPD state to HA"
+        "Snapcast — synchronized multiroom audio"
+        "AirPlay — Mark II as AirPlay speaker"
+        "MPD — local music player (Music Assistant)"
+        "KDE Connect — Android phone integration"
+        "USB audio — fallback if SJ201 fails"
     )
 
     local items=()
@@ -154,9 +154,20 @@ configure_upfront() {
         items+=("$m" "${mod_desc[$i]}" "$state")
     done
 
+    # Calculate dialog dimensions from terminal size
+    local term_lines term_cols
+    term_lines=$(tput lines 2>/dev/null || echo 24)
+    term_cols=$(tput cols 2>/dev/null || echo 80)
+    local dlg_h=$(( term_lines - 4 ))
+    local dlg_w=$(( term_cols - 6 ))
+    local list_h=$(( dlg_h - 8 ))
+    [ "$dlg_h" -lt 20 ] && dlg_h=20
+    [ "$dlg_w" -lt 60 ] && dlg_w=60
+    [ "$list_h" -lt 8 ]  && list_h=8
+
     SELECTED_MODULES=$(whiptail --title "Mark II Assist — Select modules" \
         --checklist "Choose what to install:\n(Space to toggle, Enter to confirm)" \
-        24 70 12 \
+        "$dlg_h" "$dlg_w" "$list_h" \
         "${items[@]}" \
         3>&1 1>&2 2>&3) || { warn "Cancelled"; exit 0; }
     SELECTED_MODULES=$(echo "$SELECTED_MODULES" | tr -d '"')
@@ -232,7 +243,7 @@ configure_upfront() {
     summary+="\nInstallation will run without further prompts."
 
     if ! whiptail --title "Mark II Assist — Confirm" \
-        --yesno "$summary" 26 60; then
+        --yesno "$summary" $(( term_lines - 2 )) $(( term_cols - 6 )); then
         echo "Cancelled."
         exit 0
     fi
