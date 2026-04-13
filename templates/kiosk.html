@@ -5,14 +5,61 @@
   <title>Mark II</title>
   <style>
     * { margin:0; padding:0; box-sizing:border-box; }
-    html, body { width:100%; height:100%; background:transparent; overflow:hidden; font-family:system-ui,sans-serif; }
+    html, body { width:100%; height:100%; background:#050510; overflow:hidden; font-family:system-ui,sans-serif; }
 
-    /* ── LAYERS (z-order) ── */
+    /* ── HA LAYER (z-index 1 — background, touch-activated) ── */
+    #ha-layer {
+      position:absolute; inset:0; z-index:1;
+      opacity:0; pointer-events:none;
+      transition:opacity 0.4s ease;
+    }
+    #ha-layer.active {
+      opacity:1; pointer-events:all;
+    }
+    #ha-layer iframe {
+      width:100%; height:100%; border:none;
+    }
+
+    /* ── FACE TOUCH TARGET (invisible, covers screen when HA active) ── */
+    #ha-dismiss {
+      position:absolute; inset:0; z-index:9;
+      display:none; cursor:pointer;
+    }
+    #ha-layer.active ~ #ha-dismiss { display:block; }
+
+    /* ── HA PILL (tap to open HA when in passive mode) ── */
+    #ha-pill {
+      position:absolute; bottom:20px; left:20px; z-index:5;
+      background:rgba(10,10,28,0.82); border:1px solid rgba(100,130,255,0.22);
+      border-radius:40px; padding:8px 16px 8px 12px;
+      display:flex; align-items:center; gap:8px;
+      color:#8090c0; font-size:13px; cursor:pointer;
+      opacity:0.7; transition:opacity 0.3s;
+      pointer-events:all;
+    }
+    #ha-pill:hover { opacity:1; }
+    #ha-pill svg { width:16px; height:16px; fill:#6080ff; flex-shrink:0; }
+    #ha-layer.active ~ #ha-pill { display:none; }
+
+    /* ── INACTIVITY INDICATOR — slim progress bar at top when HA active ── */
+    #ha-timeout-bar {
+      position:absolute; top:0; left:0; z-index:10;
+      height:3px; background:rgba(80,100,255,0.5);
+      width:100%; transform-origin:left;
+      display:none; pointer-events:none;
+    }
+    #ha-layer.active ~ #ha-timeout-bar { display:block; }
+
+    /* ── MUSIC LAYER ── */
     #music-layer{ position:absolute; inset:0; z-index:2; pointer-events:none; opacity:0; transition:opacity 0.8s ease; }
+
+    /* ── FACE LAYER ── */
     #face-layer { position:absolute; inset:0; z-index:3; pointer-events:none; }
+
+    /* ── HUD LAYER ── */
     #hud-layer  { position:absolute; inset:0; z-index:4; pointer-events:none; }
 
-    /* ── CONTENT PANEL (for HA integration - images, weather, etc.) ── */
+    /* ── CONTENT PANEL ── */
     #content-layer {
       position:absolute; inset:0; z-index:6; pointer-events:none;
       display:flex; align-items:center; justify-content:center;
@@ -20,17 +67,12 @@
     }
     #content-layer.visible { opacity:1; pointer-events:all; }
     #content-card {
-      background:rgba(8,8,20,0.94);
-      border:1px solid rgba(100,130,255,0.2);
+      background:rgba(8,8,20,0.94); border:1px solid rgba(100,130,255,0.2);
       border-radius:16px; padding:24px 28px;
       max-width:88%; max-height:85%;
-      display:flex; flex-direction:column; gap:14px;
-      overflow:hidden;
+      display:flex; flex-direction:column; gap:14px; overflow:hidden;
     }
-    #content-image {
-      width:100%; max-height:280px;
-      object-fit:contain; border-radius:10px; display:none;
-    }
+    #content-image { width:100%; max-height:280px; object-fit:contain; border-radius:10px; display:none; }
     #content-image.visible { display:block; }
     #content-title  { font-size:19px; font-weight:600; color:#e0e8ff; line-height:1.3; display:none; }
     #content-title.visible  { display:block; }
@@ -43,62 +85,33 @@
       cursor:pointer; pointer-events:all;
     }
 
-    /* ── MUSIC LAYER ── */
-    #coverart-bg {
-      position:absolute; inset:0;
-      background-size:cover; background-position:center;
-      transition:opacity 0.8s ease;
-    }
+    /* ── MUSIC LAYER elements ── */
+    #coverart-bg { position:absolute; inset:0; background-size:cover; background-position:center; }
     #coverart-blur {
-      position:absolute; inset:0;
-      background-size:cover; background-position:center;
-      filter:blur(40px) brightness(0.4);
-      transform:scale(1.1);
+      position:absolute; inset:0; background-size:cover; background-position:center;
+      filter:blur(40px) brightness(0.4); transform:scale(1.1);
     }
-    #coverart-img {
-      position:absolute; inset:0;
-      background-size:contain; background-position:center; background-repeat:no-repeat;
-    }
-    #music-gradient {
-      position:absolute; bottom:0; left:0; right:0; height:45%;
-      background:linear-gradient(transparent, rgba(0,0,0,0.92));
-    }
-    #track-info {
-      position:absolute; bottom:28px; left:32px; right:220px;
-    }
+    #coverart-img { position:absolute; inset:0; background-size:contain; background-position:center; background-repeat:no-repeat; }
+    #music-gradient { position:absolute; bottom:0; left:0; right:0; height:45%; background:linear-gradient(transparent, rgba(0,0,0,0.92)); }
+    #track-info { position:absolute; bottom:28px; left:32px; right:220px; }
     #track-title  { font-size:22px; font-weight:600; color:#fff; margin-bottom:6px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
     #track-artist { font-size:15px; color:rgba(255,255,255,0.65); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    #viz { position:absolute; bottom:0; left:0; right:0; height:60px; display:flex; align-items:flex-end; gap:2px; padding:0 4px; opacity:0.35; }
+    .viz-bar { flex:1; background:rgba(180,200,255,0.8); border-radius:2px 2px 0 0; height:4px; transition:height 0.08s ease; }
 
-    /* Music visualizer bars (bottom of screen) */
-    #viz {
-      position:absolute; bottom:0; left:0; right:0; height:60px;
-      display:flex; align-items:flex-end; gap:2px; padding:0 4px;
-      opacity:0.35;
-    }
-    .viz-bar {
-      flex:1; background:rgba(180,200,255,0.8); border-radius:2px 2px 0 0;
-      height:4px; transition:height 0.08s ease;
-    }
-
-    /* ── FACE LAYER ── */
+    /* ── FACE LAYER elements ── */
     #face-wrap {
-      position:absolute;
-      bottom:20px; right:20px;
-      width:160px; height:160px;
-      transform-origin:bottom right;
+      position:absolute; bottom:20px; right:20px;
+      width:160px; height:160px; transform-origin:bottom right;
       opacity:0;
-      transition: width   0.55s cubic-bezier(0.34,1.4,0.64,1),
-                  height  0.55s cubic-bezier(0.34,1.4,0.64,1),
-                  bottom  0.55s cubic-bezier(0.34,1.4,0.64,1),
-                  right   0.55s cubic-bezier(0.34,1.4,0.64,1),
-                  opacity 0.4s ease,
-                  background 0.4s ease,
-                  border-radius 0.4s ease;
-      border-radius: 12px;
+      transition: width 0.55s cubic-bezier(0.34,1.4,0.64,1),
+                  height 0.55s cubic-bezier(0.34,1.4,0.64,1),
+                  bottom 0.55s cubic-bezier(0.34,1.4,0.64,1),
+                  right  0.55s cubic-bezier(0.34,1.4,0.64,1),
+                  opacity 0.4s ease, background 0.4s ease, border-radius 0.4s ease;
+      border-radius:12px;
     }
     #face-svg { width:100%; height:100%; }
-
-    /* Face SVG elements */
     .eye-w  { fill:#e8e8f0; transition:all 0.15s; }
     .eye-p  { fill:#0d0d1a; transition:all 0.15s; }
     .eyelid { fill:#000; transition:height 0.35s ease; }
@@ -108,30 +121,48 @@
     #f-wmark{ fill:#6080ff; opacity:0; transition:opacity 0.2s; font-size:10%; font-weight:bold; text-anchor:middle; dominant-baseline:central; }
     .f-brow { stroke:#e8e8f0; stroke-width:3; stroke-linecap:round; fill:none; opacity:0; transition:opacity 0.3s; }
 
-    /* ── HUD LAYER ── */
+    /* ── HUD LAYER elements ── */
     #vol-bar {
       position:absolute; bottom:24px; left:50%; transform:translateX(-50%);
       background:rgba(10,10,25,0.88); border:1px solid rgba(100,130,255,0.25);
       border-radius:40px; padding:10px 22px;
       display:flex; align-items:center; gap:12px; min-width:230px;
-      opacity:0; transition:opacity 0.35s;
+      opacity:0; transition:opacity 0.35s; pointer-events:none;
     }
     #vol-bar.visible { opacity:1; }
     #vol-icon { font-size:15px; color:#8090c0; }
     #vol-track { flex:1; height:4px; background:rgba(255,255,255,0.1); border-radius:2px; overflow:hidden; }
     #vol-fill  { height:100%; background:linear-gradient(90deg,#4060ff,#80a0ff); border-radius:2px; transition:width 0.2s; width:0%; }
     #vol-pct   { font-size:12px; color:#6070a0; min-width:28px; text-align:right; }
-
     #status-pill {
       position:absolute; top:20px; left:50%; transform:translateX(-50%);
       background:rgba(10,10,25,0.88); border:1px solid rgba(100,130,255,0.25);
       border-radius:40px; padding:7px 20px; font-size:13px; color:#a0b0ff;
-      opacity:0; transition:opacity 0.3s; white-space:nowrap;
+      opacity:0; transition:opacity 0.3s; white-space:nowrap; pointer-events:none;
     }
     #status-pill.visible { opacity:1; }
   </style>
 </head>
 <body>
+
+<!-- HA iframe layer (z:1) — loaded in background, shown on touch -->
+<div id="ha-layer">
+  <iframe id="ha-iframe" src="%%HA_URL%%"></iframe>
+</div>
+
+<!-- Tap-to-dismiss overlay (shown when HA is active) -->
+<div id="ha-dismiss" onclick="dismissHA()"></div>
+
+<!-- Tap-to-open HA pill (shown in passive mode) -->
+<div id="ha-pill" onclick="showHA()">
+  <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+    <path d="M12 2.1L1 12h3v9h6v-5h4v5h6v-9h3L12 2.1z"/>
+  </svg>
+  Home Assistant
+</div>
+
+<!-- Inactivity timeout bar -->
+<div id="ha-timeout-bar"></div>
 
 <div id="music-layer">
   <div id="coverart-blur"></div>
@@ -179,7 +210,6 @@
   </div>
 </div>
 
-<!-- Content panel: receives display commands from HA integration -->
 <div id="content-layer">
   <div id="content-card">
     <img id="content-image" src="" alt="">
@@ -191,7 +221,13 @@
 
 <script>
 // ── Config ──
-const HA_URL   = '%%HA_URL%%';
+const HA_URL = '%%HA_URL%%';
+const HA_TIMEOUT_MS = 60000; // return to passive after 60s inactivity
+
+// ── DOM refs ──
+const haLayer    = document.getElementById('ha-layer');
+const haIframe   = document.getElementById('ha-iframe');
+const haBar      = document.getElementById('ha-timeout-bar');
 const musicLayer = document.getElementById('music-layer');
 const faceWrap   = document.getElementById('face-wrap');
 const coverBlur  = document.getElementById('coverart-blur');
@@ -200,32 +236,71 @@ const trackTitle = document.getElementById('track-title');
 const trackArtist= document.getElementById('track-artist');
 const vizEl      = document.getElementById('viz');
 const f = {
-  lidL:  document.getElementById('f-lidL'),
-  lidR:  document.getElementById('f-lidR'),
-  puL:   document.getElementById('f-puL'),
-  puR:   document.getElementById('f-puR'),
-  browL: document.getElementById('f-browL'),
-  browR: document.getElementById('f-browR'),
-  blL:   document.getElementById('f-blL'),
-  blR:   document.getElementById('f-blR'),
-  mouth: document.getElementById('f-mouth'),
-  d1:    document.getElementById('f-d1'),
-  d2:    document.getElementById('f-d2'),
-  d3:    document.getElementById('f-d3'),
-  wmark: document.getElementById('f-wmark'),
+  lidL: document.getElementById('f-lidL'), lidR: document.getElementById('f-lidR'),
+  puL:  document.getElementById('f-puL'),  puR:  document.getElementById('f-puR'),
+  browL:document.getElementById('f-browL'),browR:document.getElementById('f-browR'),
+  blL:  document.getElementById('f-blL'),  blR:  document.getElementById('f-blR'),
+  mouth:document.getElementById('f-mouth'),
+  d1:   document.getElementById('f-d1'),   d2:   document.getElementById('f-d2'),
+  d3:   document.getElementById('f-d3'),   wmark:document.getElementById('f-wmark'),
 };
-const volBar   = document.getElementById('vol-bar');
-const volFill  = document.getElementById('vol-fill');
-const volPct   = document.getElementById('vol-pct');
-const volIcon  = document.getElementById('vol-icon');
-const pill     = document.getElementById('status-pill');
+const volBar  = document.getElementById('vol-bar');
+const volFill = document.getElementById('vol-fill');
+const volPct  = document.getElementById('vol-pct');
+const volIcon = document.getElementById('vol-icon');
+const pill    = document.getElementById('status-pill');
 
 // ── App state ──
-const STATE = { idle:'idle', wake:'wake', listen:'listen', think:'think', speak:'speak', error:'error' };
 let wyomingState = 'idle';
 let musicPlaying = false;
-let musicAmplitude = 0;   // 0-1 from audio analyser
-let musicBass = 0;        // 0-1 bass energy for eye reactions
+let musicAmplitude = 0;
+let musicBass = 0;
+let haActive = false;
+let haTimeoutId = null;
+let haTimeoutStart = 0;
+let haTimeoutAnimId = null;
+
+// ── HA show / dismiss ──
+function showHA() {
+  haActive = true;
+  haLayer.classList.add('active');
+  // Voice takes priority — if voice is active, don't really show HA
+  if (wyomingState !== 'idle') return;
+  startHATimeout();
+}
+
+function dismissHA() {
+  haActive = false;
+  haLayer.classList.remove('active');
+  stopHATimeout();
+}
+
+function startHATimeout() {
+  stopHATimeout();
+  haTimeoutStart = Date.now();
+  haBar.style.transition = 'none';
+  haBar.style.transform = 'scaleX(1)';
+  // Animate bar shrinking over HA_TIMEOUT_MS
+  requestAnimationFrame(() => {
+    haBar.style.transition = `transform ${HA_TIMEOUT_MS}ms linear`;
+    haBar.style.transform = 'scaleX(0)';
+  });
+  haTimeoutId = setTimeout(() => dismissHA(), HA_TIMEOUT_MS);
+}
+
+function stopHATimeout() {
+  clearTimeout(haTimeoutId);
+  haTimeoutId = null;
+  haBar.style.transition = 'none';
+  haBar.style.transform = 'scaleX(0)';
+}
+
+function resetHATimeout() {
+  if (haActive) startHATimeout();
+}
+
+// Reset timeout on any touch/click inside HA iframe area
+haLayer.addEventListener('pointerdown', resetHATimeout);
 
 // ── Face definitions ──
 const FACE_DEF = {
@@ -237,35 +312,25 @@ const FACE_DEF = {
   error:  { lid:9,  pry:11, m:'M 78 150 Q 100 140 122 150', bl:0, brow:1, wake:0 },
 };
 const SPEAK_M = [
-  'M 76 140 Q 100 158 124 140',
-  'M 78 141 Q 100 150 122 141',
-  'M 76 140 Q 100 162 124 140',
-  'M 79 141 Q 100 152 121 141',
+  'M 76 140 Q 100 158 124 140', 'M 78 141 Q 100 150 122 141',
+  'M 76 140 Q 100 162 124 140', 'M 79 141 Q 100 152 121 141',
 ];
 
 function applyFaceDef(s) {
   const d = FACE_DEF[s] || FACE_DEF.idle;
-  f.lidL.setAttribute('height', d.lid);
-  f.lidR.setAttribute('height', d.lid);
-  f.puL.setAttribute('ry', d.pry);
-  f.puR.setAttribute('ry', d.pry);
+  f.lidL.setAttribute('height', d.lid); f.lidR.setAttribute('height', d.lid);
+  f.puL.setAttribute('ry', d.pry);      f.puR.setAttribute('ry', d.pry);
   f.mouth.setAttribute('d', d.m);
-  f.blL.style.opacity = d.bl;
-  f.blR.style.opacity = d.bl;
-  f.browL.style.opacity = d.brow;
-  f.browR.style.opacity = d.brow;
+  f.blL.style.opacity = d.bl; f.blR.style.opacity = d.bl;
+  f.browL.style.opacity = d.brow; f.browR.style.opacity = d.brow;
   f.wmark.style.opacity = d.wake;
 }
 
-// ── Screen layout states ──
-// 'ha'      = HA full screen, face hidden
-// 'wyoming' = face full screen, HA faded
-// 'music'   = coverart full screen, face small in corner
-// 'both'    = coverart behind, face full (wyoming during music)
-
+// ── Layout logic ──
+// Voice is ALWAYS priority — dismisses HA when active
 function applyLayout(layout) {
   switch(layout) {
-    case 'ha':
+    case 'passive':   // No voice, no music, HA possibly showing
       musicLayer.style.opacity = '0';
       faceWrap.style.width     = '160px';
       faceWrap.style.height    = '160px';
@@ -275,8 +340,8 @@ function applyLayout(layout) {
       faceWrap.style.background     = 'transparent';
       faceWrap.style.borderRadius   = '12px';
       break;
-
-    case 'wyoming':
+    case 'wyoming':   // Voice active — face fullscreen, HA hidden
+      if (haActive) dismissHA();
       musicLayer.style.opacity = '0';
       faceWrap.style.width     = '100%';
       faceWrap.style.height    = '100%';
@@ -286,8 +351,7 @@ function applyLayout(layout) {
       faceWrap.style.background     = 'rgba(5,5,15,0.92)';
       faceWrap.style.borderRadius   = '0';
       break;
-
-    case 'music':
+    case 'music':     // Music, no voice — coverart with small face
       musicLayer.style.opacity = '1';
       faceWrap.style.width     = '180px';
       faceWrap.style.height    = '180px';
@@ -297,8 +361,8 @@ function applyLayout(layout) {
       faceWrap.style.background     = 'transparent';
       faceWrap.style.borderRadius   = '12px';
       break;
-
-    case 'both':
+    case 'both':      // Music + voice — dim coverart, face fullscreen
+      if (haActive) dismissHA();
       musicLayer.style.opacity = '0.3';
       faceWrap.style.width     = '100%';
       faceWrap.style.height    = '100%';
@@ -312,14 +376,14 @@ function applyLayout(layout) {
 }
 
 function updateLayout() {
-  const active = wyomingState !== 'idle';
-  if (active && musicPlaying) { applyLayout('both');    return; }
-  if (active)                  { applyLayout('wyoming'); return; }
-  if (musicPlaying)            { applyLayout('music');   return; }
-  applyLayout('ha');
+  const voiceActive = wyomingState !== 'idle';
+  if (voiceActive && musicPlaying) { applyLayout('both');    return; }
+  if (voiceActive)                  { applyLayout('wyoming'); return; }
+  if (musicPlaying)                 { applyLayout('music');   return; }
+  applyLayout('passive');
 }
 
-// ── Wyoming face state ──
+// ── Wyoming state ──
 let faceHideTimer, blinkTimer;
 let wanderAngle=0, dotStep=0, speakStep=0;
 let thinkAcc=0, speakAcc=0, wanderAcc=0, lastTs=0;
@@ -328,13 +392,11 @@ function setWyomingState(s) {
   wyomingState = s;
   clearTimeout(faceHideTimer);
   applyFaceDef(s);
-
   if (s !== 'listen') {
     f.puL.setAttribute('cx', 65);  f.puR.setAttribute('cx', 135);
     f.puL.setAttribute('cy', 98);  f.puR.setAttribute('cy', 98);
   }
   if (s === 'wake') setTimeout(() => { f.wmark.style.opacity='0'; }, 700);
-
   if (s === 'idle') {
     faceHideTimer = setTimeout(() => updateLayout(), 5000);
   }
@@ -356,151 +418,20 @@ function scheduleBlink() {
   }, 2000 + Math.random()*3500);
 }
 
-// ── Music audio analysis ──
-let audioCtx, analyser, source, vizBars=[];
-const VIZ_BARS = 48;
+// ── Music ──
+let lastTrack = '';
+let simPhase = 0;
 
 function setupViz() {
   vizEl.innerHTML = '';
-  vizBars = [];
-  for (let i=0; i<VIZ_BARS; i++) {
+  const frag = document.createDocumentFragment();
+  for (let i=0; i<48; i++) {
     const b = document.createElement('div');
-    b.className = 'viz-bar';
-    vizEl.appendChild(b);
-    vizBars.push(b);
+    b.className = 'viz-bar'; frag.appendChild(b);
   }
+  vizEl.appendChild(frag);
 }
 
-async function connectAudioStream(streamUrl) {
-  try {
-    if (audioCtx) { audioCtx.close(); }
-    audioCtx = new AudioContext();
-    analyser = audioCtx.createAnalyser();
-    analyser.fftSize = 256;
-    analyser.smoothingTimeConstant = 0.75;
-
-    const resp = await fetch(streamUrl);
-    const mediaSource = audioCtx.createMediaStreamSource(
-      await resp.body.getReader().read().then(() => new MediaStream())
-    );
-  } catch(e) {
-    // Stream connect failed - use simulated data
-    simulateAudio();
-  }
-}
-
-// Simulate audio energy when real stream unavailable
-let simPhase = 0;
-function simulateAudio() {
-  setInterval(() => {
-    simPhase += 0.08;
-    musicAmplitude = 0.3 + Math.sin(simPhase) * 0.2 + Math.random() * 0.15;
-    musicBass      = 0.2 + Math.abs(Math.sin(simPhase * 0.5)) * 0.4;
-  }, 80);
-}
-
-function updateViz() {
-  if (!musicPlaying) return;
-  // Update visualizer bars with music amplitude
-  for (let i=0; i<vizBars.length; i++) {
-    const freq = i / vizBars.length;
-    const wave = Math.sin(simPhase * 2 + freq * Math.PI * 3) * 0.5 + 0.5;
-    const h = Math.max(4, wave * musicAmplitude * 52);
-    vizBars[i].style.height = h + 'px';
-  }
-}
-
-// ── Face music reactions ──
-function applyMusicToFace() {
-  if (!musicPlaying || wyomingState !== 'idle') return;
-
-  // Mouth opens with amplitude
-  const openAmount = musicAmplitude * 22;
-  const cy = 145 + openAmount * 0.3;
-  f.mouth.setAttribute('d',
-    `M 78 140 Q 100 ${140 + openAmount} 122 140`
-  );
-
-  // Pupils enlarge/contract with bass
-  const pr = 11 + musicBass * 6;
-  f.puL.setAttribute('ry', pr); f.puR.setAttribute('ry', pr);
-
-  // Blink on strong bass hits
-  if (musicBass > 0.85 && Math.random() < 0.08) blink();
-
-  // Subtle blush when music is loud
-  const bl = Math.max(0, musicAmplitude - 0.5) * 0.6;
-  f.blL.style.opacity = bl; f.blR.style.opacity = bl;
-}
-
-// ── Animation loop ──
-function loop(ts) {
-  const dt = ts - lastTs; lastTs = ts;
-
-  if (wyomingState === 'think') {
-    thinkAcc += dt;
-    if (thinkAcc > 380) {
-      [f.d1,f.d2,f.d3].forEach((d,i) => d.style.opacity = i===dotStep ? '1':'0.15');
-      dotStep = (dotStep+1)%3; thinkAcc = 0;
-    }
-  } else {
-    f.d1.style.opacity = f.d2.style.opacity = f.d3.style.opacity = '0';
-    thinkAcc = 0;
-  }
-
-  if (wyomingState === 'speak') {
-    speakAcc += dt;
-    if (speakAcc > 160) {
-      f.mouth.setAttribute('d', SPEAK_M[speakStep % SPEAK_M.length]);
-      speakStep++; speakAcc = 0;
-    }
-  }
-
-  if (wyomingState === 'listen') {
-    wanderAcc += dt;
-    if (wanderAcc > 30) {
-      wanderAngle += 0.04;
-      const dx = Math.sin(wanderAngle)*3.5, dy = Math.cos(wanderAngle*0.7)*2;
-      f.puL.setAttribute('cx', 65+dx); f.puR.setAttribute('cx', 135+dx);
-      f.puL.setAttribute('cy', 98+dy); f.puR.setAttribute('cy', 98+dy);
-      wanderAcc = 0;
-    }
-  }
-
-  if (musicPlaying && wyomingState === 'idle') {
-    simPhase += 0.025;
-    musicAmplitude = 0.25 + Math.sin(simPhase*2.1)*0.2 + Math.sin(simPhase*3.7)*0.1 + Math.random()*0.08;
-    musicBass      = Math.max(0, Math.sin(simPhase*1.3)*0.6 + 0.2);
-    applyMusicToFace();
-    updateViz();
-  }
-
-  requestAnimationFrame(loop);
-}
-
-// ── Volume ──
-let volHideTimer;
-function showVolume(pct) {
-  const v = Math.max(0, Math.min(100, pct));
-  volFill.style.width = v+'%';
-  volPct.textContent  = v+'%';
-  volIcon.textContent = v===0 ? '🔇' : v<40 ? '🔉' : '🔊';
-  volBar.classList.add('visible');
-  clearTimeout(volHideTimer);
-  volHideTimer = setTimeout(() => volBar.classList.remove('visible'), 3000);
-}
-
-// ── Status pill ──
-let pillHideTimer;
-function showStatus(text, ms=4000) {
-  pill.textContent = text;
-  pill.classList.add('visible');
-  clearTimeout(pillHideTimer);
-  if (ms>0) pillHideTimer = setTimeout(() => pill.classList.remove('visible'), ms);
-}
-
-// ── Music state ──
-let lastTrack = '';
 function setMusicState(d) {
   if (d.state === 'play') {
     const track = (d.title||'')+(d.artist||'');
@@ -508,131 +439,132 @@ function setMusicState(d) {
       lastTrack = track;
       trackTitle.textContent  = d.title  || 'Unknown track';
       trackArtist.textContent = d.artist || d.album || '';
-      if (d.coverart) {
-        coverBlur.style.backgroundImage = `url(${d.coverart})`;
-        coverImg.style.backgroundImage  = `url(${d.coverart})`;
-      } else {
-        coverBlur.style.backgroundImage = 'none';
-        coverImg.style.backgroundImage  = 'none';
-      }
+      coverBlur.style.backgroundImage = d.coverart ? `url(${d.coverart})` : 'none';
+      coverImg.style.backgroundImage  = d.coverart ? `url(${d.coverart})` : 'none';
     }
-    if (!musicPlaying) {
-      musicPlaying = true;
-      setupViz();
-      updateLayout();
-      // Show face in music-mode
-      if (wyomingState === 'idle') {
-        faceWrap.className = 'visible music-mode';
-        applyFaceDef('idle');
-      }
-    }
+    if (!musicPlaying) { musicPlaying = true; setupViz(); updateLayout(); }
   } else {
     if (musicPlaying) {
-      musicPlaying = false;
-      lastTrack = '';
-      musicAmplitude = 0; musicBass = 0;
-      applyFaceDef(wyomingState);
-      updateLayout();
+      musicPlaying = false; lastTrack = ''; musicAmplitude = 0; musicBass = 0;
+      applyFaceDef(wyomingState); updateLayout();
     }
   }
 }
+
+// ── Animation loop ──
+function loop(ts) {
+  const dt = Math.min(ts - lastTs, 100); lastTs = ts;
+
+  if (wyomingState === 'think') {
+    thinkAcc += dt;
+    if (thinkAcc > 380) {
+      [f.d1,f.d2,f.d3].forEach((d,i) => d.style.opacity = i===dotStep ? '1':'0.15');
+      dotStep = (dotStep+1)%3; thinkAcc = 0;
+    }
+  } else { f.d1.style.opacity=f.d2.style.opacity=f.d3.style.opacity='0'; thinkAcc=0; }
+
+  if (wyomingState === 'speak') {
+    speakAcc += dt;
+    if (speakAcc > 160) { f.mouth.setAttribute('d', SPEAK_M[speakStep%SPEAK_M.length]); speakStep++; speakAcc=0; }
+  }
+
+  if (wyomingState === 'listen') {
+    wanderAcc += dt;
+    if (wanderAcc > 30) {
+      wanderAngle += 0.04;
+      const dx=Math.sin(wanderAngle)*3.5, dy=Math.cos(wanderAngle*0.7)*2;
+      f.puL.setAttribute('cx',65+dx); f.puR.setAttribute('cx',135+dx);
+      f.puL.setAttribute('cy',98+dy); f.puR.setAttribute('cy',98+dy);
+      wanderAcc=0;
+    }
+  }
+
+  if (musicPlaying && wyomingState==='idle') {
+    simPhase += 0.025;
+    musicAmplitude = 0.25+Math.sin(simPhase*2.1)*0.2+Math.sin(simPhase*3.7)*0.1+Math.random()*0.08;
+    musicBass = Math.max(0, Math.sin(simPhase*1.3)*0.6+0.2);
+    // Mouth reacts to amplitude
+    f.mouth.setAttribute('d', `M 78 140 Q 100 ${140+musicAmplitude*22} 122 140`);
+    const pr = 11+musicBass*6;
+    f.puL.setAttribute('ry',pr); f.puR.setAttribute('ry',pr);
+    if (musicBass>0.85 && Math.random()<0.08) blink();
+    f.blL.style.opacity=f.blR.style.opacity=Math.max(0,musicAmplitude-0.5)*0.6;
+    // Update viz bars
+    const bars = vizEl.children;
+    for (let i=0; i<bars.length; i++) {
+      const wave = Math.sin(simPhase*2 + i/bars.length*Math.PI*3)*0.5+0.5;
+      bars[i].style.height = Math.max(4, wave*musicAmplitude*52)+'px';
+    }
+  }
+  requestAnimationFrame(loop);
+}
+
+// ── Volume ──
+let volHideTimer;
+function showVolume(pct) {
+  const v = Math.max(0,Math.min(100,pct));
+  volFill.style.width=v+'%'; volPct.textContent=v+'%';
+  volIcon.textContent = v===0?'🔇':v<40?'🔉':'🔊';
+  volBar.classList.add('visible');
+  clearTimeout(volHideTimer);
+  volHideTimer = setTimeout(()=>volBar.classList.remove('visible'), 3000);
+}
+
+// ── Status pill ──
+let pillHideTimer;
+function showStatus(text, ms=4000) {
+  pill.textContent=text; pill.classList.add('visible');
+  clearTimeout(pillHideTimer);
+  if (ms>0) pillHideTimer=setTimeout(()=>pill.classList.remove('visible'), ms);
+}
+
+// ── Content panel ──
+const contentLayer = document.getElementById('content-layer');
+const contentImage = document.getElementById('content-image');
+const contentTitle = document.getElementById('content-title');
+const contentText  = document.getElementById('content-text');
+let contentHideTimer, lastContentEvt='';
+
+function showContent(d) {
+  contentImage.classList.remove('visible'); contentTitle.classList.remove('visible'); contentText.classList.remove('visible');
+  if (d.image_url||d.image_data) { contentImage.src=d.image_data||d.image_url; contentImage.classList.add('visible'); }
+  if (d.title) { contentTitle.textContent=d.title; contentTitle.classList.add('visible'); }
+  if (d.text)  { contentText.textContent=d.text;   contentText.classList.add('visible'); }
+  contentLayer.classList.add('visible');
+  clearTimeout(contentHideTimer);
+  const dur=((d.duration!==undefined?d.duration:15))*1000;
+  if (dur>0) contentHideTimer=setTimeout(dismissContent, dur);
+}
+function dismissContent() { clearTimeout(contentHideTimer); contentLayer.classList.remove('visible'); }
+window.mark2ShowContent=showContent; window.mark2DismissContent=dismissContent;
 
 // ── Event polling ──
 let lastFaceEvt='', lastVolEvt='', lastMpdEvt='';
+
 async function poll() {
-  // Wyoming / face events
   try {
-    const r = await fetch('file:///tmp/mark2-face-event.json?'+Date.now());
-    const t = await r.text();
-    if (t !== lastFaceEvt) {
-      lastFaceEvt = t;
-      const d = JSON.parse(t);
-      if (d.state) setWyomingState(d.state);
-      if (d.status) showStatus(d.status);
-    }
-  } catch(e) {}
-
-  // Volume events
+    const r=await fetch('http://localhost:8088/face-event.json?'+Date.now());
+    const t=await r.text();
+    if (t!==lastFaceEvt) { lastFaceEvt=t; const d=JSON.parse(t); if(d.state) setWyomingState(d.state); if(d.status) showStatus(d.status); }
+  } catch(e){}
   try {
-    const r = await fetch('file:///tmp/mark2-overlay-event.json?'+Date.now());
-    const t = await r.text();
-    if (t !== lastVolEvt) {
-      lastVolEvt = t;
-      const d = JSON.parse(t);
-      if (d.type==='volume') showVolume(parseInt(d.value));
-      if (d.type==='status') showStatus(d.value);
-    }
-  } catch(e) {}
-
-  // MPD state
+    const r=await fetch('http://localhost:8088/overlay-event.json?'+Date.now());
+    const t=await r.text();
+    if (t!==lastVolEvt) { lastVolEvt=t; const d=JSON.parse(t); if(d.type==='volume') showVolume(parseInt(d.value)); if(d.type==='status') showStatus(d.value); }
+  } catch(e){}
   try {
-    const r = await fetch('file:///tmp/mark2-mpd-state.json?'+Date.now());
-    const t = await r.text();
-    if (t !== lastMpdEvt) {
-      lastMpdEvt = t;
-      setMusicState(JSON.parse(t));
-    }
-  } catch(e) {}
+    const r=await fetch('http://localhost:8088/mpd-state.json?'+Date.now());
+    const t=await r.text();
+    if (t!==lastMpdEvt) { lastMpdEvt=t; setMusicState(JSON.parse(t)); }
+  } catch(e){}
 }
 
-// ── Content display (for HA integration) ──
-const contentLayer   = document.getElementById('content-layer');
-const contentImage   = document.getElementById('content-image');
-const contentTitle   = document.getElementById('content-title');
-const contentText    = document.getElementById('content-text');
-let contentHideTimer;
-let lastContentEvt = '';
-
-function showContent(d) {
-  // d = { type, title, text, image_url, image_data, duration }
-  contentImage.classList.remove('visible');
-  contentTitle.classList.remove('visible');
-  contentText.classList.remove('visible');
-
-  if (d.image_url || d.image_data) {
-    contentImage.src = d.image_data || d.image_url;
-    contentImage.classList.add('visible');
-  }
-  if (d.title) {
-    contentTitle.textContent = d.title;
-    contentTitle.classList.add('visible');
-  }
-  if (d.text) {
-    contentText.textContent = d.text;
-    contentText.classList.add('visible');
-  }
-
-  contentLayer.classList.add('visible');
-  clearTimeout(contentHideTimer);
-
-  // Auto-dismiss after duration (default 15s, 0 = manual only)
-  const dur = (d.duration !== undefined ? d.duration : 15) * 1000;
-  if (dur > 0) {
-    contentHideTimer = setTimeout(dismissContent, dur);
-  }
-}
-
-function dismissContent() {
-  clearTimeout(contentHideTimer);
-  contentLayer.classList.remove('visible');
-}
-
-// Expose globally so HA integration can call via URL hash or postMessage
-window.mark2ShowContent  = showContent;
-window.mark2DismissContent = dismissContent;
-
-// Poll /tmp/mark2-content.json written by HA integration or mark2-content command
 async function pollContent() {
   try {
-    const r = await fetch('file:///tmp/mark2-content.json?' + Date.now());
-    const t = await r.text();
-    if (t !== lastContentEvt) {
-      lastContentEvt = t;
-      const d = JSON.parse(t);
-      if (d.action === 'show')    showContent(d);
-      if (d.action === 'dismiss') dismissContent();
-    }
-  } catch(e) {}
+    const r=await fetch('http://localhost:8088/content.json?'+Date.now());
+    const t=await r.text();
+    if (t!==lastContentEvt) { lastContentEvt=t; const d=JSON.parse(t); if(d.action==='show') showContent(d); if(d.action==='dismiss') dismissContent(); }
+  } catch(e){}
 }
 
 // ── Init ──
