@@ -19,6 +19,7 @@ exec chromium \
     --enable-transparent-visuals \
     --user-data-dir="${HOME}/.config/chromium-hud" \
     --allow-file-access-from-files \
+    --remote-debugging-port=9223 \
     --password-store=basic \
     --no-first-run --disable-infobars \
     --disable-background-timer-throttling \
