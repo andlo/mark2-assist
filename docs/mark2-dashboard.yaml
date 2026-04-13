@@ -21,6 +21,12 @@
 # =============================================================================
 
 title: Mark II
+kiosk:
+  user_settings:
+    - users:
+        - mark2
+      hide_header: true
+      hide_sidebar: true
 views:
   - title: Home
     path: mark2
