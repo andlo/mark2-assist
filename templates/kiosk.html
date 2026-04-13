@@ -20,12 +20,17 @@
       width:100%; height:100%; border:none;
     }
 
-    /* ── FACE TOUCH TARGET (invisible, covers screen when HA active) ── */
-    #ha-dismiss {
-      position:absolute; inset:0; z-index:9;
-      display:none; cursor:pointer;
+    /* ── HA CLOSE BUTTON (top-right corner when HA active) ── */
+    #ha-close {
+      position:absolute; top:12px; right:12px; z-index:10;
+      width:36px; height:36px; border-radius:50%;
+      background:rgba(10,10,28,0.75); border:1px solid rgba(100,130,255,0.3);
+      color:#8090c0; font-size:18px; line-height:36px; text-align:center;
+      cursor:pointer; display:none; pointer-events:all;
+      transition:background 0.2s;
     }
-    #ha-layer.active ~ #ha-dismiss { display:block; }
+    #ha-close:hover { background:rgba(40,40,80,0.9); }
+    #ha-layer.active ~ #ha-close { display:block; }
 
     /* ── HA PILL (tap to open HA when in passive mode) ── */
     #ha-pill {
@@ -150,8 +155,8 @@
   <iframe id="ha-iframe" src="%%HA_URL%%"></iframe>
 </div>
 
-<!-- Tap-to-dismiss overlay (shown when HA is active) -->
-<div id="ha-dismiss" onclick="dismissHA()"></div>
+<!-- HA close button (shown when HA active) -->
+<div id="ha-close" onclick="dismissHA()">✕</div>
 
 <!-- Tap-to-open HA pill (shown in passive mode) -->
 <div id="ha-pill" onclick="showHA()">
