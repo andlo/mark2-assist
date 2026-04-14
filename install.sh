@@ -420,10 +420,7 @@ configure_ha_trusted_network() {
     config_save "MARK2_IP" "$MARK2_IP"
 }
 run_module "homeassistant"  "Home Assistant dashboard — show HA on touchscreen"
-run_module "leds"         "LED ring — SJ201 ring reacts to voice events"
-run_module "face"         "Animated face — zooms in on voice, dances to music"
-run_module "overlay"      "Volume overlay — on-screen volume bar"
-run_module "screensaver"  "Screensaver — fullscreen clock + weather from HA"
+run_module "ui"           "Mark II UI — display, LEDs, buttons, boot splash"
 run_module "mqtt-sensors" "MQTT sensors — publish LVA/MPD/system state to HA"
 run_module "snapcast"     "Snapcast — synchronized multiroom audio endpoint"
 run_module "airplay"      "AirPlay — Mark II as AirPlay 1 speaker"
