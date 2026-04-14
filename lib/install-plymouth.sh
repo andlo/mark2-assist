@@ -107,19 +107,24 @@ logo_image  = Image("logo.png");
 pbox_image  = Image("progress_box.png");
 pbar_image  = Image("progress_bar.png");
 
-face_x = Math.Int((Screen.GetWidth()  - face_image.GetWidth())  / 2);
-face_y = Math.Int( Screen.GetHeight() * 0.18);
+# Hardcode screen dimensions — Screen.GetWidth/Height may return 0 early
+# during DSI panel init on Raspberry Pi. Safe values for 800x480 display.
+SCREEN_W = 800;
+SCREEN_H = 480;
+
+face_x = Math.Int((SCREEN_W - face_image.GetWidth())  / 2);
+face_y = Math.Int( SCREEN_H * 0.18);
 face_sprite = Sprite(face_image);
 face_sprite.SetX(face_x);
 face_sprite.SetY(face_y);
 
-logo_x = Math.Int((Screen.GetWidth()  - logo_image.GetWidth())  / 2);
+logo_x = Math.Int((SCREEN_W - logo_image.GetWidth())  / 2);
 logo_y = face_y + face_image.GetHeight() + 20;
 logo_sprite = Sprite(logo_image);
 logo_sprite.SetX(logo_x);
 logo_sprite.SetY(logo_y);
 
-pbox_x = Math.Int((Screen.GetWidth()  - pbox_image.GetWidth())  / 2);
+pbox_x = Math.Int((SCREEN_W - pbox_image.GetWidth())  / 2);
 pbox_y = logo_y + logo_image.GetHeight() + 32;
 pbox_sprite = Sprite(pbox_image);
 pbox_sprite.SetX(pbox_x);
@@ -162,9 +167,12 @@ echo "[plymouth]  theme activated: ${THEME_NAME}"
 # ── Update cmdline.txt ────────────────────────────────────────────────────────
 if [ -f "$CMDLINE" ]; then
     LINE=$(cat "$CMDLINE")
-    LINE=$(echo "$LINE" | sed 's/ quiet//g; s/ splash//g; s/ plymouth\.ignore-serial-consoles//g')
-    echo "${LINE} quiet splash plymouth.ignore-serial-consoles" > "$CMDLINE"
-    echo "[plymouth]  cmdline.txt: quiet splash added"
+    LINE=$(echo "$LINE" | sed 's/ quiet//g; s/ splash//g; s/ plymouth\.ignore-serial-consoles//g; s/ vt\.global_cursor_default=[0-9]//g')
+    # Remove console=tty1 — sends kernel messages to screen even with quiet
+    LINE=$(echo "$LINE" | sed 's/ console=tty1//g')
+    # Add splash flags and hide blinking cursor
+    echo "${LINE} quiet splash plymouth.ignore-serial-consoles vt.global_cursor_default=0" > "$CMDLINE"
+    echo "[plymouth]  cmdline.txt: quiet splash + cursor hidden, console=tty1 removed"
 else
     echo "[plymouth]  WARNING: ${CMDLINE} not found — add 'quiet splash' manually"
 fi
