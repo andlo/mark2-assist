@@ -1,15 +1,25 @@
 #!/usr/bin/env python3
 """
-Mark II hardware button control.
-Listens on /dev/input/event0 for:
-  KEY_VOLUMEUP   — volume up 5%  (TAS5806 + ALSA + overlay)
-  KEY_VOLUMEDOWN — volume down 5% (TAS5806 + ALSA + overlay)
-  KEY_MICMUTE    — hardware mute toggle (TAS5806 + overlay)
-  KEY_VOICECOMMAND — wake LVA via HA assist_satellite.start_conversation
+lib/volume-buttons.py — Mark II hardware button control.
 
-Controls TAS5806 amplifier via I2C.
-Writes /tmp/mark2-volume.json for other services to read.
-Writes /tmp/mark2-overlay-event.json for HUD volume bar.
+Installed as: /usr/local/bin/mark2-volume-buttons
+Service:      mark2-volume-buttons.service
+
+Listens on /dev/input/event0 for hardware button events:
+  KEY_VOLUMEUP      — volume up 5% (TAS5806 + ALSA PCM + HUD overlay)
+  KEY_VOLUMEDOWN    — volume down 5% (TAS5806 + ALSA PCM + HUD overlay)
+  KEY_MICMUTE       — hardware mute toggle (TAS5806 + HUD overlay)
+  KEY_VOICECOMMAND  — action button:
+                        idle    → wake LVA via HA assist_satellite.start_conversation
+                        busy    → stop current speech/music via media_player.stop
+
+Controls TAS5806 amplifier via I2C (smbus2).
+Writes /tmp/mark2-volume.json    — shared hardware state (volume %, muted, ts)
+Writes /tmp/mark2-overlay-event.json — HUD volume bar events
+
+Reads HA_URL + HA_TOKEN from ~/.config/mark2/config at startup.
+Derives satellite entity from hostname:
+  assist_satellite.<hostname>_lva_assist_satellite
 """
 import os, json, time, subprocess, signal, sys, threading
 import evdev, smbus2

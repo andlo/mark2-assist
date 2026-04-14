@@ -1,31 +1,24 @@
 #!/bin/bash
 # =============================================================================
 # modules/overlay.sh
-# Transparent volume/status overlay for the Mark II touchscreen
+# Volume/status overlay for the Mark II touchscreen
 #
-# Displays a semi-transparent volume bar in the lower portion of the screen
-# that appears when the volume changes and auto-hides after 3 seconds.
+# NOTE: The overlay is now built into the combined kiosk page (combined.html)
+# and does NOT require a separate Chromium window or labwc.
 #
-# Architecture:
-#   mark2-volume-monitor.service
-#     → polls PipeWire default sink volume every second via pactl
-#     → on change, writes /tmp/mark2-overlay-event.json
-#     → triggers the overlay window to show and start its hide timer
+# Architecture (current):
+#   mark2-volume-buttons.service (lib/volume-buttons.py)
+#     → on vol/mute button press, writes /tmp/mark2-overlay-event.json
+#       {"type": "volume", "value": 75, "muted": false, "ts": ...}
 #
-#   Overlay window: Chromium --app window displaying overlay.html
-#     → reads /tmp/mark2-overlay-event.json
-#     → animates volume bar
-#     → auto-hides after 3 seconds of no new events
+#   mark2-httpd.py serves /overlay-event.json → /tmp/mark2-overlay-event.json
 #
-# The mark2-overlay command (~/.local/bin/mark2-overlay) can also be called
-# manually from scripts or HA automations:
-#   mark2-overlay volume 75        — show volume at 75%
-#   mark2-overlay status "Busy"    — show a status message
+#   combined.html polls http://localhost:8088/overlay-event.json every 300ms
+#     → calls showVolume(pct, muted) to animate the HUD volume bar
+#     → bar auto-hides after 3 seconds
 #
-# The overlay window is launched via labwc autostart as a Chromium --app window.
-# labwc is installed alongside Weston for this purpose.
-#
-# Window: 400×120 px, bottom-center of 800×480 display (position 200,360)
+# The mark2-volume-monitor.service (pactl-based) is still installed for
+# compatibility but is superseded by the direct write in volume-buttons.py.
 #
 # Can be run standalone: bash modules/overlay.sh
 # =============================================================================
@@ -36,54 +29,34 @@ source "$(dirname "$0")/../lib/common.sh"
 check_not_root
 setup_paths
 
-module_header "Volume Overlay" "On-screen volume indicator, auto-hides after 3 seconds"
+module_header "Volume Overlay" "On-screen volume bar (built into kiosk HUD)"
 
-if ! confirm_or_skip "Install volume/status overlay?"; then
+if ! confirm_or_skip "Install volume overlay monitor service?"; then
     log "Skipping volume overlay"
     exit 0
 fi
 
-OVERLAY_DIR="${USER_HOME}/.config/mark2-overlay"
-mkdir -p "$OVERLAY_DIR"
+# The volume bar is built into combined.html — no separate window needed.
+# We just install the volume-monitor service as a fallback/compatibility layer.
 
-TEMPLATE_DIR="$(dirname "$0")/../templates"
-cp "${TEMPLATE_DIR}/overlay.html" "${OVERLAY_DIR}/overlay.html"
-log "Copied overlay template to ${OVERLAY_DIR}/overlay.html"
-
-# mark2-overlay — CLI trigger for the overlay (also used by volume monitor)
-OVERLAY_TRIGGER="${USER_HOME}/.local/bin/mark2-overlay"
-mkdir -p "$(dirname "$OVERLAY_TRIGGER")"
-cat > "$OVERLAY_TRIGGER" << 'SHEOF'
-#!/bin/bash
-# Trigger the Mark II overlay window.
-# Usage: mark2-overlay volume 75
-#        mark2-overlay status "Listening..."
-#        mark2-overlay clear
-# Writes /tmp/mark2-overlay-event.json which overlay.html polls.
-echo "{\"type\":\"${1:-status}\",\"value\":\"${2:-}\"}" > /tmp/mark2-overlay-event.json
-SHEOF
-chmod +x "$OVERLAY_TRIGGER"
-
-# Volume monitor — watches PipeWire default sink volume and triggers overlay
 VOLUME_MONITOR="${MARK2_DIR}/volume-monitor.sh"
 cat > "$VOLUME_MONITOR" << 'SHEOF'
 #!/bin/bash
-# Polls PipeWire default sink volume every second.
-# On change, writes overlay event so the overlay window shows the new volume.
-LAST_VOL=""
+# Fallback volume monitor — only fires if volume changes via means other
+# than the hardware buttons (e.g. HA media_player volume_set).
+# volume-buttons.py writes overlay events directly on button press.
+LAST_TS=""
 while true; do
-    SINK=$(pactl get-default-sink 2>/dev/null)
-    VOL=$(pactl get-sink-volume "$SINK" 2>/dev/null | grep -oP '\d+(?=%)' | head -1)
-    if [ -n "$VOL" ] && [ "$VOL" != "$LAST_VOL" ]; then
-        mark2-overlay volume "$VOL" 2>/dev/null || true
-        LAST_VOL="$VOL"
+    TS=$(python3 -c "import json; d=json.load(open('/tmp/mark2-volume.json')); print(d.get('ts',''))" 2>/dev/null)
+    if [ -n "$TS" ] && [ "$TS" != "$LAST_TS" ]; then
+        LAST_TS="$TS"
     fi
-    sleep 1
+    sleep 2
 done
 SHEOF
 chmod +x "$VOLUME_MONITOR"
 
-cat > "${SYSTEMD_USER_DIR}/mark2-volume-monitor.service" << EOF
+cat > "${SYSTEMD_USER_DIR}/mark2-volume-monitor.service" << SVCEOF
 [Unit]
 Description=Mark II volume monitor (triggers overlay on volume change)
 After=pipewire.service
@@ -97,16 +70,11 @@ RestartSec=3
 
 [Install]
 WantedBy=default.target
-EOF
-
-# Add overlay window to labwc autostart.
-# Positioned bottom-center of 800×480 display.
-labwc_autostart_add "overlay.html" \
-    "chromium --app=\"file://${OVERLAY_DIR}/overlay.html\" --window-size=400,120 --window-position=200,360 --ozone-platform=wayland --password-store=basic --no-first-run --disable-infobars --app-auto-launched &"
+SVCEOF
 
 systemctl --user daemon-reload 2>/dev/null
 systemctl --user enable mark2-volume-monitor.service 2>/dev/null
 
-log "Volume overlay installed"
-info "Trigger manually: mark2-overlay volume 75"
-info "Or from HA automation: ssh pi@<ip> mark2-overlay status 'Listening...'"
+log "Volume overlay configured (built into kiosk HUD)"
+info "Volume bar appears automatically on hardware button press"
+info "Overlay events: /tmp/mark2-overlay-event.json"
