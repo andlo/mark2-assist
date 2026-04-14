@@ -95,5 +95,6 @@ exec chromium \
     --allow-file-access-from-files \
     --remote-debugging-port=9222 \
     --remote-allow-origins=* \
+    --background-color=#050510 \
     --user-data-dir="${HOME}/.config/chromium-kiosk" \
     "${START_URL}"
