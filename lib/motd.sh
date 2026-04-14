@@ -18,7 +18,7 @@ echo -e "${CYAN}  / /|_/ / __ \`/ ___/ //_/   / / / /     / /| | / ___/ ___/ / _
 echo -e "${CYAN} / /  / / /_/ / /  / ,<    _/ /_/ /     / ___ |(__  |__  ) (__  ) /_  ${NC}"
 echo -e "${CYAN}/_/  /_/\__,_/_/  /_/|_|  /___/___/    /_/  |_/____/____/_/____/\__/  ${NC}"
 echo ""
-echo -e "${BLUE}  Mycroft Mark II — Home Assistant Voice Satellite${NC}"
+echo -e "${BLUE}  Mycroft Mark II — Home Assistant Voice Satellite (LVA)${NC}"
 echo -e "${BLUE}  github.com/andlo/mark2-assist${NC}"
 echo ""
 

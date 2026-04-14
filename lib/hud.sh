@@ -1,4 +1,11 @@
 #!/bin/bash
+# =============================================================================
+# lib/hud.sh — launch the standalone HUD Chromium window (legacy/fallback)
+#
+# NOTE: This script is only used when the combined HA+HUD kiosk is NOT active.
+# Normally kiosk.sh launches combined.html which embeds the HUD inline.
+# This script is kept for development/debugging use only.
+# =============================================================================
 export XDG_RUNTIME_DIR=/run/user/$(id -u)
 
 # Use Wayland socket from parent (Weston session) or detect it

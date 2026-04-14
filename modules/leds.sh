@@ -77,13 +77,13 @@ RestartSec=3
 WantedBy=default.target
 EOF
 
-# Note: Wyoming --event-uri patching is no longer needed with LVA.
+# Note: LED events are driven by LVA face-event-bridge, not Wyoming.
 # LVA state is read via HA API by face-event-bridge.
 # This block kept for reference only.
 # We add --event-uri on a new line AFTER --wake-word-name line.
 # Uses Python for reliable multi-line sed replacement to avoid
 # shell escaping issues that cause double backslash (\ \) corruption.
-# Note: Wyoming --event-uri patching is no longer needed with LVA.
+# Note: LED events are driven by LVA face-event-bridge, not Wyoming.
 # LVA state is read via HA API by mark2-face-events.service.
 
 # Enable system service (mark2-leds needs root for GPIO)

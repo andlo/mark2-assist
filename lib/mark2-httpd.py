@@ -1,17 +1,25 @@
 #!/usr/bin/env python3
 """
-mark2-httpd.py — local HTTP server for the Mark II kiosk.
+lib/mark2-httpd.py — local HTTP server for the Mark II kiosk.
+
+Started by kiosk.sh. Listens on 0.0.0.0:8088 so both the local
+Chromium kiosk and Home Assistant (on the same LAN) can reach it.
 
 Serves:
-  /                     → combined.html
+  /                     → combined.html (HA iframe + HUD overlay)
   /combined.html        → ~/.config/mark2-kiosk/combined.html
   /hud.html             → ~/.config/mark2-kiosk/hud.html
-  /face-event.json      → /tmp/mark2-face-event.json
-  /overlay-event.json   → /tmp/mark2-overlay-event.json
-  /mpd-state.json       → /tmp/mark2-mpd-state.json
-  /content.json         → /tmp/mark2-content.json
+  /face-event.json      → /tmp/mark2-face-event.json  (LVA state events)
+  /overlay-event.json   → /tmp/mark2-overlay-event.json  (volume/status HUD)
+  /mpd-state.json       → /tmp/mark2-mpd-state.json  (MPD now-playing)
+  /content.json         → /tmp/mark2-content.json  (content panel data)
+  /sounds/<file>        → ~/lva/sounds/<file>  (LVA audio files for HA)
   /ha/*                 → reverse-proxy to HA, stripping X-Frame-Options
                           so the HA dashboard can load in an iframe.
+
+The /sounds/ route is used by the action button wake trigger:
+  assist_satellite.start_conversation uses wake_word_triggered.flac
+  as start_media_id so LVA plays its own chime then starts listening.
 """
 import http.server, os, urllib.request, urllib.error
 
@@ -90,6 +98,26 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 self.wfile.write(f'Proxy error: {e}'.encode())
             return
 
+        # LVA sound files via /sounds/<filename>
+        if path.startswith('/sounds/'):
+            fname = os.path.basename(path)
+            fpath = os.path.expanduser(f'~/lva/sounds/{fname}')
+            ext = fname.rsplit('.', 1)[-1].lower()
+            ctype = {'flac': 'audio/flac', 'wav': 'audio/wav',
+                     'mp3': 'audio/mpeg'}.get(ext, 'application/octet-stream')
+            try:
+                data = open(fpath, 'rb').read()
+                self.send_response(200)
+                self.send_header('Content-Type', ctype)
+                self.send_header('Content-Length', str(len(data)))
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                self.wfile.write(data)
+            except FileNotFoundError:
+                self.send_response(404)
+                self.end_headers()
+            return
+
         # HTML files from KIOSK_DIR
         if path in ('/', '/combined.html'):
             fpath = os.path.join(KIOSK_DIR, 'combined.html')
@@ -113,6 +141,6 @@ class Handler(http.server.BaseHTTPRequestHandler):
 
 
 if __name__ == '__main__':
-    server = http.server.HTTPServer(('127.0.0.1', PORT), Handler)
+    server = http.server.HTTPServer(('0.0.0.0', PORT), Handler)
     print(f'mark2-httpd listening on http://127.0.0.1:{PORT}')
     server.serve_forever()

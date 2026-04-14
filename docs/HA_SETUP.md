@@ -183,14 +183,14 @@ YAML** — not in `configuration.yaml`. Kiosk Mode is a frontend plugin, not a
 HA integration, so it has no `configuration.yaml` support.
 
 Open your Mark II dashboard → **⋮ → Edit dashboard → Raw configuration editor**
-and add a `kiosk:` block at the top level:
+and add a `kiosk_mode:` block at the **top level** of the dashboard:
 
 ```yaml
 title: Mark II
-kiosk:
+kiosk_mode:
   user_settings:
     - users:
-        - mark2
+        - mark2           # mark2 username (display name also works)
       hide_header: true
       hide_sidebar: true
 views:
@@ -201,9 +201,42 @@ This hides the HA header and sidebar for the `mark2` user only, giving the
 full 480px screen height to dashboard cards. Your admin account and other
 users still see the normal HA interface.
 
-> **Note:** Do NOT add `kiosk_mode:` to `configuration.yaml` — HA will report
-> "Integration 'kiosk_mode' not found" because Kiosk Mode is not a HA
-> integration. It is a Lovelace frontend plugin configured via dashboard YAML.
+> **⚠️ Important — use `kiosk_mode:`, not `kiosk:`**
+>
+> The HACS plugin to install is [NemesisRE/kiosk-mode](https://github.com/NemesisRE/kiosk-mode)
+> (the actively maintained fork). It uses **`kiosk_mode:`** as the YAML key.
+> The older abandoned plugin (bramkl/kiosk-mode) used `kiosk:` — using that
+> key with the NemesisRE version will silently do nothing.
+>
+> **Common mistake:** adding `kiosk_mode:` to `configuration.yaml` — HA will
+> report *"Integration 'kiosk_mode' not found"* because Kiosk Mode is not a
+> HA integration. It belongs exclusively in the dashboard YAML.
+
+### Kiosk Mode options
+
+The `user_settings` block applies settings per user. All options:
+
+```yaml
+kiosk_mode:
+  user_settings:
+    - users:
+        - mark2
+      hide_header: true       # hides the top bar (title, notifications, avatar)
+      hide_sidebar: true      # hides the left navigation sidebar
+      # hide_menubutton: true # hides the hamburger menu button
+      # kiosk: true           # shorthand: hides both header and sidebar
+```
+
+You can also apply settings globally (all users) or per admin/non-admin:
+
+```yaml
+kiosk_mode:
+  hide_header: true           # applies to everyone
+  non_admin_settings:
+    hide_sidebar: true        # only non-admin users
+  admin_settings:
+    hide_sidebar: false       # admins keep the sidebar
+```
 
 ---
 

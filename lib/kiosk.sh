@@ -1,4 +1,14 @@
 #!/bin/bash
+# =============================================================================
+# lib/kiosk.sh — main kiosk launcher for the Mark II touchscreen
+#
+# Called by ~/startup.sh which is launched by Weston (kiosk shell).
+# Builds combined.html (HA iframe + HUD overlay), starts mark2-httpd.py,
+# waits for HA to be reachable, then launches Chromium in kiosk mode.
+#
+# Audio output device: pipewire/sj201-output (via PipeWire — NOT alsa directly)
+# Remote debugging: port 9222 (allows CDP reload and inspection)
+# =============================================================================
 exec >> /tmp/mark2-kiosk.log 2>&1
 echo "[$(date)] kiosk.sh starting"
 

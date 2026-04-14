@@ -306,7 +306,11 @@ function resetHATimeout() {
 }
 
 // Reset timeout on any touch/click inside HA iframe area
-haLayer.addEventListener('pointerdown', resetHATimeout);
+// Use 'blur' on window instead — fires when user interacts with iframe
+window.addEventListener('blur', function() {
+  // Window loses focus when user clicks inside the iframe
+  resetHATimeout();
+});
 
 // ── Face definitions ──
 const FACE_DEF = {
@@ -507,10 +511,11 @@ function loop(ts) {
 
 // ── Volume ──
 let volHideTimer;
-function showVolume(pct) {
+function showVolume(pct, muted=false) {
   const v = Math.max(0,Math.min(100,pct));
-  volFill.style.width=v+'%'; volPct.textContent=v+'%';
-  volIcon.textContent = v===0?'🔇':v<40?'🔉':'🔊';
+  volFill.style.width=(muted?0:v)+'%';
+  volPct.textContent=muted?'Muted':v+'%';
+  volIcon.textContent = muted?'🔇':v===0?'🔇':v<40?'🔉':'🔊';
   volBar.classList.add('visible');
   clearTimeout(volHideTimer);
   volHideTimer = setTimeout(()=>volBar.classList.remove('visible'), 3000);
@@ -556,7 +561,7 @@ async function poll() {
   try {
     const r=await fetch('http://localhost:8088/overlay-event.json?'+Date.now());
     const t=await r.text();
-    if (t!==lastVolEvt) { lastVolEvt=t; const d=JSON.parse(t); if(d.type==='volume') showVolume(parseInt(d.value)); if(d.type==='status') showStatus(d.value); }
+    if (t!==lastVolEvt) { lastVolEvt=t; const d=JSON.parse(t); if(d.type==='volume') showVolume(parseInt(d.value), d.muted===true); if(d.type==='status') showStatus(d.value); }
   } catch(e){}
   try {
     const r=await fetch('http://localhost:8088/mpd-state.json?'+Date.now());
