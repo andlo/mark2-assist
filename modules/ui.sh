@@ -44,6 +44,13 @@ if ! confirm_or_skip "Install Mark II UI (display, LEDs, buttons)?"; then
     exit 0
 fi
 
+# ── Boot splash (Plymouth) ───────────────────────────────────────────────────
+if confirm_or_skip "Install boot splash screen (Plymouth, covers kernel boot)?"; then
+    sudo bash "${SCRIPT_DIR}/lib/install-plymouth.sh"
+else
+    log "Skipping boot splash"
+fi
+
 # ── Dependencies ──────────────────────────────────────────────────────────────
 apt_install python3-spidev python3-libgpiod python3-smbus2 i2c-tools socat
 
