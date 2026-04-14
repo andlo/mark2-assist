@@ -306,7 +306,11 @@ function resetHATimeout() {
 }
 
 // Reset timeout on any touch/click inside HA iframe area
-haLayer.addEventListener('pointerdown', resetHATimeout);
+// Use 'blur' on window instead — fires when user interacts with iframe
+window.addEventListener('blur', function() {
+  // Window loses focus when user clicks inside the iframe
+  resetHATimeout();
+});
 
 // ── Face definitions ──
 const FACE_DEF = {

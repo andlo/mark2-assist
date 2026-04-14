@@ -90,6 +90,26 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 self.wfile.write(f'Proxy error: {e}'.encode())
             return
 
+        # LVA sound files via /sounds/<filename>
+        if path.startswith('/sounds/'):
+            fname = os.path.basename(path)
+            fpath = os.path.expanduser(f'~/lva/sounds/{fname}')
+            ext = fname.rsplit('.', 1)[-1].lower()
+            ctype = {'flac': 'audio/flac', 'wav': 'audio/wav',
+                     'mp3': 'audio/mpeg'}.get(ext, 'application/octet-stream')
+            try:
+                data = open(fpath, 'rb').read()
+                self.send_response(200)
+                self.send_header('Content-Type', ctype)
+                self.send_header('Content-Length', str(len(data)))
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                self.wfile.write(data)
+            except FileNotFoundError:
+                self.send_response(404)
+                self.end_headers()
+            return
+
         # HTML files from KIOSK_DIR
         if path in ('/', '/combined.html'):
             fpath = os.path.join(KIOSK_DIR, 'combined.html')
@@ -113,6 +133,6 @@ class Handler(http.server.BaseHTTPRequestHandler):
 
 
 if __name__ == '__main__':
-    server = http.server.HTTPServer(('127.0.0.1', PORT), Handler)
+    server = http.server.HTTPServer(('0.0.0.0', PORT), Handler)
     print(f'mark2-httpd listening on http://127.0.0.1:{PORT}')
     server.serve_forever()
