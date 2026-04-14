@@ -33,9 +33,21 @@ and physical interaction model. Replaces the legacy `face.sh`, `overlay.sh`,
 - Mute → hardware mute toggle + HUD shows "Muted" + 🔇
 - Action button → wake LVA (when idle) or stop speech/music (when busy)
 
+**Boot splash** (`lib/install-plymouth.sh`):
+- Plymouth theme covers kernel boot (0–15s): Mark II face + title + progress bar
+- Chromium splash (`templates/splash.html`) covers Weston startup (15–25s):
+  animated eye-opening, progress stages, logo pills, fades to combined.html
+- Boot sequence: Plymouth → tty1 blanked → Weston → Chromium splash → combined.html
+- Re-run standalone: `sudo bash lib/install-plymouth.sh`
+
 ### Architecture
 
 ```
+Boot sequence:
+  0-15s  Plymouth (kernel boot) → mark2 theme: face + progress bar
+  15-25s Weston starts → Chromium opens splash.html (eye animation)
+  25s+   Chromium navigates to combined.html (clock+weather)
+
 SJ201 /dev/input/event0
   └─ mark2-volume-buttons.service (lib/volume-buttons.py)
        ├─ TAS5806 I2C + amixer          — hardware volume
@@ -78,6 +90,9 @@ curl -X POST http://192.168.x.x:8123/api/services/assist_satellite/start_convers
   -H "Authorization: Bearer <token>" \
   -H "Content-Type: application/json" \
   -d '{"entity_id":"assist_satellite.<hostname>_lva_assist_satellite","start_media_id":"http://<mark2-ip>:8088/sounds/wake_word_triggered.flac","preannounce":false}'
+
+# Boot splash — re-install/update Plymouth theme
+sudo bash lib/install-plymouth.sh
 ```
 
 ---

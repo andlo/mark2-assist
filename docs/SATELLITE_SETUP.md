@@ -221,6 +221,30 @@ Touch or a voice interaction wakes the screen immediately.
 
 ---
 
+## Boot splash
+
+Two-phase boot splash covers the full boot from power-on to dashboard:
+
+**Phase 1 — Plymouth** (0–15s, kernel boot):
+- Installed by `lib/install-plymouth.sh` (called from `modules/ui.sh`)
+- Custom `mark2` Plymouth script theme: dark background, Mark II face, title, progress bar
+- Face pulses gently via `SetRefreshFunction`
+- `cmdline.txt` flags: `quiet splash plymouth.ignore-serial-consoles vt.global_cursor_default=0 vt.handoff=2`
+- `mark2-tty1-blank.service` clears tty1 to black before getty starts
+
+**Phase 2 — Chromium splash** (15–25s, Weston/Chromium startup):
+- `templates/splash.html` — animated face opens eyes, progress bar, logo pills
+- Served by `mark2-httpd` on `:8088/splash.html`
+- Polls HA proxy until reachable, then fades to `combined.html`
+- Built with hostname substitution by `kiosk.sh` on every boot
+
+Re-install or update Plymouth theme:
+```bash
+sudo bash lib/install-plymouth.sh
+```
+
+---
+
 ## Audio architecture
 
 ```

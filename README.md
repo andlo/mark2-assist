@@ -58,7 +58,7 @@ Modules are selected during install via a checklist. Defaults are marked with �
 | Module | Default | What it does |
 |--------|:-------:|-------------|
 | **homeassistant** | ✓ | Show your HA dashboard full-screen on the touchscreen |
-| **ui** | ✓ | Physical UI — animated face, clock+weather, volume bar, LED ring, hardware buttons (vol/mute/action) |
+| **ui** | ✓ | Physical UI — animated face, clock+weather, volume bar, LED ring, hardware buttons (vol/mute/action), boot splash (Plymouth + Chromium) |
 | **mqtt-sensors** | ✓ | Publishes voice satellite state, audio playback, CPU/memory/disk/temp to HA via MQTT |
 | **snapcast** |  | Multiroom audio — synced playback as a Snapcast endpoint |
 | **airplay** |  | AirPlay 1 speaker — stream audio from iPhone, Mac or any AirPlay source |
