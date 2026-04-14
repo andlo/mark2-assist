@@ -18,7 +18,7 @@ two reboots and manages resume logic, progress tracking and module selection.
    installer skips completed steps. This makes it safe to re-run after failures.
 
 4. **Modules are standalone** — Each file in `modules/` can be run independently:
-   `bash modules/leds.sh`. The `MARK2_MODULE_CONFIRMED=1` environment variable suppresses
+   `bash modules/ui.sh`. The `MARK2_MODULE_CONFIRMED=1` environment variable suppresses
    confirmation prompts when called from `install.sh`.
 
 5. **Logging** — All output is logged to `~/.config/mark2/install.log` with timestamps.
@@ -182,7 +182,7 @@ The file is created with `chmod 600` since it contains the HA token.
 
 Any module can be run after installation:
 ```bash
-bash modules/leds.sh           # Re-install LED module
+bash modules/ui.sh            # Re-install UI module (LEDs, buttons, display)
 bash modules/mqtt-sensors.sh   # Re-install MQTT sensors
 ```
 
@@ -190,7 +190,7 @@ Without `MARK2_MODULE_CONFIRMED=1` the module will ask for confirmation first.
 
 To skip confirmation:
 ```bash
-MARK2_MODULE_CONFIRMED=1 bash modules/leds.sh
+MARK2_MODULE_CONFIRMED=1 bash modules/ui.sh
 ```
 
 ---
