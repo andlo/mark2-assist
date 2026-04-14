@@ -164,6 +164,15 @@ update-alternatives --install /usr/share/plymouth/themes/default.plymouth \
 plymouth-set-default-theme "${THEME_NAME}"
 echo "[plymouth]  theme activated: ${THEME_NAME}"
 
+# ── plymouthd.conf ───────────────────────────────────────────────────────────
+cat > /etc/plymouth/plymouthd.conf << PCONF
+[Daemon]
+Theme=${THEME_NAME}
+ShowDelay=0
+DeviceTimeout=8
+PCONF
+echo "[plymouth]  plymouthd.conf: ShowDelay=0 DeviceTimeout=8"
+
 # ── Update cmdline.txt ────────────────────────────────────────────────────────
 if [ -f "$CMDLINE" ]; then
     LINE=$(cat "$CMDLINE")
@@ -171,8 +180,8 @@ if [ -f "$CMDLINE" ]; then
     # Remove console=tty1 — sends kernel messages to screen even with quiet
     LINE=$(echo "$LINE" | sed 's/ console=tty1//g')
     # Add splash flags and hide blinking cursor
-    echo "${LINE} quiet splash plymouth.ignore-serial-consoles vt.global_cursor_default=0" > "$CMDLINE"
-    echo "[plymouth]  cmdline.txt: quiet splash + cursor hidden, console=tty1 removed"
+    echo "${LINE} quiet splash plymouth.ignore-serial-consoles vt.global_cursor_default=0 vt.handoff=2" > "$CMDLINE"
+    echo "[plymouth]  cmdline.txt: quiet splash + cursor hidden + vt.handoff=2, console=tty1 removed"
 else
     echo "[plymouth]  WARNING: ${CMDLINE} not found — add 'quiet splash' manually"
 fi
