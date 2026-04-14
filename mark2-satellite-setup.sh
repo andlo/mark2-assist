@@ -327,7 +327,7 @@ EOF
 if [ -z "${WAYLAND_DISPLAY:-}" ] && [ "$(tty)" = "/dev/tty1" ]; then
     export XDG_RUNTIME_DIR=/run/user/$(id -u)
     export XDG_SESSION_TYPE=wayland
-    weston --backend=drm --shell=kiosk --log=/tmp/weston.log -- "${HOME}/startup.sh"
+    weston --backend=drm --shell=kiosk --idle-time=300 --log=/tmp/weston.log -- "${HOME}/startup.sh"
 fi
 EOF
     log "Weston autostart added to ~/.bash_profile"
