@@ -97,7 +97,7 @@ print_banner() {
 print_progress() {
     local all=("hardware" "satellite"
                "homeassistant"
-               "leds" "face" "overlay" "screensaver"
+               "ui"
                "mqtt-sensors"
                "snapcast" "airplay" "mpd"
                "kdeconnect" "usb-audio")
@@ -122,18 +122,15 @@ print_progress() {
 
 configure_upfront() {
     # ── Step 1: Module selection ──
-    local defaults="screensaver leds overlay face mqtt-sensors homeassistant"
+    local defaults="ui mqtt-sensors homeassistant"
     local mod_list=("homeassistant"
-                    "leds" "face" "overlay" "screensaver"
+                    "ui"
                     "mqtt-sensors"
                     "snapcast" "airplay" "mpd"
                     "kdeconnect" "usb-audio")
     local mod_desc=(
         "Home Assistant dashboard on touchscreen"
-        "LED ring — reacts to voice states"
-        "Animated face — voice + music animation"
-        "Volume overlay — on-screen bar"
-        "Screensaver — clock + weather from HA"
+        "UI — face, clock+weather, LEDs, volume buttons"
         "MQTT sensors — LVA/CPU/MPD state to HA"
         "Snapcast — synchronized multiroom audio"
         "AirPlay — Mark II as AirPlay speaker"
@@ -180,7 +177,7 @@ configure_upfront() {
     prompt_ha_url
 
     # ── Step 3: HA token (only if screensaver selected) ──
-    if echo "$SELECTED_MODULES" | grep -qw "screensaver"; then
+    if echo "$SELECTED_MODULES" | grep -qw "screensaver" || echo "$SELECTED_MODULES" | grep -qw "ui"; then
         prompt_ha_token
         prompt_ha_weather
     fi

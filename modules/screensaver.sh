@@ -28,6 +28,14 @@
 #
 # Can be run standalone: bash modules/screensaver.sh
 # =============================================================================
+# =============================================================================
+# DEPRECATED — superseded by modules/ui.sh
+#
+# This module is kept for reference only. The functionality it provided
+# is now built into the combined kiosk page (combined.html) and installed
+# automatically by modules/ui.sh.
+# Do NOT run this module alongside ui.sh.
+# =============================================================================
 set -euo pipefail
 # shellcheck source=../lib/common.sh
 source "$(dirname "$0")/../lib/common.sh"
