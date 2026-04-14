@@ -21,7 +21,7 @@ The /sounds/ route is used by the action button wake trigger:
   assist_satellite.start_conversation uses wake_word_triggered.flac
   as start_media_id so LVA plays its own chime then starts listening.
 """
-import http.server, os, urllib.request, urllib.error
+import http.server, os, urllib.request, urllib.error, subprocess
 
 KIOSK_DIR = os.path.expanduser("~/.config/mark2-kiosk")
 PORT = 8088
@@ -48,6 +48,20 @@ class Handler(http.server.BaseHTTPRequestHandler):
 
     def do_GET(self):
         path = self.path.split('?')[0]
+
+        # Screen power control via wlopm
+        if path == '/screen-off':
+            subprocess.Popen(['wlopm', '--off', 'HDMI-A-1'],
+                             env={**os.environ, 'WAYLAND_DISPLAY': 'wayland-1',
+                                  'XDG_RUNTIME_DIR': f'/run/user/{os.getuid()}'})
+            self.send_response(200); self.end_headers()
+            return
+        if path == '/screen-on':
+            subprocess.Popen(['wlopm', '--on', 'HDMI-A-1'],
+                             env={**os.environ, 'WAYLAND_DISPLAY': 'wayland-1',
+                                  'XDG_RUNTIME_DIR': f'/run/user/{os.getuid()}'})
+            self.send_response(200); self.end_headers()
+            return
 
         # Event JSON files from /tmp
         if path in EVENT_MAP:

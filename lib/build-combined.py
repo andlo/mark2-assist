@@ -11,15 +11,26 @@ and all face/HUD layers. This script only needs to:
 """
 import sys, re
 
-if len(sys.argv) != 4:
-    print(f"Usage: {sys.argv[0]} <kiosk.html> <ha_url> <output.html>")
+if len(sys.argv) < 4:
+    print(f"Usage: {sys.argv[0]} <kiosk.html> <ha_url> <output.html> [ha_token] [weather_entity]")
     sys.exit(1)
 
-src_path, ha_url, out_path = sys.argv[1:]
+src_path, ha_url, out_path = sys.argv[1], sys.argv[2], sys.argv[3]
+ha_token        = sys.argv[4] if len(sys.argv) > 4 else ''
+weather_entity  = sys.argv[5] if len(sys.argv) > 5 else ''
 src = open(src_path).read()
 
-# 1. Replace HA URL placeholder
+# 1. Replace placeholders
 src = src.replace('%%HA_URL%%', ha_url)
+# Inject HA credentials for passive weather widget via JS globals
+inject = (
+    f"\n  <script>\n"
+    f"    window.MARK2_HA_URL = '{ha_url}';\n"
+    f"    window.MARK2_HA_TOKEN = '{ha_token}';\n"
+    f"    window.MARK2_WEATHER_ENTITY = '{weather_entity}';\n"
+    f"  </script>"
+)
+src = src.replace('</head>', inject + '\n</head>', 1)
 
 # 2. Patch fetch() event URLs for localhost HTTP server
 # (kiosk.html already uses http://localhost:8088/ — nothing to patch

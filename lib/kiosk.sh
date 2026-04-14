@@ -16,6 +16,8 @@ export XDG_RUNTIME_DIR=/run/user/$(id -u)
 
 CONFIG="${HOME}/.config/mark2/config"
 HA_URL=""
+HA_TOKEN=""
+HA_WEATHER_ENTITY=""
 [ -f "$CONFIG" ] && source "$CONFIG"
 
 # Detect Wayland socket
@@ -41,7 +43,7 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 BUILD_SCRIPT="${SCRIPT_DIR}/build-combined.py"
 
 if [ -n "$HA_URL" ] && [ -f "${KIOSK_DIR}/kiosk.html" ] && [ -f "$BUILD_SCRIPT" ]; then
-    python3 "$BUILD_SCRIPT" "${KIOSK_DIR}/kiosk.html" "$HA_URL" "$COMBINED"
+    python3 "$BUILD_SCRIPT" "${KIOSK_DIR}/kiosk.html" "$HA_URL" "$COMBINED" "$HA_TOKEN" "$HA_WEATHER_ENTITY"
     echo "[$(date)] Combined HA+HUD page ready"
 
     # Serve combined.html via local HTTP to avoid file://->http:// mixed content block.
