@@ -173,6 +173,30 @@ DeviceTimeout=8
 PCONF
 echo "[plymouth]  plymouthd.conf: ShowDelay=0 DeviceTimeout=8"
 
+# ── tty1 blanking service (before getty, after Plymouth) ─────────────────────
+# This service runs at the same time as getty@tty1 and clears the terminal
+# so no login prompt is visible during the brief Plymouth→Weston handoff.
+cat > /etc/systemd/system/mark2-tty1-blank.service << 'SVCEOF'
+[Unit]
+Description=Blank tty1 before Mark II kiosk starts
+DefaultDependencies=no
+After=plymouth-quit.service
+Before=getty@tty1.service
+ConditionPathExists=/usr/bin/printf
+
+[Service]
+Type=oneshot
+ExecStart=/bin/sh -c 'printf "\033[2J\033[H\033[?25l" > /dev/tty1 2>/dev/null; true'
+StandardOutput=null
+StandardError=null
+
+[Install]
+WantedBy=multi-user.target
+SVCEOF
+systemctl daemon-reload 2>/dev/null
+systemctl enable mark2-tty1-blank.service 2>/dev/null
+echo "[plymouth]  tty1 blanking service installed"
+
 # ── Update cmdline.txt ────────────────────────────────────────────────────────
 if [ -f "$CMDLINE" ]; then
     LINE=$(cat "$CMDLINE")

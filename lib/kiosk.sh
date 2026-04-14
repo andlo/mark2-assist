@@ -36,6 +36,11 @@ echo "[$(date)] Wayland ready: WAYLAND_DISPLAY=${WAYLAND_DISPLAY:-unset}"
 
 # Remove stale Chromium singleton lock
 rm -f "${HOME}/.config/chromium-kiosk/Singleton"*
+# Clear session restore files so Chromium always opens our URL
+rm -f "${HOME}/.config/chromium-kiosk/Default/Last Session"
+rm -f "${HOME}/.config/chromium-kiosk/Default/Last Tabs"
+rm -f "${HOME}/.config/chromium-kiosk/Default/Current Session"
+rm -f "${HOME}/.config/chromium-kiosk/Default/Current Tabs"
 
 # Pre-seed Chromium profile to avoid white flash on first run:
 # - First Run sentinel suppresses first-run overlay
@@ -107,7 +112,6 @@ exec chromium \
     --remote-debugging-port=9222 \
     --remote-allow-origins=* \
     --bwsi \
-    --disable-features=TranslateUI \
-
-    --user-data-dir="${HOME}/.config/chromium-kiosk" \
-    "${START_URL}"
+    --disable-features=TranslateUI,Translate \
+    --app="${START_URL}" \
+    --user-data-dir="${HOME}/.config/chromium-kiosk"
