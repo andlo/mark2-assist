@@ -325,6 +325,11 @@ EOF
 # Weston is used instead of labwc because Chromium 146 on Trixie does not
 # composite its render surfaces correctly in labwc on Pi4 with vc4-kms-v3d.
 if [ -z "${WAYLAND_DISPLAY:-}" ] && [ "$(tty)" = "/dev/tty1" ]; then
+    # Hide terminal cursor and set background to black so the login
+    # prompt and any residual text are invisible before Weston takes over.
+    # Plymouth hands off to tty1 — without this a brief terminal flash is visible.
+    setterm -cursor off -blank 0 2>/dev/null || true
+    printf '\033[2J\033[H\033[?25l'   # clear screen + hide cursor (ANSI)
     export XDG_RUNTIME_DIR=/run/user/$(id -u)
     export XDG_SESSION_TYPE=wayland
     weston --backend=drm --shell=kiosk --idle-time=300 --log=/tmp/weston.log -- "${HOME}/startup.sh"

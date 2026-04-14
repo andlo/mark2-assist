@@ -37,6 +37,17 @@ echo "[$(date)] Wayland ready: WAYLAND_DISPLAY=${WAYLAND_DISPLAY:-unset}"
 # Remove stale Chromium singleton lock
 rm -f "${HOME}/.config/chromium-kiosk/Singleton"*
 
+# Pre-seed Chromium profile to avoid white flash on first run:
+# - First Run sentinel suppresses first-run overlay
+# - Preferences sets dark background colour
+mkdir -p "${HOME}/.config/chromium-kiosk/Default"
+touch "${HOME}/.config/chromium-kiosk/First Run"
+# Write minimal Preferences if not already present
+PREFS="${HOME}/.config/chromium-kiosk/Default/Preferences"
+if [ ! -f "$PREFS" ] || ! grep -q "theme" "$PREFS" 2>/dev/null; then
+    echo '{"browser":{"theme":{"color_scheme":2}},"profile":{"content_settings":{}}}' > "$PREFS"
+fi
+
 KIOSK_DIR="${HOME}/.config/mark2-kiosk"
 COMBINED="${KIOSK_DIR}/combined.html"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -95,6 +106,8 @@ exec chromium \
     --allow-file-access-from-files \
     --remote-debugging-port=9222 \
     --remote-allow-origins=* \
-    --background-color=#050510 \
+    --bwsi \
+    --disable-features=TranslateUI \
+
     --user-data-dir="${HOME}/.config/chromium-kiosk" \
     "${START_URL}"
