@@ -19,7 +19,7 @@
 
 **mark2-assist** installs everything needed to use a Mycroft Mark II as a fully featured
 Home Assistant voice satellite: voice integration via [Linux Voice Assistant](https://github.com/OHF-Voice/linux-voice-assistant) (ESPHome protocol), local wake word detection,
-touchscreen HA dashboard, LED ring feedback, animated face, volume overlay, screensaver,
+touchscreen HA dashboard, animated face, clock+weather, LED ring, volume buttons and overlay,
 MQTT sensors, and optional audio streaming.
 
 The voice pipeline runs entirely through Home Assistant Assist — meaning you choose what
@@ -58,10 +58,7 @@ Modules are selected during install via a checklist. Defaults are marked with �
 | Module | Default | What it does |
 |--------|:-------:|-------------|
 | **homeassistant** | ✓ | Show your HA dashboard full-screen on the touchscreen |
-| **leds** | ✓ | LED ring reacts to voice states — idle pulse, listening spin, speaking glow, error red |
-| **face** | ✓ | Animated face overlay — reacts to voice, dances to music playback |
-| **overlay** | ✓ | On-screen volume bar — appears on volume change, auto-hides after 3 seconds |
-| **screensaver** | ✓ | Fullscreen clock + live weather pulled from HA, activates after 2 min idle |
+| **ui** | ✓ | Physical UI — animated face, clock+weather, volume bar, LED ring, hardware buttons (vol/mute/action) |
 | **mqtt-sensors** | ✓ | Publishes voice satellite state, audio playback, CPU/memory/disk/temp to HA via MQTT |
 | **snapcast** |  | Multiroom audio — synced playback as a Snapcast endpoint |
 | **airplay** |  | AirPlay 1 speaker — stream audio from iPhone, Mac or any AirPlay source |
@@ -82,7 +79,7 @@ Before running the installer you need:
    - Enable SSH and set username/password in Imager advanced settings
 2. **SSH access** to the device on your local network
 3. **Home Assistant** running on your local network
-4. **HA Long-Lived Access Token** — for MQTT sensors and screensaver
+4. **HA Long-Lived Access Token** — for MQTT sensors and passive clock+weather display
    - In HA: Profile (bottom left) → Long-Lived Access Tokens → Create token
 
 ---
@@ -288,7 +285,7 @@ Re-run the relevant setup script to apply changes:
 
 Individual modules can be re-run at any time:
 ```bash
-bash modules/leds.sh
+bash modules/ui.sh
 bash modules/mqtt-sensors.sh
 # etc.
 ```
@@ -363,7 +360,7 @@ mark2-status
 
 Or individually:
 ```bash
-systemctl --user status lva sj201 mark2-volume-buttons mark2-face-events mark2-led-events
+systemctl --user status lva mark2-volume-buttons mark2-face-events mark2-led-events mark2-leds
 sudo systemctl status mark2-leds
 ```
 
