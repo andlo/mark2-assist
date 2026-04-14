@@ -159,11 +159,65 @@ sj201.service
 pipewire.service + wireplumber.service
     └── [mark2-wait-pipewire polls for SJ201 devices]
     └── lva.service
-            └── mark2-face-events.service
-                    └── mark2-led-events.service
-mark2-leds.service             (system service, root)
-mark2-volume-buttons.service   (independent)
+            └── mark2-face-events.service  (/tmp/mark2-face-event.json)
+                    └── mark2-led-events.service → /tmp/mark2-leds.sock
+mark2-leds.service             (system service, root — NeoPixel GPIO12)
+mark2-volume-buttons.service   (independent — TAS5806 + HUD + action wake)
+
+Weston (kiosk compositor)
+    └── startup.sh
+            └── kiosk.sh
+                    ├── build-combined.py  (builds combined.html)
+                    ├── mark2-httpd.py     (serves :8088)
+                    └── Chromium kiosk     (http://localhost:8088/combined.html)
+                            ├── HA iframe           (tap to open)
+                            ├── Animated face       (reads /tmp/mark2-face-event.json)
+                            ├── Passive clock+weather (idle mode, fetches HA REST API)
+                            └── Volume bar overlay  (reads /tmp/mark2-overlay-event.json)
 ```
+
+---
+
+## Kiosk display architecture
+
+The touchscreen runs Chromium in full-screen kiosk mode under Weston (DRM/KMS backend).
+
+### Combined page
+
+`kiosk.sh` calls `build-combined.py` at startup to generate `combined.html` — a single
+page that contains all UI layers:
+
+| Layer | z-index | Content |
+|-------|---------|---------|
+| HA iframe | 1 | Home Assistant dashboard (tap-to-open) |
+| Passive clock | 1 | Clock + weather, shown when idle |
+| Music artwork | 2 | Album art when MPD/Music Assistant plays |
+| Animated face | 3 | Voice state animation |
+| HUD overlays | 4 | Volume bar, status pill |
+| Content panel | 5 | Announcements, notifications |
+
+### Display states
+
+| State | What is shown |
+|-------|--------------|
+| Idle (passive) | Clock + weather, HA pill button bottom-left |
+| Voice active | Face fullscreen, clock+HA hidden |
+| Music playing | Album art + small face |
+| HA open | HA dashboard, face/clock hidden |
+
+### Screen blank
+
+Weston blanks the display after **5 minutes** of no touch input (`--idle-time=300`).
+Touch or a voice interaction wakes the screen immediately.
+
+### HTTP server
+
+`mark2-httpd.py` runs on port **8088** and serves:
+- `combined.html` — the kiosk page
+- `/face-event.json` → `/tmp/mark2-face-event.json`
+- `/overlay-event.json` → `/tmp/mark2-overlay-event.json`
+- `/sounds/<file>` → `~/lva/sounds/<file>` (used for action button wake)
+- `/ha/*` → reverse-proxy to HA, stripping `X-Frame-Options`
 
 ---
 
