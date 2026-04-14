@@ -56,6 +56,24 @@
     #ha-layer.active ~ #ha-timeout-bar { display:block; }
 
     /* ── MUSIC LAYER ── */
+    /* ── PASSIVE CLOCK + WEATHER (z:1.5, shown when idle) ── */
+    #clock-layer {
+      position:absolute; inset:0; z-index:1; pointer-events:none;
+      display:flex; flex-direction:column; align-items:center; justify-content:center;
+      opacity:0; transition:opacity 1.2s ease; background:#050510;
+    }
+    #clock-layer.visible { opacity:1; pointer-events:all; }
+    #passive-clock { font-size:5.5rem; font-weight:200; letter-spacing:0.05em; color:#fff; text-shadow:0 0 40px rgba(100,150,255,0.3); }
+    #passive-date  { font-size:1.2rem; font-weight:300; color:#9090b0; margin-top:0.4rem; letter-spacing:0.15em; text-transform:uppercase; }
+    #passive-weather {
+      margin-top:2.5rem; display:flex; align-items:center; gap:1.2rem;
+      background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.08);
+      border-radius:1rem; padding:1rem 2rem;
+    }
+    #pw-icon { font-size:2.5rem; }
+    #pw-temp { font-size:1.8rem; font-weight:300; color:#e8e8f0; }
+    #pw-cond { font-size:0.9rem; color:#9090b0; text-transform:capitalize; margin-top:0.2rem; }
+    #pw-extra { font-size:0.8rem; color:#6070a0; margin-top:0.3rem; }
     #music-layer{ position:absolute; inset:0; z-index:2; pointer-events:none; opacity:0; transition:opacity 0.8s ease; }
 
     /* ── FACE LAYER ── */
@@ -169,6 +187,20 @@
 
 <!-- Inactivity timeout bar -->
 <div id="ha-timeout-bar"></div>
+
+<!-- Passive clock + weather (shown when idle, no HA, no music) -->
+<div id="clock-layer" onclick="showHA()">
+  <div id="passive-clock">00:00</div>
+  <div id="passive-date"></div>
+  <div id="passive-weather">
+    <div id="pw-icon">🌡️</div>
+    <div style="display:flex;flex-direction:column">
+      <div id="pw-temp">--°</div>
+      <div id="pw-cond">Loading...</div>
+      <div id="pw-extra"></div>
+    </div>
+  </div>
+</div>
 
 <div id="music-layer">
   <div id="coverart-blur"></div>
@@ -338,10 +370,72 @@ function applyFaceDef(s) {
 
 // ── Layout logic ──
 // Voice is ALWAYS priority — dismisses HA when active
+// ── Passive clock + weather ──
+const WEATHER_ICONS = {
+  'clear-night':'🌙','cloudy':'☁️','fog':'🌫️','hail':'🌨️',
+  'lightning':'⛈️','lightning-rainy':'⛈️','partlycloudy':'⛅',
+  'pouring':'🌧️','rainy':'🌦️','snowy':'❄️','snowy-rainy':'🌨️',
+  'sunny':'☀️','windy':'💨','windy-variant':'🌬️','exceptional':'⚡'
+};
+const DAYS_DA   = ['Søndag','Mandag','Tirsdag','Onsdag','Torsdag','Fredag','Lørdag'];
+const MONTHS_DA = ['januar','februar','marts','april','maj','juni','juli','august','september','oktober','november','december'];
+const clockLayer = document.getElementById('clock-layer');
+
+function updatePassiveClock() {
+  const n = new Date();
+  const hh = String(n.getHours()).padStart(2,'0');
+  const mm = String(n.getMinutes()).padStart(2,'0');
+  document.getElementById('passive-clock').textContent = hh + ':' + mm;
+  document.getElementById('passive-date').textContent =
+    DAYS_DA[n.getDay()] + ' · ' + n.getDate() + ' ' + MONTHS_DA[n.getMonth()];
+}
+setInterval(updatePassiveClock, 10000);
+updatePassiveClock();
+
+async function updatePassiveWeather() {
+  if (!window.MARK2_HA_URL || !window.MARK2_HA_TOKEN || !window.MARK2_WEATHER_ENTITY) return;
+  try {
+    const r = await fetch(window.MARK2_HA_URL + '/api/states/' + window.MARK2_WEATHER_ENTITY,
+      { headers: { 'Authorization': 'Bearer ' + window.MARK2_HA_TOKEN } });
+    if (!r.ok) return;
+    const d = await r.json(), a = d.attributes;
+    document.getElementById('pw-icon').textContent = WEATHER_ICONS[d.state] || '🌡️';
+    document.getElementById('pw-temp').textContent = Math.round(a.temperature) + '°' + (a.temperature_unit||'C').replace('°','');
+    document.getElementById('pw-cond').textContent = d.state.replace(/-/g,' ');
+    document.getElementById('pw-extra').textContent =
+      (a.humidity ? 'Fugt: '+a.humidity+'%  · ' : '') +
+      'Vind: ' + Math.round(a.wind_speed||0) + ' ' + (a.wind_speed_unit||'km/h');
+  } catch(e) {}
+}
+updatePassiveWeather();
+setInterval(updatePassiveWeather, 300000);
+
+// ── Screen blank (DPMS via wlopm) ──
+const SCREEN_BLANK_MS = 5 * 60 * 1000; // 5 minutes
+let screenBlankTimer;
+let screenOn = true;
+
+function resetScreenBlank() {
+  if (!screenOn) {
+    // Wake screen
+    fetch('http://localhost:8088/screen-on').catch(()=>{});
+    screenOn = true;
+  }
+  clearTimeout(screenBlankTimer);
+  screenBlankTimer = setTimeout(() => {
+    fetch('http://localhost:8088/screen-off').catch(()=>{});
+    screenOn = false;
+  }, SCREEN_BLANK_MS);
+}
+document.addEventListener('touchstart', resetScreenBlank);
+document.addEventListener('click', resetScreenBlank);
+resetScreenBlank(); // start timer on load
+
 function applyLayout(layout) {
   switch(layout) {
-    case 'passive':   // No voice, no music, HA possibly showing
+    case 'passive':   // No voice, no music — show clock+weather
       musicLayer.style.opacity = '0';
+      clockLayer.classList.add('visible');
       faceWrap.style.width     = '160px';
       faceWrap.style.height    = '160px';
       faceWrap.style.bottom    = '20px';
@@ -351,6 +445,7 @@ function applyLayout(layout) {
       faceWrap.style.borderRadius   = '12px';
       break;
     case 'wyoming':   // Voice active — face fullscreen, HA hidden
+      clockLayer.classList.remove('visible');
       if (haActive) dismissHA();
       musicLayer.style.opacity = '0';
       faceWrap.style.width     = '100%';
@@ -362,6 +457,7 @@ function applyLayout(layout) {
       faceWrap.style.borderRadius   = '0';
       break;
     case 'music':     // Music, no voice — coverart with small face
+      clockLayer.classList.remove('visible');
       musicLayer.style.opacity = '1';
       faceWrap.style.width     = '180px';
       faceWrap.style.height    = '180px';
@@ -372,6 +468,7 @@ function applyLayout(layout) {
       faceWrap.style.borderRadius   = '12px';
       break;
     case 'both':      // Music + voice — dim coverart, face fullscreen
+      clockLayer.classList.remove('visible');
       if (haActive) dismissHA();
       musicLayer.style.opacity = '0.3';
       faceWrap.style.width     = '100%';
