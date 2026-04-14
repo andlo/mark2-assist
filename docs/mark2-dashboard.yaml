@@ -6,6 +6,8 @@
 #   - layout-card       https://github.com/thomasloven/lovelace-layout-card
 #   - card-mod          https://github.com/thomasloven/lovelace-card-mod
 #   - Kiosk Mode        https://github.com/NemesisRE/kiosk-mode
+#                       NOTE: use kiosk_mode: in YAML (NemesisRE fork),
+#                       NOT kiosk: (that was the old bramkl/kiosk-mode plugin)
 #
 # Setup: see docs/HA_SETUP.md
 #
@@ -21,10 +23,10 @@
 # =============================================================================
 
 title: Mark II
-kiosk:
+kiosk_mode:
   user_settings:
     - users:
-        - mark2
+        - mark2           # mark2 username (display name also works)
       hide_header: true
       hide_sidebar: true
 views:
