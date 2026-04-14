@@ -302,6 +302,7 @@ let haTimeoutAnimId = null;
 function showHA() {
   haActive = true;
   haLayer.classList.add('active');
+  clockLayer.classList.remove('visible');   // hide clock when HA opens
   // Voice takes priority — if voice is active, don't really show HA
   if (wyomingState !== 'idle') return;
   startHATimeout();
@@ -311,6 +312,10 @@ function dismissHA() {
   haActive = false;
   haLayer.classList.remove('active');
   stopHATimeout();
+  // Restore clock if we're in passive mode (no voice, no music)
+  if (wyomingState === 'idle' && !musicPlaying) {
+    clockLayer.classList.add('visible');
+  }
 }
 
 function startHATimeout() {
