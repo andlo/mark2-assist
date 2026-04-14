@@ -43,8 +43,8 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 MARK2_DIR="${HOME}/mark2-assist"
 BUILD_SCRIPT="${MARK2_DIR}/lib/build-combined.py"
 
-if [ -n "$HA_URL" ] && [ -f "${KIOSK_DIR}/kiosk.html" ] && [ -f "$BUILD_SCRIPT" ]; then
-    python3 "$BUILD_SCRIPT" "${KIOSK_DIR}/kiosk.html" "$HA_URL" "$COMBINED" "$HA_TOKEN" "$HA_WEATHER_ENTITY"
+if [ -n "$HA_URL" ] && [ -f "${MARK2_DIR}/templates/kiosk.html" ] && [ -f "$BUILD_SCRIPT" ]; then
+    python3 "$BUILD_SCRIPT" "${MARK2_DIR}/templates/kiosk.html" "$HA_URL" "$COMBINED" "$HA_TOKEN" "$HA_WEATHER_ENTITY"
     echo "[$(date)] Combined HA+HUD page ready"
 
     # Serve combined.html via local HTTP to avoid file://->http:// mixed content block.
