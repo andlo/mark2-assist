@@ -46,6 +46,26 @@ class Handler(http.server.BaseHTTPRequestHandler):
     def log_message(self, fmt, *args):
         pass  # silence access log
 
+    def do_HEAD(self):
+        """Respond to HEAD requests — used by splash.html to poll HA readiness."""
+        path = self.path.split('?')[0]
+        # For HA proxy HEAD requests, forward to HA
+        if path.startswith('/ha') and HA_URL:
+            ha_path = path[3:] or '/'
+            target = HA_URL.rstrip('/') + ha_path
+            try:
+                req = urllib.request.Request(target, method='HEAD')
+                with urllib.request.urlopen(req, timeout=5) as resp:
+                    self.send_response(resp.status)
+                    self.end_headers()
+            except Exception:
+                self.send_response(502)
+                self.end_headers()
+            return
+        # For local files, just return 200 if file exists
+        self.send_response(200)
+        self.end_headers()
+
     def do_GET(self):
         path = self.path.split('?')[0]
 
@@ -137,6 +157,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
             fpath = os.path.join(KIOSK_DIR, 'combined.html')
         elif path == '/hud.html':
             fpath = os.path.join(KIOSK_DIR, 'hud.html')
+        elif path == '/splash.html':
+            fpath = os.path.join(KIOSK_DIR, 'splash.html')
         else:
             self.send_response(404)
             self.end_headers()

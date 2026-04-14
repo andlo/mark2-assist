@@ -40,26 +40,33 @@ rm -f "${HOME}/.config/chromium-kiosk/Singleton"*
 KIOSK_DIR="${HOME}/.config/mark2-kiosk"
 COMBINED="${KIOSK_DIR}/combined.html"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-BUILD_SCRIPT="${SCRIPT_DIR}/build-combined.py"
+MARK2_DIR="${HOME}/mark2-assist"
+BUILD_SCRIPT="${MARK2_DIR}/lib/build-combined.py"
 
 if [ -n "$HA_URL" ] && [ -f "${KIOSK_DIR}/kiosk.html" ] && [ -f "$BUILD_SCRIPT" ]; then
     python3 "$BUILD_SCRIPT" "${KIOSK_DIR}/kiosk.html" "$HA_URL" "$COMBINED" "$HA_TOKEN" "$HA_WEATHER_ENTITY"
     echo "[$(date)] Combined HA+HUD page ready"
 
     # Serve combined.html via local HTTP to avoid file://->http:// mixed content block.
+    # Install splash screen (substitute hostname placeholder)
+    sed "s/%%HOSTNAME%%/$(hostname -s)/" \
+        "${MARK2_DIR}/templates/splash.html" > "${KIOSK_DIR}/splash.html"
+
     # Kill any previous server on port 8088.
     pkill -f 'mark2-httpd.py' 2>/dev/null || true
     sleep 0.5
-    python3 "${SCRIPT_DIR}/mark2-httpd.py" >> /tmp/mark2-httpd.log 2>&1 &
+    python3 "${HOME}/mark2-httpd.py" >> /tmp/mark2-httpd.log 2>&1 &
     echo "[$(date)] Local HTTP server started on :8088"
 
-    # Wait for HA to respond
-    until curl -o /dev/null -sf --max-time 3 "${HA_URL}" 2>/dev/null; do
-        sleep 3
-    done
-    echo "[$(date)] HA ready"
+    # Show splash immediately — polls combined.html and auto-navigates when HA is up
+    START_URL="http://localhost:8088/splash.html?next=http://localhost:8088/combined.html&ha=http://localhost:8088/ha/"
 
-    START_URL="http://localhost:8088/combined.html"
+    # Wait for HA in background so combined.html is ready when splash finishes
+    ( until curl -o /dev/null -sf --max-time 3 "${HA_URL}" 2>/dev/null; do
+          sleep 3
+      done
+      echo "[$(date)] HA ready"
+    ) &
 elif [ -n "$HA_URL" ]; then
     until curl -o /dev/null -sf --max-time 3 "${HA_URL}" 2>/dev/null; do
         sleep 3
@@ -87,5 +94,6 @@ exec chromium \
     --disable-web-security \
     --allow-file-access-from-files \
     --remote-debugging-port=9222 \
+    --remote-allow-origins=* \
     --user-data-dir="${HOME}/.config/chromium-kiosk" \
     "${START_URL}"
