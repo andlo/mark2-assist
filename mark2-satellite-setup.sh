@@ -450,6 +450,12 @@ print_summary() {
     IP=$(hostname -I | awk '{print $1}')
     echo ""
     echo "========================================"
+    # Boot splash — covers kernel boot with Mark II branding
+    log "Installing boot splash (Plymouth)..."
+    sudo bash "${SCRIPT_DIR}/lib/install-plymouth.sh" \
+        && log "Boot splash installed" \
+        || warn "Boot splash install failed — rerun: sudo bash lib/install-plymouth.sh"
+
     log "Mark II Satellite + Kiosk setup complete!"
     echo ""
     echo "  Next steps:"
