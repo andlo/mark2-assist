@@ -91,6 +91,14 @@
       transition: opacity 0.4s ease;
     }
     .ready-flash.active { opacity: 1; }
+    .fade-out {
+      position: absolute; inset: 0;
+      background: #050510;
+      opacity: 0; pointer-events: none;
+      transition: opacity 0.5s ease;
+      z-index: 100;
+    }
+    .fade-out.active { opacity: 1; }
   </style>
 </head>
 <body>
@@ -147,6 +155,7 @@
 
 <div class="hostname" id="hostname">%%HOSTNAME%%</div>
 <div class="ready-flash" id="ready-flash"></div>
+<div class="fade-out" id="fade-out"></div>
 
 <script>
   const lidL=document.getElementById('lid-l'), lidR=document.getElementById('lid-r');
@@ -252,25 +261,39 @@
   setTimeout(nextStep,1600);
 
   // Navigate to ?next= when HA is reachable (poll /ha/ proxy which returns 200/401/302)
-  // We poll the HA proxy endpoint so we know HA actually responds, not just that
-  // combined.html exists on disk (it always does immediately).
-  const params=new URLSearchParams(window.location.search);
-  const nextUrl=params.get('next');
-  const haProxy=params.get('ha') || 'http://localhost:8088/ha/';
-  if(nextUrl){
-    function pollReady(){
-      // First check HA via GET (httpd proxies it — HEAD not reliable)
-      fetch(haProxy,{method:'GET',cache:'no-store',signal:AbortSignal.timeout(3000)})
-        .then(r=>{
-          if(r.status===200||r.status===401||r.status===302){
-            // HA is up — navigate to combined.html
-            window.location.replace(nextUrl);
-          } else { setTimeout(pollReady,1000); }
+  // Poll HA until it responds, then navigate to combined.html.
+  // Enforce a minimum splash time so the animation has time to run.
+  const SPLASH_MIN_MS = 8000;   // show splash for at least 8 seconds
+  const splashStart = Date.now();
+  const params = new URLSearchParams(window.location.search);
+  const nextUrl = params.get('next');
+  const haProxy = params.get('ha') || 'http://localhost:8088/ha/';
+
+  function navigateNow() {
+    // Fade to black, then navigate — no jarring flash
+    const fo = document.getElementById('fade-out');
+    fo.classList.add('active');
+    setTimeout(() => window.location.replace(nextUrl), 550);
+  }
+
+  if (nextUrl) {
+    let haReady = false;
+    function pollReady() {
+      fetch(haProxy, {method:'GET', cache:'no-store', signal:AbortSignal.timeout(3000)})
+        .then(r => {
+          if (r.status === 200 || r.status === 401 || r.status === 302) {
+            haReady = true;
+            const elapsed = Date.now() - splashStart;
+            const wait = Math.max(0, SPLASH_MIN_MS - elapsed);
+            setTimeout(navigateNow, wait);
+          } else {
+            setTimeout(pollReady, 1000);
+          }
         })
-        .catch(()=>setTimeout(pollReady,1000));
+        .catch(() => setTimeout(pollReady, 1000));
     }
-    // Start polling after face opens (3s)
-    setTimeout(pollReady,3000);
+    // Start polling after 3s (give face time to open)
+    setTimeout(pollReady, 3000);
   }
 </script>
 </body>
