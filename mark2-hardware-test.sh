@@ -48,6 +48,13 @@ FAIL=0
 SKIP=0
 RESULTS=()
 
+# --- Logging ---
+LOGFILE="${MARK2_CONFIG_DIR:-${HOME}/.config/mark2}/hardware-test.log"
+mkdir -p "$(dirname "$LOGFILE")"
+exec > >(tee "$LOGFILE") 2>&1
+echo "# Mark II hardware test --- $(date +%Y-%m-%d %H:%M:%S)"
+echo ""
+
 result() {
     local name="$1"
     local status="$2"   # PASS FAIL SKIP
