@@ -323,7 +323,7 @@ After=network-online.target
 [Service]
 Type=oneshot
 WorkingDirectory=${SJ201_VENV}
-ExecStart=/usr/bin/sudo -E env PATH=/usr/local/bin:/usr/sbin:/usr/bin:/bin ${SJ201_VENV}/bin/python ${WORK_DIR}/xvf3510-flash --direct ${WORK_DIR}/app_xvf3510_int_spi_boot_v4_2_0.bin --verbose
+ExecStart=${SJ201_VENV}/bin/python ${WORK_DIR}/xvf3510-flash --direct ${WORK_DIR}/app_xvf3510_int_spi_boot_v4_2_0.bin --verbose
 ExecStartPost=/bin/sleep 5
 ExecStartPost=/usr/bin/env PATH=/usr/local/bin:/usr/sbin:/usr/bin:/bin ${SJ201_VENV}/bin/python ${WORK_DIR}/init_tas5806
 Restart=on-failure
