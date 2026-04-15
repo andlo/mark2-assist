@@ -140,7 +140,7 @@ def action_button():
 def load_config():
     """Load HA_URL, HA_TOKEN and SATELLITE_NAME from mark2-assist config."""
     global HA_URL, HA_TOKEN, SATELLITE_ENTITY, SATELLITE_NAME
-    config_path = "/home/pi/.config/mark2/config"
+    config_path = os.path.expanduser("~/.config/mark2/config")
     try:
         with open(config_path) as f:
             for line in f:

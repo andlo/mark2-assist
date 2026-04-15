@@ -511,6 +511,13 @@ fi
 echo "Full documentation: https://github.com/andlo/mark2-assist"
 } > "$SUMMARY_FILE"
 
+# Write /etc/mark2.conf so root-run scripts (motd, status) can find the install user
+sudo tee /etc/mark2.conf > /dev/null << CONFEOF
+MARK2_USER=${CURRENT_USER}
+MARK2_HOME=${USER_HOME}
+CONFEOF
+log "Wrote /etc/mark2.conf (MARK2_USER=${CURRENT_USER})"
+
 # Install MOTD banner (shows on every SSH login)
 if [ -f "${SCRIPT_DIR}/lib/motd.sh" ]; then
     sudo cp "${SCRIPT_DIR}/lib/motd.sh" /etc/update-motd.d/10-mark2

@@ -447,7 +447,7 @@ EOF
 # Mark II safe weekly update — runs as root from cron
 # Updates: 1) system packages  2) mark2-assist scripts + LVA
 LOG="/var/log/mark2-updates.log"
-MARK2_ASSIST_DIR="/home/${SUDO_USER:-pi}/mark2-assist"
+MARK2_ASSIST_DIR="/home/${SUDO_USER:-$USER}/mark2-assist"
 
 echo "" | tee -a "$LOG"
 echo "[$(date)] === Mark II weekly update ===" | tee -a "$LOG"

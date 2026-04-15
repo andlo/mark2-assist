@@ -66,7 +66,7 @@ To dismiss:
 
 The integration writes the JSON file to the Mark II device via one of:
 
-- **SSH** — `ssh pi@<ip> "cat > /tmp/mark2-content.json"` (simplest, uses existing SSH key)
+- **SSH** — `ssh <user>@<ip> "cat > /tmp/mark2-content.json"` (simplest, uses existing SSH key)
 - **Local HTTP** — a small Flask/aiohttp server on Mark II listens on port 8765 for POST requests (more robust, no SSH needed)
 
 The SSH approach requires the user to have SSH key authentication set up.
@@ -237,7 +237,7 @@ mark2_assist:
   devices:
     - host: 192.168.1.37
       name: "Mark II Stue"
-      ssh_user: pi
+      ssh_user: <mark2_user>   # the user running the Mark II kiosk
       ssh_key: /config/.ssh/mark2_rsa   # optional, falls back to password
 ```
 

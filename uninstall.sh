@@ -207,6 +207,7 @@ section "Restoring default login banner"
 
 # Remove our custom MOTD script
 sudo rm -f /etc/update-motd.d/10-mark2
+sudo rm -f /etc/mark2.conf
 
 # Restore standard Debian uname script if missing
 if [ ! -f /etc/update-motd.d/10-uname ]; then
