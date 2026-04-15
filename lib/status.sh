@@ -13,9 +13,11 @@ YELLOW='\033[1;33m'
 RED='\033[0;31m'
 NC='\033[0m'
 
-# Works both as pi user and as root (via run-parts/sudo)
+# Works both as the install user and as root (via run-parts/sudo)
 if [ "$(id -u)" = "0" ]; then
-    MACHINE_FLAG="--machine pi@.host"
+    # Use SUDO_USER if available, otherwise fall back to owner of ~/.config/mark2
+    _MARK2_USER="${SUDO_USER:-$(stat -c %U ~/.config/mark2 2>/dev/null || echo $USER)}"
+    MACHINE_FLAG="--machine ${_MARK2_USER}@.host"
 else
     MACHINE_FLAG=""
 fi

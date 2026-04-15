@@ -30,7 +30,26 @@ printf "  %-12s %s\n" "Uptime:"   "$(uptime -p | sed 's/up //')"
 printf "  %-12s %s\n" "IP:"       "$(hostname -I | awk '{print $1}')"
 echo ""
 
-# Service status — motd runs as root via run-parts, query pi user services via machine
+# Service status — motd runs as root via run-parts, query user services via --machine
+# Detect the mark2 install user dynamically (don't hardcode 'pi')
+MARK2_USER=""
+# 1. Check /etc/mark2.conf (written by install.sh)
+[ -f /etc/mark2.conf ] && MARK2_USER=$(grep '^MARK2_USER=' /etc/mark2.conf | cut -d= -f2)
+# 2. Fall back to owner of the config directory
+if [ -z "$MARK2_USER" ]; then
+    MARK2_USER=$(stat -c %U /home/*/\.config/mark2 2>/dev/null | head -1)
+fi
+# 3. Fall back to the lva process owner
+if [ -z "$MARK2_USER" ]; then
+    MARK2_USER=$(ps -eo user,comm 2>/dev/null | grep 'lva\|python3' | awk '{print $1}' | head -1)
+fi
+# 4. Last resort: first non-root/system user with a home dir
+if [ -z "$MARK2_USER" ]; then
+    MARK2_USER=$(getent passwd | awk -F: '$3 >= 1000 && $6 ~ /^\/home\// {print $1; exit}')
+fi
+MACHINE_FLAG=""
+[ -n "$MARK2_USER" ] && MACHINE_FLAG="--machine ${MARK2_USER}@.host"
+
 echo -e "${CYAN}  Services:${NC}"
 
 # Core services — always shown
@@ -43,7 +62,7 @@ CORE[mark2-face-events]="Face / HUD events"
 
 for svc in lva sj201 mark2-volume-buttons mark2-face-events; do
     LABEL="${CORE[$svc]}"
-    STATUS=$(systemctl --machine pi@.host --user is-active "$svc" 2>/dev/null | head -1 | tr -d "[:space:]")
+    STATUS=$(systemctl $MACHINE_FLAG --user is-active "$svc" 2>/dev/null | head -1 | tr -d "[:space:]")
     [ -z "$STATUS" ] && STATUS="inactive"
     if [ "$STATUS" = "active" ]; then
         printf "  ${GREEN}✓${NC} %-28s %s\n" "$LABEL" "running"
@@ -70,11 +89,11 @@ OPT[shairport-sync]="AirPlay"
 OPT[mpd]="MPD music player"
 
 for svc in mark2-mqtt-bridge mark2-screensaver snapclient shairport-sync mpd; do
-    ENABLED=$(systemctl --machine pi@.host --user is-enabled "$svc" 2>/dev/null | head -1 | tr -d "[:space:]")
+    ENABLED=$(systemctl $MACHINE_FLAG --user is-enabled "$svc" 2>/dev/null | head -1 | tr -d "[:space:]")
     [ -z "$ENABLED" ] && ENABLED="not-found"
     case "$ENABLED" in not-found|masked|static|disabled) continue ;; esac
     LABEL="${OPT[$svc]}"
-    STATUS=$(systemctl --machine pi@.host --user is-active "$svc" 2>/dev/null | head -1 | tr -d "[:space:]")
+    STATUS=$(systemctl $MACHINE_FLAG --user is-active "$svc" 2>/dev/null | head -1 | tr -d "[:space:]")
     [ -z "$STATUS" ] && STATUS="inactive"
     if [ "$STATUS" = "active" ]; then
         printf "  ${GREEN}✓${NC} %-28s %s\n" "$LABEL" "running"

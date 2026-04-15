@@ -56,7 +56,7 @@ announcements, continue-conversation, and auto-discovery in HA.
 ### 6. lva.service
 
 ```ini
-ExecStart=/home/pi/lva/.venv/bin/python3 -m linux_voice_assistant \
+ExecStart=/home/<user>/lva/.venv/bin/python3 -m linux_voice_assistant \
     --name Nabu-1 \
     --wake-model okay_nabu \
     --audio-input-device "SJ201 ASR (VF_ASR_L)" \
@@ -129,7 +129,7 @@ KillMode=process
 `BLINKA_FORCEBOARD` is required — without it, `pixels.show()` hangs under systemd
 due to a DMA interaction issue on RPi4.
 
-**`mark2-led-events.service`** — user service (pi), polls JSON, sends to socket.
+**`mark2-led-events.service`** — user service, polls JSON, sends to socket.
 
 ### LED states
 
