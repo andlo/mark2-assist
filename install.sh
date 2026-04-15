@@ -34,6 +34,22 @@ setup_paths
 config_load
 
 # =============================================================================
+# SUDOERS — write NOPASSWD rule first so all subsequent sudo calls are silent
+# =============================================================================
+# This image may not have 010_pi-nopasswd. One sudo prompt here, then none later.
+SUDOERS_MARK2="/etc/sudoers.d/mark2-user"
+if [ ! -f "${SUDOERS_MARK2}" ]; then
+    printf '%s ALL=(ALL) NOPASSWD: ALL\n' "${CURRENT_USER}" | sudo tee "${SUDOERS_MARK2}" > /dev/null
+    sudo chmod 0440 "${SUDOERS_MARK2}"
+    if sudo visudo -c -f "${SUDOERS_MARK2}" &>/dev/null; then
+        echo "[OK] sudoers NOPASSWD rule added for ${CURRENT_USER}"
+    else
+        echo "[WARN] sudoers rule failed validation — removing"
+        sudo rm -f "${SUDOERS_MARK2}"
+    fi
+fi
+
+# =============================================================================
 # RESUME HOOK
 # =============================================================================
 
@@ -518,16 +534,6 @@ MARK2_HOME=${USER_HOME}
 CONFEOF
 log "Wrote /etc/mark2.conf (MARK2_USER=${CURRENT_USER})"
 
-# Add NOPASSWD sudoers rule so mark2 install/uninstall can run without password prompts
-SUDOERS_MARK2="/etc/sudoers.d/mark2-user"
-printf '%s ALL=(ALL) NOPASSWD: ALL\n' "${CURRENT_USER}" | sudo tee "${SUDOERS_MARK2}" > /dev/null
-sudo chmod 0440 "${SUDOERS_MARK2}"
-if sudo visudo -c -f "${SUDOERS_MARK2}" &>/dev/null; then
-    log "sudoers NOPASSWD rule added for ${CURRENT_USER}"
-else
-    warn "sudoers rule failed validation — removing"
-    sudo rm -f "${SUDOERS_MARK2}"
-fi
 
 # Install MOTD banner (shows on every SSH login)
 if [ -f "${SCRIPT_DIR}/lib/motd.sh" ]; then
