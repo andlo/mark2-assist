@@ -518,6 +518,17 @@ MARK2_HOME=${USER_HOME}
 CONFEOF
 log "Wrote /etc/mark2.conf (MARK2_USER=${CURRENT_USER})"
 
+# Add NOPASSWD sudoers rule so mark2 install/uninstall can run without password prompts
+SUDOERS_MARK2="/etc/sudoers.d/mark2-user"
+printf '%s ALL=(ALL) NOPASSWD: ALL\n' "${CURRENT_USER}" | sudo tee "${SUDOERS_MARK2}" > /dev/null
+sudo chmod 0440 "${SUDOERS_MARK2}"
+if sudo visudo -c -f "${SUDOERS_MARK2}" &>/dev/null; then
+    log "sudoers NOPASSWD rule added for ${CURRENT_USER}"
+else
+    warn "sudoers rule failed validation — removing"
+    sudo rm -f "${SUDOERS_MARK2}"
+fi
+
 # Install MOTD banner (shows on every SSH login)
 if [ -f "${SCRIPT_DIR}/lib/motd.sh" ]; then
     sudo cp "${SCRIPT_DIR}/lib/motd.sh" /etc/update-motd.d/10-mark2

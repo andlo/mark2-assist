@@ -119,7 +119,7 @@ rm -rf "${USER_HOME}/.config/mark2-overlay"
 rm -rf "${USER_HOME}/.config/mark2-screensaver"
 rm -rf "${USER_HOME}/.config/mark2-face"
 rm -f /tmp/mark2-*.json
-rm -f /tmp/mark2-*.sock
+sudo rm -f /tmp/mark2-*.sock 2>/dev/null || rm -f /tmp/mark2-*.sock 2>/dev/null || true
 
 log "Kiosk files removed"
 
@@ -208,6 +208,7 @@ section "Restoring default login banner"
 # Remove our custom MOTD script
 sudo rm -f /etc/update-motd.d/10-mark2
 sudo rm -f /etc/mark2.conf
+sudo rm -f /etc/sudoers.d/mark2-user
 
 # Restore standard Debian uname script if missing
 if [ ! -f /etc/update-motd.d/10-uname ]; then
