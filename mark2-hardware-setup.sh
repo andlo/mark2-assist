@@ -290,8 +290,34 @@ setup_sj201_venv() {
     "${SJ201_VENV}/bin/pip" install --quiet --upgrade pip
     "${SJ201_VENV}/bin/pip" install --quiet \
         Adafruit-Blinka \
+        adafruit-circuitpython-neopixel \
         smbus2 \
         gpiod || warn "Some pip packages failed - GPIO may work via system-site-packages"
+}
+
+setup_led_sudo() {
+    # NeoPixel PWM on GPIO12 requires /dev/mem access (root only).
+    # We add a targeted NOPASSWD sudoers rule so the hardware test
+    # can drive the LED ring without an interactive password prompt.
+    local VENV_PYTHON="${SJ201_VENV}/bin/python"
+    local SUDOERS_FILE="/etc/sudoers.d/mark2-led"
+
+    # Install neopixel as root so sudo-invoked python can import it
+    log "Installing adafruit-circuitpython-neopixel as root for LED ring..."
+    sudo "${SJ201_VENV}/bin/pip" install --quiet adafruit-circuitpython-neopixel \
+        || warn "neopixel install failed — LED ring test may not work"
+
+    # Use printf to avoid blank-line issues with echo
+    log "Adding sudoers NOPASSWD rule for LED ring (NeoPixel/GPIO12)..."
+    printf '%s ALL=(root) NOPASSWD: %s\n' "${CURRENT_USER}" "${VENV_PYTHON}" \
+        | sudo tee "$SUDOERS_FILE" > /dev/null
+    sudo chmod 0440 "$SUDOERS_FILE"
+    if ! sudo visudo -c -f "$SUDOERS_FILE" &>/dev/null; then
+        warn "sudoers rule failed validation — removing"
+        sudo rm -f "$SUDOERS_FILE"
+    else
+        log "sudoers OK: ${CURRENT_USER} can run ${VENV_PYTHON} as root without password"
+    fi
 }
 
 download_sj201_firmware() {
@@ -502,6 +528,7 @@ build_vocalfusion_driver
 configure_boot_config
 configure_modules_load
 setup_sj201_venv
+setup_led_sudo
 download_sj201_firmware
 create_sj201_service
 configure_wireplumber
