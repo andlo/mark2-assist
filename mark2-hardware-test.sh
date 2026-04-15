@@ -48,6 +48,13 @@ FAIL=0
 SKIP=0
 RESULTS=()
 
+# --- Logging ---
+LOGFILE="${MARK2_CONFIG_DIR:-${HOME}/.config/mark2}/hardware-test.log"
+mkdir -p "$(dirname "$LOGFILE")"
+exec > >(tee "$LOGFILE") 2>&1
+echo "# Mark II hardware test --- $(date +%Y-%m-%d %H:%M:%S)"
+echo ""
+
 result() {
     local name="$1"
     local status="$2"   # PASS FAIL SKIP
@@ -332,8 +339,15 @@ else
     echo ""
 
     # LED ring is NeoPixel WS2812 on GPIO12 (D12) — NOT I2C
-    # Requires adafruit-circuitpython-neopixel + adafruit-blinka (root)
-    LED_RESULT=$(sudo python3 - 2>&1 << 'PYEOF'
+    # Requires adafruit-circuitpython-neopixel + adafruit-blinka
+    # PWM on GPIO12 needs /dev/mem — requires sudo (NOPASSWD set by mark2-hardware-setup.sh)
+    if ! sudo -n true 2>/dev/null; then
+        result "LED ring" SKIP "sudo requires password — run mark2-hardware-setup.sh to add NOPASSWD rule"
+    else
+    LED_VENV="${HOME}/.venvs/sj201"
+    LED_PYTHON="${LED_VENV}/bin/python"
+    [ -x "$LED_PYTHON" ] || LED_PYTHON="python3"
+    LED_RESULT=$(sudo -n "$LED_PYTHON" - 2>&1 << 'PYEOF'
 import sys, time
 try:
     import neopixel
@@ -371,6 +385,7 @@ PYEOF
         result "LED ring" FAIL "${FAIL_MSG}"
     fi
 fi
+    fi
 
 # =============================================================================
 # TEST 7: Hardware buttons
