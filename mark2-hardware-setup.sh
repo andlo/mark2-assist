@@ -388,6 +388,29 @@ EOF
     # Remove legacy Lua configuration if present
     rm -f "${USER_HOME}/.config/wireplumber/main.lua.d/50-alsa-config.lua"
     rm -f "${USER_HOME}/.config/wireplumber/main.lua.d/50-alsa-config.lua.disabled-0.5"
+
+    log "Creating ~/.asoundrc to map ALSA 'default' to VF_ASR_L (XVF-3510 ASR channel)..."
+    # Without .asoundrc, ALSA 'default' resolves to raw 48kHz stereo (RMS ~20 —
+    # too low for openWakeWord). VF_ASR_L (card sj201, device 1, subdevice 3)
+    # delivers the dedicated ASR output from the XMOS chip (RMS ~500+).
+    cat > "${USER_HOME}/.asoundrc" << 'EOF'
+# Mark II: map ALSA default to XVF-3510 ASR channel (VF_ASR_L)
+# This gives RMS ~500+ for openWakeWord vs ~20 from raw stereo
+pcm.!default {
+    type plug
+    slave.pcm {
+        type hw
+        card sj201
+        device 1
+        subdevice 3
+    }
+}
+ctl.!default {
+    type hw
+    card sj201
+}
+EOF
+    log ".asoundrc created → default ALSA device → VF_ASR_L"
 }
 
 cleanup_vocalfusion_src() {
