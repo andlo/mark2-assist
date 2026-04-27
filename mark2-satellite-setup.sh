@@ -136,8 +136,14 @@ install_lva() {
     sudo cp "${SCRIPT_DIR}/lib/wait-pipewire.sh" /usr/local/bin/mark2-wait-pipewire
     sudo chmod +x /usr/local/bin/mark2-wait-pipewire
     log "PipeWire wait script installed: /usr/local/bin/mark2-wait-pipewire"
-    # Reload PipeWire so new source is available immediately
-    systemctl --user restart pipewire pipewire-pulse wireplumber 2>/dev/null || true
+    # Reload PipeWire so new source is available immediately.
+    # Use start instead of restart — restart returns non-zero if pipewire
+    # was not running (e.g. during first install), which kills the script
+    # under set -euo pipefail even with || true due to subshell interaction.
+    systemctl --user stop pipewire.socket pipewire.service wireplumber.service 2>/dev/null || true
+    sleep 1
+    systemctl --user start pipewire.socket pipewire.service 2>/dev/null || true
+    systemctl --user start wireplumber.service 2>/dev/null || true
 
     # Verify virtual devices appear in the PipeWire graph (closes #10)
     log "Waiting for SJ201 virtual devices in PipeWire..."
