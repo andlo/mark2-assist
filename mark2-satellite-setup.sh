@@ -102,7 +102,8 @@ install_dependencies() {
     apt_update
     apt_install \
         git python3 python3-venv python3-pip python3-dev \
-        alsa-utils curl wget unzip
+        alsa-utils curl wget unzip \
+        pipewire pipewire-pulse wireplumber gstreamer1.0-pipewire
 }
 
 install_lva() {
@@ -265,8 +266,7 @@ install_kiosk_packages() {
         weston \
         labwc wlr-randr \
         seatd dbus-user-session xdg-user-dirs \
-        chromium grim mpv \
-        pipewire pipewire-pulse wireplumber gstreamer1.0-pipewire
+        chromium grim mpv
 
     # Chromium GPU fix for Pi4 + Debian Trixie:
     # Debian's /usr/bin/chromium wrapper sets want_gles=1 which appends
