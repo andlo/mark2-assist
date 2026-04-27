@@ -33,7 +33,9 @@ fi
 echo "[plymouth] Installing Mark II boot splash..."
 
 # ── Dependencies ──────────────────────────────────────────────────────────────
-apt-get install -y --no-install-recommends plymouth librsvg2-bin 2>&1 \
+# plymouth-themes provides label-pango.so (text rendering plugin).
+# Without it, update-initramfs warns and Plymouth may fall back to text mode.
+apt-get install -y --no-install-recommends plymouth plymouth-themes librsvg2-bin 2>&1 \
     | grep -v "^Hit\|^Get\|^Fetch\|^Reading\|^Building\|^Preconfiguring" || true
 
 # ── Theme directory ───────────────────────────────────────────────────────────
@@ -200,12 +202,18 @@ echo "[plymouth]  tty1 blanking service installed"
 # ── Update cmdline.txt ────────────────────────────────────────────────────────
 if [ -f "$CMDLINE" ]; then
     LINE=$(cat "$CMDLINE")
-    LINE=$(echo "$LINE" | sed 's/ quiet//g; s/ splash//g; s/ plymouth\.ignore-serial-consoles//g; s/ vt\.global_cursor_default=[0-9]//g')
+    LINE=$(echo "$LINE" | sed 's/ quiet//g; s/ splash//g; s/ plymouth\.ignore-serial-consoles//g; s/ vt\.global_cursor_default=[0-9]//g; s/ loglevel=[0-9]//g; s/ rd\.systemd\.show_status=[^ ]*//g')
     # Remove console=tty1 — sends kernel messages to screen even with quiet
     LINE=$(echo "$LINE" | sed 's/ console=tty1//g')
-    # Add splash flags and hide blinking cursor
-    echo "${LINE} quiet splash plymouth.ignore-serial-consoles vt.global_cursor_default=0 vt.handoff=2" > "$CMDLINE"
-    echo "[plymouth]  cmdline.txt: quiet splash + cursor hidden + vt.handoff=2, console=tty1 removed"
+    # Add splash flags:
+    #   quiet splash          — suppress most kernel messages
+    #   loglevel=3            — only errors reach the framebuffer console
+    #                           (quiet alone doesn't suppress out-of-tree module
+    #                            warnings like VocalFusion "taints kernel")
+    #   vt.global_cursor_default=0 — hide blinking text cursor
+    #   vt.handoff=2          — smooth Plymouth→tty1 handoff
+    echo "${LINE} quiet splash loglevel=3 plymouth.ignore-serial-consoles vt.global_cursor_default=0 vt.handoff=2" > "$CMDLINE"
+    echo "[plymouth]  cmdline.txt: quiet splash loglevel=3 + cursor hidden + vt.handoff=2, console=tty1 removed"
 else
     echo "[plymouth]  WARNING: ${CMDLINE} not found — add 'quiet splash' manually"
 fi
