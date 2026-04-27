@@ -202,7 +202,7 @@ echo "[plymouth]  tty1 blanking service installed"
 # ── Update cmdline.txt ────────────────────────────────────────────────────────
 if [ -f "$CMDLINE" ]; then
     LINE=$(cat "$CMDLINE")
-    LINE=$(echo "$LINE" | sed 's/ quiet//g; s/ splash//g; s/ plymouth\.ignore-serial-consoles//g; s/ vt\.global_cursor_default=[0-9]//g; s/ loglevel=[0-9]//g; s/ rd\.systemd\.show_status=[^ ]*//g')
+    LINE=$(echo "$LINE" | sed 's/ quiet//g; s/ splash//g; s/ plymouth\.ignore-serial-consoles//g; s/ vt\.global_cursor_default=[0-9]//g; s/ vt\.handoff=[0-9]//g; s/ loglevel=[0-9]//g; s/ consoleblank=[0-9]*//g; s/ rd\.systemd\.show_status=[^ ]*//g; s/  */ /g; s/ *$//')
     # Remove console=tty1 — sends kernel messages to screen even with quiet
     LINE=$(echo "$LINE" | sed 's/ console=tty1//g')
     # Add splash flags:
