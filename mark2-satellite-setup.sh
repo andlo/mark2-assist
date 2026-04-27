@@ -375,6 +375,13 @@ EOF
     cp "${TEMPLATE_DIR}/kiosk.html" "${KIOSK_DIR}/kiosk.html"
     log "Installed kiosk template → ${KIOSK_DIR}/kiosk.html"
 
+    # ── mark2-httpd.py — local HTTP server on :8088 ──
+    # Serves combined.html, splash.html, and proxies /ha/ to Home Assistant.
+    # kiosk.sh starts this at boot; without it Chromium shows "site can't be reached".
+    cp "${SCRIPT_DIR}/lib/mark2-httpd.py" "${USER_HOME}/mark2-httpd.py"
+    chmod +x "${USER_HOME}/mark2-httpd.py"
+    log "Installed ~/mark2-httpd.py"
+
     # ── kiosk.sh — main display launcher ──
     # Uses ${HOME} for paths — works with any username, not just pi.
     KIOSK_SCRIPT="${USER_HOME}/kiosk.sh"
