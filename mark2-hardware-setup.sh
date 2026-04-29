@@ -349,8 +349,13 @@ create_sj201_service() {
     cat > "${SYSTEMD_USER_DIR}/sj201.service" << EOF
 [Unit]
 Documentation=https://github.com/MycroftAI/mark-ii-hardware-testing/blob/main/README.md
-Description=SJ201 microphone initialization
-After=network-online.target
+Description=SJ201 microphone + TAS5806 amplifier initialization
+# Must run after WirePlumber has taken control of the audio device.
+# WirePlumber resets the TAS5806 amplifier when it initialises the ALSA
+# device — if init_tas5806 runs before WirePlumber is ready the amp
+# is silenced again and audio output stays dead.
+After=wireplumber.service
+Requires=wireplumber.service
 
 [Service]
 Type=oneshot
