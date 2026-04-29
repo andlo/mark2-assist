@@ -342,11 +342,31 @@ if [ -z "${WAYLAND_DISPLAY:-}" ] && [ "$(tty)" = "/dev/tty1" ]; then
     printf '\033[2J\033[H\033[?25l'   # clear screen + hide cursor (ANSI)
     export XDG_RUNTIME_DIR=/run/user/$(id -u)
     export XDG_SESSION_TYPE=wayland
-    weston --backend=drm --shell=kiosk --idle-time=300 --log=/tmp/weston.log -- "${HOME}/startup.sh"
+    weston --backend=drm --shell=kiosk --idle-time=300 --log=/tmp/weston.log \
+        --config="${HOME}/.config/weston.ini" -- "${HOME}/startup.sh"
 fi
 # mark2-weston-end
 EOF
     log "Weston autostart added to ~/.bash_profile"
+
+    # weston.ini — pin Weston to DSI-1 (Mark II touchscreen).
+    # Without this, if an HDMI monitor is connected Weston opens on HDMI
+    # and the touchscreen stays dark. We explicitly enable only DSI-1 and
+    # disable both HDMI outputs so the kiosk always renders on the panel.
+    cat > "${USER_HOME}/.config/weston.ini" << 'WESTONEOF'
+[output]
+name=DSI-1
+mode=800x480
+
+[output]
+name=HDMI-A-1
+mode=off
+
+[output]
+name=HDMI-A-2
+mode=off
+WESTONEOF
+    log "Weston configured to use DSI-1 only (~/.config/weston.ini)"
 
     sudo systemctl daemon-reload
 }
