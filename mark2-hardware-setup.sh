@@ -345,28 +345,57 @@ download_sj201_firmware() {
 }
 
 create_sj201_service() {
+    # ── write mark2-sj201-init.sh wrapper ────────────────────────────────────
+    # This script runs as root (called by sj201.service via sudo) but needs to
+    # stop/start WirePlumber on the *user* session bus. systemctl --user inside
+    # a sudo context fails because $DBUS_SESSION_BUS_ADDRESS is unset.
+    # Solution: use 'su -c' to run systemctl --user as the actual user.
+    # See issue #25.
+    sudo tee /opt/sj201/mark2-sj201-init.sh > /dev/null << INITEOF
+#!/bin/bash
+set -e
+MARK2_USER="${CURRENT_USER}"
+
+# Stop WirePlumber so I2S bus is free during XVF3510 firmware flash.
+# WirePlumber holds the ALSA device open; if it is running during flash
+# the XVF3510 boots but sends no audio data (0-amplitude from mic).
+su -c "systemctl --user stop wireplumber.service" - "\$MARK2_USER" || true
+sleep 1
+
+# Flash XVF3510 DSP firmware via SPI. --verbose logs each 4096-byte block
+# so failures are visible in journalctl. Flash should take ~10s for 48 blocks.
+${SJ201_VENV}/bin/python ${WORK_DIR}/xvf3510-flash --direct ${WORK_DIR}/app_xvf3510_int_spi_boot_v4_2_0.bin --verbose
+
+# Wait for XVF3510 to boot from firmware
+sleep 3
+
+# Initialise TAS5806 I2S amplifier (sets gain, unmutes output)
+${SJ201_VENV}/bin/python ${WORK_DIR}/init_tas5806
+
+# Restart WirePlumber now that XVF3510 is ready and I2S clock is stable.
+# Wait for WirePlumber to enumerate the SJ201 ALSA card (~6s typical).
+su -c "systemctl --user start wireplumber.service" - "\$MARK2_USER" || true
+sleep 6
+
+echo "SJ201 init complete"
+INITEOF
+    sudo chmod +x /opt/sj201/mark2-sj201-init.sh
+    log "mark2-sj201-init.sh installed"
+
     log "Creating sj201.service systemd unit..."
     cat > "${SYSTEMD_USER_DIR}/sj201.service" << EOF
 [Unit]
 Documentation=https://github.com/MycroftAI/mark-ii-hardware-testing/blob/main/README.md
 Description=SJ201 microphone + TAS5806 amplifier initialization
-# XVF3510 firmware must be flashed before WirePlumber opens the I2S device.
-# If WirePlumber holds the I2S device open during flash the chip boots but
-# sends no audio data. We therefore stop WirePlumber, flash, then restart it.
-After=pipewire.service
+# Must run after PipeWire (and therefore WirePlumber) has started.
+# The init script stops WirePlumber internally before flashing XVF3510.
+After=pipewire.service wireplumber.service
 Requires=pipewire.service
 
 [Service]
 Type=oneshot
-WorkingDirectory=${SJ201_VENV}
-# Stop WirePlumber so I2S is free during XVF3510 firmware load
-ExecStartPre=/usr/bin/systemctl --user stop wireplumber.service
-# Run with sudo — xvf3510-flash needs SPI/I2C root access
-ExecStart=/usr/bin/sudo ${SJ201_VENV}/bin/python ${WORK_DIR}/xvf3510-flash --direct ${WORK_DIR}/app_xvf3510_int_spi_boot_v4_2_0.bin
-ExecStartPost=/bin/sleep 3
-ExecStartPost=/usr/bin/sudo ${SJ201_VENV}/bin/python ${WORK_DIR}/init_tas5806
-# Restart WirePlumber now that XVF3510 is ready
-ExecStartPost=/usr/bin/systemctl --user start wireplumber.service
+# Run init script as root (needs SPI/I2C access); script handles user session internally
+ExecStart=/usr/bin/sudo /opt/sj201/mark2-sj201-init.sh
 Restart=on-failure
 RestartSec=5s
 RemainAfterExit=yes
