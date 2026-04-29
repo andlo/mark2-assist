@@ -433,6 +433,7 @@ EOF
 
 configure_screen_no_blank() {
     section "Disabling screen blanking"
+    detect_boot_dir
 
     # Disable console blanking at kernel level
     BOOT_CMDLINE="/boot/firmware/cmdline.txt"
@@ -454,7 +455,6 @@ configure_screen_no_blank() {
 
     # disable_fw_kms_setup=1: let the kernel own KMS setup rather than firmware.
     # Second layer of the same DSI warm-reboot workaround.
-    BOOT_CONFIG="${BOOT_DIR}/config.txt"
     if [ -f "$BOOT_CONFIG" ] && ! grep -q "disable_fw_kms_setup" "$BOOT_CONFIG"; then
         echo "disable_fw_kms_setup=1" | sudo tee -a "$BOOT_CONFIG" > /dev/null
         log "Added disable_fw_kms_setup=1 to config.txt (DSI warm-reboot workaround)"
