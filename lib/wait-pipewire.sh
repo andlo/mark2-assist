@@ -8,6 +8,9 @@ for i in $(seq 1 30); do
     SPK=$(wpctl status 2>/dev/null | grep -c 'SJ201 Speaker')
     if [ "$ASR" -gt 0 ] && [ "$SPK" -gt 0 ]; then
         echo "PipeWire SJ201 devices ready after ${i}s"
+        # Extra settle time — WirePlumber re-opens I2S after XVF3510 flash
+        # and the device needs a moment before audio data flows reliably.
+        sleep 3
         # Set default volume to 60% at boot.
         # Read saved volume from config if available.
         CONFIG="${HOME}/.config/mark2/config"
