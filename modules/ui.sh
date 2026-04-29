@@ -46,7 +46,7 @@ fi
 
 # ── Boot splash (Plymouth) ───────────────────────────────────────────────────
 if confirm_or_skip "Install boot splash screen (Plymouth, covers kernel boot)?"; then
-    sudo bash "${SCRIPT_DIR}/lib/install-plymouth.sh"
+    sudo bash "${SCRIPT_DIR}/lib/install-plymouth.sh" >> "${MARK2_LOG}" 2>&1
 else
     log "Skipping boot splash"
 fi
