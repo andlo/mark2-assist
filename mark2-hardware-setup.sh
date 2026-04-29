@@ -361,9 +361,10 @@ Type=oneshot
 WorkingDirectory=${SJ201_VENV}
 # Stop WirePlumber so I2S is free during XVF3510 firmware load
 ExecStartPre=/usr/bin/systemctl --user stop wireplumber.service
-ExecStart=${SJ201_VENV}/bin/python ${WORK_DIR}/xvf3510-flash --direct ${WORK_DIR}/app_xvf3510_int_spi_boot_v4_2_0.bin
+# Run with sudo — xvf3510-flash needs SPI/I2C root access
+ExecStart=/usr/bin/sudo ${SJ201_VENV}/bin/python ${WORK_DIR}/xvf3510-flash --direct ${WORK_DIR}/app_xvf3510_int_spi_boot_v4_2_0.bin
 ExecStartPost=/bin/sleep 3
-ExecStartPost=/usr/bin/env PATH=/usr/local/bin:/usr/sbin:/usr/bin:/bin ${SJ201_VENV}/bin/python ${WORK_DIR}/init_tas5806
+ExecStartPost=/usr/bin/sudo ${SJ201_VENV}/bin/python ${WORK_DIR}/init_tas5806
 # Restart WirePlumber now that XVF3510 is ready
 ExecStartPost=/usr/bin/systemctl --user start wireplumber.service
 Restart=on-failure
