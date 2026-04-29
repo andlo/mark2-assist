@@ -320,13 +320,17 @@ EOF
     # window decorations, taskbars or desktop environment.
     # Weston -- <cmd> runs the startup script as the Weston session.
     BASH_PROFILE="${USER_HOME}/.bash_profile"
-    # Remove any old labwc or weston block before writing the new one
-    if grep -q "labwc\|weston" "$BASH_PROFILE" 2>/dev/null; then
-        sed -i '/# Start Wayland\|labwc\|weston/,/^fi$/d' "$BASH_PROFILE" || true
+    # Remove any old compositor block using unique markers so we never
+    # accidentally eat an unrelated if/fi from the existing .bash_profile.
+    sed -i '/# mark2-weston-start/,/# mark2-weston-end/d' "$BASH_PROFILE" 2>/dev/null || true
+    # Also clean up older installs that used the old unbounded sed pattern
+    if grep -q "# Start Weston kiosk compositor" "$BASH_PROFILE" 2>/dev/null; then
+        sed -i '/# Start Weston kiosk compositor/,/^fi$/d' "$BASH_PROFILE" || true
         log "Removed old compositor block from ~/.bash_profile"
     fi
     cat >> "$BASH_PROFILE" << 'EOF'
 
+# mark2-weston-start
 # Start Weston kiosk compositor on tty1 (Mark II touchscreen display)
 # Weston is used instead of labwc because Chromium 146 on Trixie does not
 # composite its render surfaces correctly in labwc on Pi4 with vc4-kms-v3d.
@@ -340,6 +344,7 @@ if [ -z "${WAYLAND_DISPLAY:-}" ] && [ "$(tty)" = "/dev/tty1" ]; then
     export XDG_SESSION_TYPE=wayland
     weston --backend=drm --shell=kiosk --idle-time=300 --log=/tmp/weston.log -- "${HOME}/startup.sh"
 fi
+# mark2-weston-end
 EOF
     log "Weston autostart added to ~/.bash_profile"
 
