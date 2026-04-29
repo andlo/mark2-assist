@@ -272,23 +272,29 @@ configure_modules_load() {
 setup_sj201_venv() {
     log "Creating Python venv for SJ201..."
 
+    # Ensure the venv directory is owned by the normal user, not root.
+    # This script may run as root (via sudo from install.sh), so we use
+    # sudo -u to create the venv and run pip as the target user.
+    mkdir -p "$(dirname "$SJ201_VENV")"
+    chown "$CURRENT_USER" "$(dirname "$SJ201_VENV")"
+
     # Trixie (Debian 13) ships Python 3.13 as default.
     # RPi.GPIO is not available for 3.13 yet - use --system-site-packages
     # as a workaround so system-installed GPIO packages are accessible in the venv.
-    PYTHON_VERSION=$(python3 -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')
+    PYTHON_VERSION=$(sudo -u "$CURRENT_USER" python3 -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')
     log "Python version: ${PYTHON_VERSION}"
 
-    if python3 -c "import sys; exit(0 if sys.version_info >= (3,13) else 1)" 2>/dev/null; then
+    if sudo -u "$CURRENT_USER" python3 -c "import sys; exit(0 if sys.version_info >= (3,13) else 1)" 2>/dev/null; then
         warn "Python 3.13+ detected (Trixie) - using --system-site-packages for GPIO compatibility"
         apt_install python3-rpi-lgpio python3-smbus2 python3-libgpiod 2>/dev/null || \
             warn "Some system GPIO packages not available - continuing"
-        python3 -m venv --system-site-packages "$SJ201_VENV"
+        sudo -u "$CURRENT_USER" python3 -m venv --system-site-packages "$SJ201_VENV"
     else
-        python3 -m venv "$SJ201_VENV"
+        sudo -u "$CURRENT_USER" python3 -m venv "$SJ201_VENV"
     fi
 
-    "${SJ201_VENV}/bin/pip" install --quiet --upgrade pip
-    "${SJ201_VENV}/bin/pip" install --quiet \
+    sudo -u "$CURRENT_USER" "${SJ201_VENV}/bin/pip" install --quiet --upgrade pip
+    sudo -u "$CURRENT_USER" "${SJ201_VENV}/bin/pip" install --quiet \
         Adafruit-Blinka \
         adafruit-circuitpython-neopixel \
         smbus2 \
