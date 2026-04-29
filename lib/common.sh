@@ -57,6 +57,10 @@
 #     reload_user_systemd   Run systemctl --user daemon-reload
 # =============================================================================
 
+# --- Default log path (overridden by setup_paths once user is resolved) ---
+# Ensures MARK2_LOG is never unbound even if logging is called before setup_paths.
+MARK2_LOG="${MARK2_LOG:-/tmp/mark2-install.log}"
+
 # --- Output colors ---
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -74,9 +78,7 @@ section() { echo -e "\n${CYAN}=== $1 ===${NC}"; _log_write "----" "=== $1 ==="; 
 _log_write() {
     local level="$1"
     local msg="$2"
-    if [ -n "${MARK2_LOG:-}" ]; then
-        echo "[$(date '+%Y-%m-%d %H:%M:%S')] [${level}] ${msg}" >> "$MARK2_LOG"
-    fi
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] [${level}] ${msg}" >> "$MARK2_LOG"
 }
 
 # --- Show informational whiptail box (non-blocking display) ---
