@@ -336,27 +336,33 @@ journalctl --user -u lva -n 50
 ```
 
 **Test microphone directly**
+
 ```bash
 arecord -D plughw:CARD=sj201,DEV=1 -r 16000 -c 1 -f S16_LE -d 3 /tmp/test.wav
 aplay /tmp/test.wav
 ```
 
 **HA dashboard shows login screen instead of auto-login**
+
 - Verify trusted_networks is configured in `configuration.yaml` (see above)
 - Verify the IP in config matches Mark II's actual IP exactly (not a subnet)
-- Restart HA after any configuration.yaml change
+- Restart HA after any configuration.yaml change **Touchscreen blank after** `sudo reboot`
+
+This is a known upstream bug in the `vc4-kms-v3d` DRM driver on Raspberry Pi 4 with DSI displays — it affects OVOS, Raspbian, and all other software on the same hardware. The installer adds `vc4.force_hotplug=1` and `disable_fw_kms_setup=1` as workarounds, which help in most cases. If the screen is still blank after a warm reboot, a full power cycle (unplug and replug the 12V barrel jack) is the reliable fix until the upstream kernel bug is resolved.
 
 **Kiosk not starting after reboot**
+
 ```bash
 cat /tmp/mark2-startup.log
 cat /tmp/weston.log
 ```
 
 **Check all service statuses at a glance**
+
 ```bash
 mark2-status
 ```
-
+```
 Or individually:
 ```bash
 systemctl --user status lva mark2-volume-buttons mark2-face-events mark2-led-events mark2-leds
