@@ -122,8 +122,36 @@ install_lva() {
     rm -rf "${LVA_DIR}/.venv"
     info "Running LVA setup (creates venv + installs Python deps)..."
     cd "$LVA_DIR"
-    python3 script/setup >> "${MARK2_LOG}" 2>&1         || die "LVA setup failed — check ${MARK2_LOG}"
+    python3 script/setup >> "${MARK2_LOG}" 2>&1 || die "LVA setup failed — check ${MARK2_LOG}"
     log "Linux Voice Assistant installed"
+
+    # ── numpy 2.x patch for pymicro-wakeword ─────────────────────────────────
+    # pymicro-wakeword 2.2.1 uses .astype(np.uint8) without clipping first.
+    # numpy 2.x changed overflow behaviour: values outside [0,255] no longer
+    # wrap silently but emit a RuntimeWarning and produce incorrect values.
+    # This corrupts the quantized TFLite tensor, causing the model to never
+    # score above threshold — wake word detection silently fails.
+    # Fix: clip to [0,255] before cast. See issue #24.
+    info "Patching pymicro-wakeword for numpy 2.x compatibility..."
+    sudo -u "$CURRENT_USER" "${LVA_DIR}/.venv/bin/python3" - << 'PYEOF' >> "${MARK2_LOG}" 2>&1
+import pathlib
+matches = list(pathlib.Path('.').rglob('pymicro_wakeword/microwakeword.py'))
+if not matches:
+    print('WARNING: microwakeword.py not found — skipping numpy patch')
+else:
+    p = matches[0]
+    old = ').astype(np.uint8)'
+    new = ').clip(0, 255).astype(np.uint8)'
+    t = p.read_text()
+    if new in t:
+        print('numpy patch already applied')
+    elif old in t:
+        p.write_text(t.replace(old, new))
+        print('numpy patch applied OK')
+    else:
+        print('WARNING: expected line not found in microwakeword.py')
+PYEOF
+    log "pymicro-wakeword numpy patch applied"
 
     section "Installing PipeWire virtual source for SJ201 ASR"
     # Creates a PipeWire source that reads from ALSA VF_ASR_(L) — the XMOS XVF-3510's
