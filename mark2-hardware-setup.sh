@@ -350,19 +350,22 @@ create_sj201_service() {
 [Unit]
 Documentation=https://github.com/MycroftAI/mark-ii-hardware-testing/blob/main/README.md
 Description=SJ201 microphone + TAS5806 amplifier initialization
-# Must run after WirePlumber has taken control of the audio device.
-# WirePlumber resets the TAS5806 amplifier when it initialises the ALSA
-# device — if init_tas5806 runs before WirePlumber is ready the amp
-# is silenced again and audio output stays dead.
-After=wireplumber.service
-Requires=wireplumber.service
+# XVF3510 firmware must be flashed before WirePlumber opens the I2S device.
+# If WirePlumber holds the I2S device open during flash the chip boots but
+# sends no audio data. We therefore stop WirePlumber, flash, then restart it.
+After=pipewire.service
+Requires=pipewire.service
 
 [Service]
 Type=oneshot
 WorkingDirectory=${SJ201_VENV}
-ExecStart=${SJ201_VENV}/bin/python ${WORK_DIR}/xvf3510-flash --direct ${WORK_DIR}/app_xvf3510_int_spi_boot_v4_2_0.bin --verbose
-ExecStartPost=/bin/sleep 5
+# Stop WirePlumber so I2S is free during XVF3510 firmware load
+ExecStartPre=/usr/bin/systemctl --user stop wireplumber.service
+ExecStart=${SJ201_VENV}/bin/python ${WORK_DIR}/xvf3510-flash --direct ${WORK_DIR}/app_xvf3510_int_spi_boot_v4_2_0.bin
+ExecStartPost=/bin/sleep 3
 ExecStartPost=/usr/bin/env PATH=/usr/local/bin:/usr/sbin:/usr/bin:/bin ${SJ201_VENV}/bin/python ${WORK_DIR}/init_tas5806
+# Restart WirePlumber now that XVF3510 is ready
+ExecStartPost=/usr/bin/systemctl --user start wireplumber.service
 Restart=on-failure
 RestartSec=5s
 RemainAfterExit=yes
