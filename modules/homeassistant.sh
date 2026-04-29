@@ -44,14 +44,13 @@ fi
 touch "${MARK2_DIR}/ha-kiosk-enabled"
 log "HA kiosk enabled"
 
-# Kiosk idle timeout
+# Kiosk idle timeout — default 30s, configurable later in ~/.config/mark2/config
+# or via the companion HA integration (not yet built).
 if [ -z "${HA_KIOSK_TIMEOUT:-}" ]; then
-    HA_KIOSK_TIMEOUT=$(ask_input \
-        "Seconds before dashboard returns to passive clock screen (0 = never)" \
-        "60") || HA_KIOSK_TIMEOUT="60"
+    HA_KIOSK_TIMEOUT="30"
     config_save "HA_KIOSK_TIMEOUT" "$HA_KIOSK_TIMEOUT"
-    log "Kiosk idle timeout: ${HA_KIOSK_TIMEOUT}s"
 fi
+log "Kiosk idle timeout: ${HA_KIOSK_TIMEOUT}s (change HA_KIOSK_TIMEOUT in ~/.config/mark2/config)"
 
 # Show post-install instructions
 IP=$(hostname -I | awk '{print $1}')
