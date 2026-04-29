@@ -35,8 +35,8 @@ echo "[plymouth] Installing Mark II boot splash..."
 # ── Dependencies ──────────────────────────────────────────────────────────────
 # plymouth-themes provides label-pango.so (text rendering plugin).
 # Without it, update-initramfs warns and Plymouth may fall back to text mode.
-apt-get install -y --no-install-recommends plymouth plymouth-themes librsvg2-bin 2>&1 \
-    | grep -v "^Hit\|^Get\|^Fetch\|^Reading\|^Building\|^Preconfiguring" || true
+apt-get install -y --no-install-recommends plymouth plymouth-themes librsvg2-bin \
+    >> "${MARK2_LOG:-/tmp/mark2-install.log}" 2>&1 || true
 
 # ── Theme directory ───────────────────────────────────────────────────────────
 mkdir -p "${THEME_DIR}"
@@ -220,7 +220,9 @@ fi
 
 # ── Regenerate initramfs ──────────────────────────────────────────────────────
 echo "[plymouth]  Regenerating initramfs (~30s)..."
-update-initramfs -u 2>&1 | grep -v "^I: " | tail -5
+update-initramfs -u >> "${MARK2_LOG:-/tmp/mark2-install.log}" 2>&1 \
+    && echo "[plymouth]  initramfs OK" \
+    || echo "[plymouth]  WARNING: initramfs regeneration failed — check log"
 
 echo "[plymouth] Mark II boot splash installed ✅"
 echo "[plymouth] Reboot to see it."
