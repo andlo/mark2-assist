@@ -153,13 +153,11 @@ http:
 
 ### Optional: automatic login without a keyboard
 
-After the first kiosk setup the touchscreen may prompt for login.
-To log in automatically, also add the following to `configuration.yaml`:
+After the first kiosk setup the touchscreen may prompt for login. To log in automatically, also add the following to `configuration.yaml`:
 
 ```yaml
 homeassistant:
   auth_providers:
-    - type: homeassistant
     - type: trusted_networks
       trusted_networks:
         - 192.168.1.x        # Replace with your Mark II's exact IP address
@@ -167,17 +165,16 @@ homeassistant:
         192.168.1.x:         # Same IP as above
           - YOUR_USER_ID     # Find in HA: Settings → People → click user → ID in URL
       allow_bypass_login: true
+    - type: homeassistant
 ```
 
-**How to find your user ID:**
-In HA go to Settings → People → click your user. The URL ends with
-`/config/users/edit/abc123def456` — that last part is your user ID.
+**How to find your user ID**:In HA go to Settings → People → click your user. The URL ends with `/config/users/edit/abc123def456` — that last part is your user ID.
 
 **How to find Mark II's IP:**
+
 ```bash
 hostname -I
 ```
-
 **How to edit configuration.yaml in HA:**
 Use the Studio Code Server add-on or File Editor add-on.
 Navigate to `/config/configuration.yaml` and add both blocks above.
@@ -188,8 +185,10 @@ After restarting HA and rebooting Mark II, the dashboard loads automatically —
 > embed your HA frontend in an iframe. It does not remove authentication. For most home setups
 > this is perfectly safe. `allow_bypass_login: true` grants passwordless access from that
 > specific IP only — using the exact device IP (not a subnet) limits this to your Mark II.
-> Always keep `- type: homeassistant` as the first provider so you can still log in from
-> other devices with a password.
+> Always keep `- type: homeassistant` as the **last** provider so you can still log in from
+> other devices with a password. `trusted_networks` must come **first** so HA evaluates it
+> before falling back to password auth — if the order is reversed, the login screen appears
+> even for trusted IPs.
 
 See [docs/HA_SETUP.md](docs/HA_SETUP.md) for full step-by-step instructions.
 

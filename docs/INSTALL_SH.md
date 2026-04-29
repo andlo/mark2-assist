@@ -224,7 +224,6 @@ Add this to your HA configuration.yaml and restart HA:
 
 homeassistant:
   auth_providers:
-    - type: homeassistant
     - type: trusted_networks
       trusted_networks:
         - 192.168.1.42        ← your Mark II IP
@@ -232,6 +231,7 @@ homeassistant:
         192.168.1.42:
           - <YOUR_USER_ID>    ← find in HA Settings → People → click user → URL
       allow_bypass_login: true
+    - type: homeassistant
 
 =====================================================
 ```
