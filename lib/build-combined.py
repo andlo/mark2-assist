@@ -12,22 +12,31 @@ and all face/HUD layers. This script only needs to:
 import sys, re
 
 if len(sys.argv) < 4:
-    print(f"Usage: {sys.argv[0]} <kiosk.html> <ha_url> <output.html> [ha_token] [weather_entity]")
+    print(f"Usage: {sys.argv[0]} <kiosk.html> <ha_url> <output.html> [ha_token] [weather_entity] [kiosk_timeout_s]")
     sys.exit(1)
 
 src_path, ha_url, out_path = sys.argv[1], sys.argv[2], sys.argv[3]
 ha_token        = sys.argv[4] if len(sys.argv) > 4 else ''
 weather_entity  = sys.argv[5] if len(sys.argv) > 5 else ''
+kiosk_timeout_s = sys.argv[6] if len(sys.argv) > 6 else '60'
+
+# Convert to milliseconds for JS; 0 means disabled
+try:
+    timeout_ms = int(kiosk_timeout_s) * 1000
+except ValueError:
+    timeout_ms = 60000
+
 src = open(src_path).read()
 
 # 1. Replace placeholders
 src = src.replace('%%HA_URL%%', ha_url)
-# Inject HA credentials for passive weather widget via JS globals
+# Inject HA credentials and kiosk config as JS globals
 inject = (
     f"\n  <script>\n"
     f"    window.MARK2_HA_URL = '{ha_url}';\n"
     f"    window.MARK2_HA_TOKEN = '{ha_token}';\n"
     f"    window.MARK2_WEATHER_ENTITY = '{weather_entity}';\n"
+    f"    window.MARK2_HA_TIMEOUT_MS = {timeout_ms};  // 0 = never return to passive\n"
     f"  </script>"
 )
 src = src.replace('</head>', inject + '\n</head>', 1)

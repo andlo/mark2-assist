@@ -260,7 +260,12 @@
 <script>
 // ── Config ──
 const HA_URL = '%%HA_URL%%';
-const HA_TIMEOUT_MS = 60000; // return to passive after 60s inactivity
+// Idle timeout before returning to passive clock/weather screen.
+// Injected at build time via window.MARK2_HA_TIMEOUT_MS (seconds × 1000).
+// 0 = never return to passive. Default: 60 000 ms (60 s).
+const HA_TIMEOUT_MS = (typeof window.MARK2_HA_TIMEOUT_MS !== 'undefined')
+    ? window.MARK2_HA_TIMEOUT_MS
+    : 60000;
 
 // ── DOM refs ──
 const haLayer    = document.getElementById('ha-layer');
@@ -320,6 +325,7 @@ function dismissHA() {
 
 function startHATimeout() {
   stopHATimeout();
+  if (HA_TIMEOUT_MS === 0) return;  // 0 = stay on dashboard indefinitely
   haTimeoutStart = Date.now();
   haBar.style.transition = 'none';
   haBar.style.transform = 'scaleX(1)';

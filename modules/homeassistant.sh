@@ -44,6 +44,15 @@ fi
 touch "${MARK2_DIR}/ha-kiosk-enabled"
 log "HA kiosk enabled"
 
+# Kiosk idle timeout
+if [ -z "${HA_KIOSK_TIMEOUT:-}" ]; then
+    HA_KIOSK_TIMEOUT=$(ask_input \
+        "Seconds before dashboard returns to passive clock screen (0 = never)" \
+        "60") || HA_KIOSK_TIMEOUT="60"
+    config_save "HA_KIOSK_TIMEOUT" "$HA_KIOSK_TIMEOUT"
+    log "Kiosk idle timeout: ${HA_KIOSK_TIMEOUT}s"
+fi
+
 # Show post-install instructions
 IP=$(hostname -I | awk '{print $1}')
 echo ""
@@ -60,7 +69,6 @@ echo -e "${YELLOW}  2. Enable auto-login from this device (recommended):${NC}"
 echo ""
 echo "     homeassistant:"
 echo "       auth_providers:"
-echo "         - type: homeassistant"
 echo "         - type: trusted_networks"
 echo "           trusted_networks:"
 echo "             - ${IP}"
@@ -68,6 +76,7 @@ echo "           trusted_users:"
 echo "             ${IP}:"
 echo "               - <YOUR_HA_USER_ID>  # Settings → People → user → ID in URL"
 echo "           allow_bypass_login: true"
+echo "         - type: homeassistant"
 echo ""
 echo "  After editing: restart HA (Settings → System → Restart)"
 echo ""
