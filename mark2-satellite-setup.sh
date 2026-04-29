@@ -441,6 +441,23 @@ configure_screen_no_blank() {
             sudo sed -i 's/$/ consoleblank=0/' "$BOOT_CMDLINE"
             log "Disabled console blanking (consoleblank=0 in cmdline.txt)"
         fi
+        # Workaround for Pi4 DSI display staying blank after warm reboot.
+        # The vc4-kms-v3d driver sometimes fails to reinitialise the DSI panel
+        # on warm reboot. force_hotplug forces hotplug re-detection on every boot
+        # and is the most effective known workaround for this upstream kernel bug.
+        # See: https://github.com/agherzan/meta-raspberrypi/issues/1368
+        if ! grep -q "vc4.force_hotplug=1" "$BOOT_CMDLINE"; then
+            sudo sed -i 's/$/ vc4.force_hotplug=1/' "$BOOT_CMDLINE"
+            log "Added vc4.force_hotplug=1 to cmdline.txt (DSI warm-reboot workaround)"
+        fi
+    fi
+
+    # disable_fw_kms_setup=1: let the kernel own KMS setup rather than firmware.
+    # Second layer of the same DSI warm-reboot workaround.
+    BOOT_CONFIG="${BOOT_DIR}/config.txt"
+    if [ -f "$BOOT_CONFIG" ] && ! grep -q "disable_fw_kms_setup" "$BOOT_CONFIG"; then
+        echo "disable_fw_kms_setup=1" | sudo tee -a "$BOOT_CONFIG" > /dev/null
+        log "Added disable_fw_kms_setup=1 to config.txt (DSI warm-reboot workaround)"
     fi
 }
 
