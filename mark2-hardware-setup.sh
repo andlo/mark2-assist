@@ -405,11 +405,15 @@ Description=SJ201 microphone + TAS5806 amplifier initialization
 # Must run after PipeWire (and therefore WirePlumber) has started.
 # The init script stops WirePlumber internally before flashing XVF3510.
 After=pipewire.service wireplumber.service
-Requires=pipewire.service
+# No Requires=pipewire — init script stops/restarts PipeWire internally.
+# systemd would cancel sj201 if it sees pipewire stop while Requires is set.
 
 [Service]
 Type=oneshot
-# Run init script as root (needs SPI/I2C access); script handles user session internally
+# Run init script as root (needs SPI/I2C access); script handles user session internally.
+# Note: no Requires=pipewire here — the init script stops and restarts PipeWire
+# internally. If systemd sees pipewire stop while sj201 Requires it, systemd
+# cancels sj201 mid-run. After= is kept so we start AFTER pipewire is up.
 ExecStart=/usr/bin/sudo /opt/sj201/mark2-sj201-init.sh
 Restart=on-failure
 RestartSec=5s
