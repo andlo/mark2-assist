@@ -347,23 +347,37 @@ download_sj201_firmware() {
 create_sj201_service() {
     # ── write mark2-sj201-init.sh wrapper ────────────────────────────────────
     # This script runs as root (called by sj201.service via sudo) but needs to
-    # stop/start WirePlumber on the *user* session bus. systemctl --user inside
+    # stop/start PipeWire on the *user* session bus. systemctl --user inside
     # a sudo context fails because $DBUS_SESSION_BUS_ADDRESS is unset.
-    # Solution: use 'su -c' to run systemctl --user as the actual user.
+    # Solution: use 'sudo -u <user> XDG_RUNTIME_DIR=... systemctl --user'.
+    # Note: stopping only WirePlumber is NOT enough — PipeWire core's pro-audio
+    # monitor keeps the I2S device open. The entire stack must be stopped.
     # See issue #25.
     sudo tee /opt/sj201/mark2-sj201-init.sh > /dev/null << INITEOF
 #!/bin/bash
 set -e
 MARK2_USER="${CURRENT_USER}"
+MARK2_UID=\$(id -u "\$MARK2_USER")
+export XDG_RUNTIME_DIR="/run/user/\${MARK2_UID}"
+export DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/\${MARK2_UID}/bus"
 
-# Stop WirePlumber so I2S bus is free during XVF3510 firmware flash.
-# WirePlumber holds the ALSA device open; if it is running during flash
-# the XVF3510 boots but sends no audio data (0-amplitude from mic).
-su -c "systemctl --user stop wireplumber.service" - "\$MARK2_USER" || true
-sleep 1
+pw_cmd() {
+    sudo -u "\$MARK2_USER" \
+        XDG_RUNTIME_DIR="\$XDG_RUNTIME_DIR" \
+        DBUS_SESSION_BUS_ADDRESS="\$DBUS_SESSION_BUS_ADDRESS" \
+        systemctl --user "\$@"
+}
+
+# Stop the entire PipeWire stack so the ALSA I2S bus is completely free.
+# Stopping only WirePlumber is not enough — PipeWire core's pro-audio
+# monitor keeps hw:sj201,1 open and the XVF3510 flash appears to succeed
+# but produces 0-amplitude audio output from the microphone array.
+echo 'Stopping PipeWire stack...'
+pw_cmd stop wireplumber pipewire-pulse pipewire 2>/dev/null || true
+sleep 2
 
 # Flash XVF3510 DSP firmware via SPI. --verbose logs each 4096-byte block
-# so failures are visible in journalctl. Flash should take ~10s for 48 blocks.
+# so failures are visible in journalctl. Flash should take ~0.5s for 48 blocks.
 ${SJ201_VENV}/bin/python ${WORK_DIR}/xvf3510-flash --direct ${WORK_DIR}/app_xvf3510_int_spi_boot_v4_2_0.bin --verbose
 
 # Wait for XVF3510 to boot from firmware
@@ -372,9 +386,10 @@ sleep 3
 # Initialise TAS5806 I2S amplifier (sets gain, unmutes output)
 ${SJ201_VENV}/bin/python ${WORK_DIR}/init_tas5806
 
-# Restart WirePlumber now that XVF3510 is ready and I2S clock is stable.
+# Restart PipeWire stack now that XVF3510 is ready and I2S clock is stable.
 # Wait for WirePlumber to enumerate the SJ201 ALSA card (~6s typical).
-su -c "systemctl --user start wireplumber.service" - "\$MARK2_USER" || true
+echo 'Starting PipeWire stack...'
+pw_cmd start pipewire pipewire-pulse wireplumber 2>/dev/null || true
 sleep 6
 
 echo "SJ201 init complete"
