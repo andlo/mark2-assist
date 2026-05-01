@@ -153,33 +153,28 @@ else:
 PYEOF
     log "pymicro-wakeword numpy patch applied"
 
-    section "Installing PipeWire virtual source for SJ201 ASR"
-    # Creates a PipeWire source that reads from ALSA VF_ASR_(L) — the XMOS XVF-3510's
-    # dedicated ASR channel. Without this, PipeWire uses raw 48kHz stereo (RMS~20,
-    # too low for openWakeWord). VF_ASR_(L) gives RMS~500+ which works reliably.
+    section "Configuring PipeWire for SJ201"
+    # Following the OVOS installer approach: no custom virtual PipeWire source.
+    # WirePlumber's pro-audio profile exposes the XVF-3510 as
+    # "Built-in Audio Pro 1" (alsa_input.platform-soc_sound.pro-input-1).
+    # LVA uses this directly. The sj201-output.conf sink is still needed for audio out.
     mkdir -p "${USER_HOME}/.config/pipewire/pipewire.conf.d"
-    cp "${SCRIPT_DIR}/assets/pipewire-sj201-asr.conf"        "${USER_HOME}/.config/pipewire/pipewire.conf.d/sj201-asr.conf"
-    cp "${SCRIPT_DIR}/assets/pipewire-sj201-output.conf"     "${USER_HOME}/.config/pipewire/pipewire.conf.d/sj201-output.conf"
-    log "PipeWire SJ201 ASR source + Speaker sink installed"
+    cp "${SCRIPT_DIR}/assets/pipewire-sj201-output.conf" "${USER_HOME}/.config/pipewire/pipewire.conf.d/sj201-output.conf"
+    log "PipeWire SJ201 Speaker sink installed"
     sudo cp "${SCRIPT_DIR}/lib/wait-pipewire.sh" /usr/local/bin/mark2-wait-pipewire
     sudo chmod +x /usr/local/bin/mark2-wait-pipewire
     log "PipeWire wait script installed: /usr/local/bin/mark2-wait-pipewire"
-    # Reload PipeWire so new source is available immediately.
-    # Use start instead of restart — restart returns non-zero if pipewire
-    # was not running (e.g. during first install), which kills the script
-    # under set -euo pipefail even with || true due to subshell interaction.
     systemctl --user stop pipewire.socket pipewire.service wireplumber.service 2>/dev/null || true
     sleep 1
     systemctl --user start pipewire.socket pipewire.service 2>/dev/null || true
     systemctl --user start wireplumber.service 2>/dev/null || true
 
-    # Verify virtual devices appear in the PipeWire graph (closes #10)
-    log "Waiting for SJ201 virtual devices in PipeWire..."
+    log "Waiting for SJ201 devices in PipeWire..."
     PW_OK=false
     for i in $(seq 1 15); do
-        ASR=$(wpctl status 2>/dev/null | grep -c "SJ201 ASR")
         SPK=$(wpctl status 2>/dev/null | grep -c "SJ201 Speaker")
-        if [ "$ASR" -gt 0 ] && [ "$SPK" -gt 0 ]; then
+        SRC=$(wpctl status 2>/dev/null | grep -c "pro-input-1")
+        if [ "$SPK" -gt 0 ] && [ "$SRC" -gt 0 ]; then
             log "PipeWire SJ201 devices ready after ${i}s ✓"
             PW_OK=true
             break
@@ -188,8 +183,6 @@ PYEOF
     done
     if [ "$PW_OK" = false ]; then
         warn "PipeWire SJ201 devices not visible after 15s — audio may not work"
-        warn "Check: wpctl status | grep SJ201"
-        warn "Fix:   systemctl --user restart pipewire wireplumber"
     fi
 
     section "Creating lva.service"
@@ -207,7 +200,7 @@ ExecStartPre=/usr/local/bin/mark2-wait-pipewire
 ExecStart=${LVA_DIR}/.venv/bin/python3 -m linux_voice_assistant \\
     --name '${SATELLITE_NAME}' \\
     --wake-model '${WAKE_WORD}' \\
-    --audio-input-device 'SJ201 ASR (VF_ASR_L)' \\
+    --audio-input-device 'Built-in Audio Pro 1' \\
     --audio-output-device 'pipewire/sj201-output'
 WorkingDirectory=${LVA_DIR}
 Environment=PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
