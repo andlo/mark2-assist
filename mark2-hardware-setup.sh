@@ -345,76 +345,24 @@ download_sj201_firmware() {
 }
 
 create_sj201_service() {
-    # ── write mark2-sj201-init.sh wrapper ────────────────────────────────────
-    # This script runs as root (called by sj201.service via sudo) but needs to
-    # stop/start PipeWire on the *user* session bus. systemctl --user inside
-    # a sudo context fails because $DBUS_SESSION_BUS_ADDRESS is unset.
-    # Solution: use 'sudo -u <user> XDG_RUNTIME_DIR=... systemctl --user'.
-    # Note: stopping only WirePlumber is NOT enough — PipeWire core's pro-audio
-    # monitor keeps the I2S device open. The entire stack must be stopped.
-    # See issue #25.
-    sudo tee /opt/sj201/mark2-sj201-init.sh > /dev/null << INITEOF
-#!/bin/bash
-set -e
-MARK2_USER="${CURRENT_USER}"
-MARK2_UID=\$(id -u "\$MARK2_USER")
-export XDG_RUNTIME_DIR="/run/user/\${MARK2_UID}"
-export DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/\${MARK2_UID}/bus"
-
-pw_cmd() {
-    sudo -u "\$MARK2_USER" \
-        XDG_RUNTIME_DIR="\$XDG_RUNTIME_DIR" \
-        DBUS_SESSION_BUS_ADDRESS="\$DBUS_SESSION_BUS_ADDRESS" \
-        systemctl --user "\$@"
-}
-
-# Stop the entire PipeWire stack so the ALSA I2S bus is completely free.
-# Stopping only WirePlumber is not enough — PipeWire core's pro-audio
-# monitor keeps hw:sj201,1 open and the XVF3510 flash appears to succeed
-# but produces 0-amplitude audio output from the microphone array.
-echo 'Stopping PipeWire stack...'
-pw_cmd stop wireplumber pipewire-pulse pipewire 2>/dev/null || true
-sleep 2
-
-# Flash XVF3510 DSP firmware via SPI. --verbose logs each 4096-byte block
-# so failures are visible in journalctl. Flash should take ~0.5s for 48 blocks.
-${SJ201_VENV}/bin/python ${WORK_DIR}/xvf3510-flash --direct ${WORK_DIR}/app_xvf3510_int_spi_boot_v4_2_0.bin --verbose
-
-# Wait for XVF3510 to boot from firmware
-sleep 3
-
-# Initialise TAS5806 I2S amplifier (sets gain, unmutes output)
-${SJ201_VENV}/bin/python ${WORK_DIR}/init_tas5806
-
-# Restart PipeWire stack now that XVF3510 is ready and I2S clock is stable.
-# Wait for WirePlumber to enumerate the SJ201 ALSA card (~6s typical).
-echo 'Starting PipeWire stack...'
-pw_cmd start pipewire pipewire-pulse wireplumber 2>/dev/null || true
-sleep 6
-
-echo "SJ201 init complete"
-INITEOF
-    sudo chmod +x /opt/sj201/mark2-sj201-init.sh
-    log "mark2-sj201-init.sh installed"
-
-    log "Creating sj201.service systemd unit..."
+    # ── sj201.service — OVOS installer style ─────────────────────────────────
+    # Flash XVF3510 firmware and init TAS5806 amplifier.
+    # Critically: NO PipeWire stop/start. Flash runs WITH PipeWire/WirePlumber
+    # already running. This is how OVOS does it and it works correctly.
+    # WirePlumber holds the I2S clock active which XVF3510 needs to receive
+    # the SPI firmware correctly. Stopping PipeWire before flash breaks this.
+    log "Creating sj201.service systemd unit (OVOS-style)..."
     cat > "${SYSTEMD_USER_DIR}/sj201.service" << EOF
 [Unit]
 Documentation=https://github.com/MycroftAI/mark-ii-hardware-testing/blob/main/README.md
-Description=SJ201 microphone + TAS5806 amplifier initialization
-# Must run after PipeWire (and therefore WirePlumber) has started.
-# The init script stops WirePlumber internally before flashing XVF3510.
-After=pipewire.service wireplumber.service
-# No Requires=pipewire — init script stops/restarts PipeWire internally.
-# systemd would cancel sj201 if it sees pipewire stop while Requires is set.
+Description=SJ201 microphone initialization
+After=network-online.target
 
 [Service]
 Type=oneshot
-# Run init script as root (needs SPI/I2C access); script handles user session internally.
-# Note: no Requires=pipewire here — the init script stops and restarts PipeWire
-# internally. If systemd sees pipewire stop while sj201 Requires it, systemd
-# cancels sj201 mid-run. After= is kept so we start AFTER pipewire is up.
-ExecStart=/usr/bin/sudo /opt/sj201/mark2-sj201-init.sh
+WorkingDirectory=${SJ201_VENV}
+ExecStart=/usr/bin/sudo -E env PATH=/usr/local/bin:/usr/sbin:/usr/bin:/bin ${SJ201_VENV}/bin/python ${WORK_DIR}/xvf3510-flash --direct ${WORK_DIR}/app_xvf3510_int_spi_boot_v4_2_0.bin --verbose
+ExecStartPost=/usr/bin/env PATH=/usr/local/bin:/usr/sbin:/usr/bin:/bin ${SJ201_VENV}/bin/python ${WORK_DIR}/init_tas5806
 Restart=on-failure
 RestartSec=5s
 RemainAfterExit=yes
