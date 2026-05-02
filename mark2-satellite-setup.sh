@@ -199,13 +199,16 @@ EOF
     systemctl --user stop   sj201.service 2>/dev/null || true
 
     section "Configuring PipeWire for SJ201"
-    # Following the OVOS installer approach: no custom virtual PipeWire source.
-    # WirePlumber's pro-audio profile exposes the XVF-3510 as
-    # "Built-in Audio Pro 1" (alsa_input.platform-soc_sound.pro-input-1).
-    # LVA uses this directly. The sj201-output.conf sink is still needed for audio out.
+    # WirePlumber resets XVF3510 DSP when it opens hw:sj201,1 via ACP pro-audio.
+    # Fix: expose capture via pipewire-pulse module-alsa-source directly,
+    # bypassing WirePlumber ACP entirely for the capture side.
+    # This creates "ALSA Source on hw:sj201,1" as a PulseAudio source.
+    # Output still uses WirePlumber pro-audio via sj201-output.conf.
     mkdir -p "${USER_HOME}/.config/pipewire/pipewire.conf.d"
+    mkdir -p "${USER_HOME}/.config/pipewire/pipewire-pulse.conf.d"
     cp "${SCRIPT_DIR}/assets/pipewire-sj201-output.conf" "${USER_HOME}/.config/pipewire/pipewire.conf.d/sj201-output.conf"
-    log "PipeWire SJ201 Speaker sink installed"
+    cp "${SCRIPT_DIR}/assets/pipewire-sj201-asr.conf"    "${USER_HOME}/.config/pipewire/pipewire-pulse.conf.d/sj201-asr.conf"
+    log "PipeWire SJ201 output sink + PulseAudio capture source installed"
     sudo cp "${SCRIPT_DIR}/lib/wait-pipewire.sh" /usr/local/bin/mark2-wait-pipewire
     sudo chmod +x /usr/local/bin/mark2-wait-pipewire
     log "PipeWire wait script installed: /usr/local/bin/mark2-wait-pipewire"
@@ -225,6 +228,8 @@ RemainAfterExit=yes
 ExecStart=/usr/local/bin/mark2-reflash.sh
 Restart=on-failure
 RestartSec=5s
+Environment=XDG_RUNTIME_DIR=/run/user/${USER_UID}
+Environment=DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/${USER_UID}/bus
 
 [Install]
 WantedBy=default.target
@@ -267,7 +272,7 @@ ExecStartPre=/usr/local/bin/mark2-wait-pipewire
 ExecStart=${LVA_DIR}/.venv/bin/python3 -m linux_voice_assistant \\
     --name '${SATELLITE_NAME}' \\
     --wake-model '${WAKE_WORD}' \\
-    --audio-input-device 'Built-in Audio Pro 1' \\
+    --audio-input-device 'ALSA Source on hw:sj201,1' \\
     --audio-output-device 'pipewire/alsa_output.platform-soc_sound.pro-output-0'
 WorkingDirectory=${LVA_DIR}
 Environment=PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
