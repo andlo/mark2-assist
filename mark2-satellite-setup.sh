@@ -212,30 +212,22 @@ EOF
     sudo cp "${SCRIPT_DIR}/lib/wait-pipewire.sh" /usr/local/bin/mark2-wait-pipewire
     sudo chmod +x /usr/local/bin/mark2-wait-pipewire
     log "PipeWire wait script installed: /usr/local/bin/mark2-wait-pipewire"
-    sudo cp "${SCRIPT_DIR}/lib/mark2-reflash.sh" /usr/local/bin/mark2-reflash.sh
-    sudo chmod +x /usr/local/bin/mark2-reflash.sh
-    log "mark2-reflash.sh installed: /usr/local/bin/mark2-reflash.sh"
-    cat > "${SYSTEMD_USER_DIR}/mark2-reflash.service" << EOF
-[Unit]
-Description=Re-flash XVF3510 after WirePlumber reset
-Documentation=https://github.com/andlo/mark2-assist
-After=wireplumber.service pipewire.service
-Wants=wireplumber.service
-
-[Service]
-Type=oneshot
-RemainAfterExit=yes
-ExecStart=/usr/local/bin/mark2-reflash.sh
-Restart=on-failure
-RestartSec=5s
-Environment=XDG_RUNTIME_DIR=/run/user/${USER_UID}
-Environment=DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/${USER_UID}/bus
-
-[Install]
-WantedBy=default.target
-EOF
-    systemctl --user enable mark2-reflash.service 2>/dev/null || true
-    log "mark2-reflash.service installed and enabled"
+    # Install WirePlumber drop-in that re-flashes XVF3510 after every WirePlumber start.
+    # WirePlumber resets XVF3510 DSP on every open — this ExecStartPost script:
+    #   1. Waits 7s for WirePlumber's ACP reset to complete
+    #   2. Stops pipewire-pulse (releases module-alsa-source's hold on hw:sj201,1)
+    #   3. Re-flashes XVF3510
+    #   4. Restarts pipewire-pulse (module-alsa-source now opens fresh chip)
+    #   5. Starts LVA
+    sudo cp "${SCRIPT_DIR}/lib/mark2-xvf-post-wp.sh" /usr/local/bin/mark2-xvf-post-wp.sh
+    sudo chmod +x /usr/local/bin/mark2-xvf-post-wp.sh
+    log "mark2-xvf-post-wp.sh installed"
+    mkdir -p "${USER_HOME}/.config/systemd/user/wireplumber.service.d"
+    cp "${SCRIPT_DIR}/assets/wireplumber.service.d/reflash.conf" \
+       "${USER_HOME}/.config/systemd/user/wireplumber.service.d/reflash.conf"
+    log "WirePlumber drop-in installed: reflash XVF3510 after every WirePlumber start"
+    # Disable old mark2-reflash.service if present
+    systemctl --user disable mark2-reflash.service 2>/dev/null || true
     systemctl --user stop pipewire.socket pipewire.service wireplumber.service 2>/dev/null || true
     sleep 1
     systemctl --user start pipewire.socket pipewire.service 2>/dev/null || true
@@ -262,7 +254,7 @@ EOF
     cat > "${SYSTEMD_USER_DIR}/lva.service" << EOF
 [Unit]
 Description=Linux Voice Assistant (ESPHome protocol) for Home Assistant
-After=network-online.target mark2-reflash.service
+After=network-online.target
 Wants=network-online.target
 
 [Service]
