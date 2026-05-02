@@ -356,10 +356,11 @@ This is a known upstream bug in the `vc4-kms-v3d` DRM driver on Raspberry Pi 4 w
 cat /tmp/mark2-startup.log
 cat /tmp/weston.log
 ```
-
 **Check all service statuses at a glance**
 
 ```bash
+```
+```
 mark2-status
 ```
 ```
