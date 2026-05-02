@@ -153,6 +153,51 @@ else:
 PYEOF
     log "pymicro-wakeword numpy patch applied"
 
+    section "Installing XVF3510 system-level init service"
+    # Install as a SYSTEM service (not user service) so it runs BEFORE
+    # user@<uid>.service starts — and therefore before PipeWire/WirePlumber.
+    # This eliminates the race condition where WirePlumber resets the XVF3510
+    # DSP pipeline at the same moment as the flash is attempted.
+    #
+    # Runs as CURRENT_USER (not root) because xvf3510-flash uses
+    # blinka/CircuitPython which requires SPI/GPIO group membership.
+    # SupplementaryGroups ensures access without sudo.
+    local USER_UID
+    USER_UID=$(id -u "$CURRENT_USER")
+    sudo bash -c "cat > /etc/systemd/system/mark2-xvf3510-init.service" << EOF
+[Unit]
+Description=XVF3510 firmware flash and TAS5806 init
+Documentation=https://github.com/andlo/mark2-assist
+Before=user@${USER_UID}.service
+After=sound.target local-fs.target
+DefaultDependencies=no
+StartLimitBurst=3
+StartLimitIntervalSec=30s
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+User=${CURRENT_USER}
+Group=${CURRENT_USER}
+SupplementaryGroups=spi gpio audio
+WorkingDirectory=/opt/sj201
+Environment=PATH=/usr/local/bin:/usr/sbin:/usr/bin:/bin
+ExecStart=${USER_HOME}/.venvs/sj201/bin/python /opt/sj201/xvf3510-flash --direct /opt/sj201/app_xvf3510_int_spi_boot_v4_2_0.bin --verbose
+ExecStartPost=${USER_HOME}/.venvs/sj201/bin/python /opt/sj201/init_tas5806
+Restart=on-failure
+RestartSec=3s
+
+[Install]
+WantedBy=multi-user.target
+EOF
+    sudo systemctl daemon-reload
+    sudo systemctl enable mark2-xvf3510-init.service
+    log "mark2-xvf3510-init.service installed and enabled (system-level, Before=user@${USER_UID}.service)"
+
+    # Disable the old user-scope sj201.service — replaced by mark2-xvf3510-init
+    systemctl --user disable sj201.service 2>/dev/null || true
+    systemctl --user stop   sj201.service 2>/dev/null || true
+
     section "Configuring PipeWire for SJ201"
     # Following the OVOS installer approach: no custom virtual PipeWire source.
     # WirePlumber's pro-audio profile exposes the XVF-3510 as
@@ -164,6 +209,28 @@ PYEOF
     sudo cp "${SCRIPT_DIR}/lib/wait-pipewire.sh" /usr/local/bin/mark2-wait-pipewire
     sudo chmod +x /usr/local/bin/mark2-wait-pipewire
     log "PipeWire wait script installed: /usr/local/bin/mark2-wait-pipewire"
+    sudo cp "${SCRIPT_DIR}/lib/mark2-reflash.sh" /usr/local/bin/mark2-reflash.sh
+    sudo chmod +x /usr/local/bin/mark2-reflash.sh
+    log "mark2-reflash.sh installed: /usr/local/bin/mark2-reflash.sh"
+    cat > "${SYSTEMD_USER_DIR}/mark2-reflash.service" << EOF
+[Unit]
+Description=Re-flash XVF3510 after WirePlumber reset
+Documentation=https://github.com/andlo/mark2-assist
+After=wireplumber.service pipewire.service
+Wants=wireplumber.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/local/bin/mark2-reflash.sh
+Restart=on-failure
+RestartSec=5s
+
+[Install]
+WantedBy=default.target
+EOF
+    systemctl --user enable mark2-reflash.service 2>/dev/null || true
+    log "mark2-reflash.service installed and enabled"
     systemctl --user stop pipewire.socket pipewire.service wireplumber.service 2>/dev/null || true
     sleep 1
     systemctl --user start pipewire.socket pipewire.service 2>/dev/null || true
@@ -190,7 +257,7 @@ PYEOF
     cat > "${SYSTEMD_USER_DIR}/lva.service" << EOF
 [Unit]
 Description=Linux Voice Assistant (ESPHome protocol) for Home Assistant
-After=network-online.target sj201.service
+After=network-online.target mark2-reflash.service
 Wants=network-online.target
 
 [Service]
@@ -269,7 +336,7 @@ install_volume_buttons() {
     cat > "${SYSTEMD_USER_DIR}/mark2-volume-buttons.service" << EOF
 [Unit]
 Description=Mark II hardware volume buttons (vol up/down/mute → TAS5806)
-After=sj201.service
+After=sound.target
 
 [Service]
 Type=simple
