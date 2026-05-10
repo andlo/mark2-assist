@@ -81,7 +81,7 @@ remove_resume_hook() {
 print_progress() {
     echo "  Progress:"
     for step in hardware satellite; do
-        local s; s=$(progress_get "$step" 2>/dev/null || echo "pending")
+        s=$(progress_get "$step" 2>/dev/null || echo "pending")
         case "$s" in
             done)   echo "    ✓ ${step}" ;;
             failed) echo "    ✗ ${step} (failed — check ${MARK2_LOG})" ;;
@@ -106,7 +106,6 @@ print_progress
 if $RESUME; then
     echo "  Resuming after reboot — hardware done ✓"
     echo ""
-    local ans
     read -rp "  Run hardware test before continuing? [y/N]: " ans
     if [[ "${ans,,}" == "y" ]]; then
         bash "${SCRIPT_DIR}/mark2-hardware-test.sh" || true
@@ -116,7 +115,6 @@ if $RESUME; then
     fi
     remove_resume_hook
 else
-    local ans
     read -rp "  Start installation? [Y/n]: " ans
     [[ "${ans,,}" == "n" ]] && { echo "Cancelled."; exit 0; }
     echo ""
@@ -137,7 +135,7 @@ else
         echo ""
         echo "  After reboot, log in and run:  ./install.sh"
         echo ""
-        local ans
+        ans=""
         read -rp "  Reboot now? [Y/n]: " ans
         [[ "${ans,,}" != "n" ]] && { sudo reboot; }
         exit 0
@@ -201,6 +199,6 @@ echo "  Coming via HA UI — see github.com/andlo/mark2-assist/issues/31"
 echo "  Manual install in the meantime: bash modules/<name>.sh"
 echo ""
 
-local ans
+ans=""
 read -rp "  Reboot now? [Y/n]: " ans
 [[ "${ans,,}" != "n" ]] && { log "Rebooting..."; sleep 2; sudo reboot; }
