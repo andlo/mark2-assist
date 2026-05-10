@@ -153,101 +153,46 @@ else:
 PYEOF
     log "pymicro-wakeword numpy patch applied"
 
-    section "Installing XVF3510 system-level init service"
-    # Install as a SYSTEM service (not user service) so it runs BEFORE
-    # user@<uid>.service starts — and therefore before PipeWire/WirePlumber.
-    # This eliminates the race condition where WirePlumber resets the XVF3510
-    # DSP pipeline at the same moment as the flash is attempted.
-    #
-    # Runs as CURRENT_USER (not root) because xvf3510-flash uses
-    # blinka/CircuitPython which requires SPI/GPIO group membership.
-    # SupplementaryGroups ensures access without sudo.
+    section "Installing XVF3510 init service (Mycroft-style MCLK sequence)"
+    # ROOT CAUSE (found session 4-5): XVF3510 needs MCLK=12.288MHz.
+    # sj201.dtbo wrongly sets MCLK=24.576MHz — audio pipeline never starts.
+    # Fix: run setup_mclk (12.288MHz) + setup_bclk before SPI flash.
+    # This user-scope oneshot service runs at boot, handles everything:
+    #   stops PipeWire → setup_mclk → setup_bclk → flash → restart PipeWire → start LVA
+    sudo cp "${SCRIPT_DIR}/lib/mark2-xvf-post-wp.sh" /usr/local/bin/mark2-xvf-post-wp.sh
+    sudo chmod +x /usr/local/bin/mark2-xvf-post-wp.sh
+    log "mark2-xvf-post-wp.sh installed"
+
     local USER_UID
     USER_UID=$(id -u "$CURRENT_USER")
-    sudo bash -c "cat > /etc/systemd/system/mark2-xvf3510-init.service" << EOF
+    cat > "${SYSTEMD_USER_DIR}/mark2-audio-init.service" << EOF
 [Unit]
-Description=XVF3510 firmware flash and TAS5806 init
-Documentation=https://github.com/andlo/mark2-assist
-Before=user@${USER_UID}.service
-After=sound.target local-fs.target
-DefaultDependencies=no
-StartLimitBurst=3
-StartLimitIntervalSec=30s
+Description=Mark II XVF3510 init — MCLK + SPI flash + PipeWire restart
+After=network.target
 
 [Service]
 Type=oneshot
 RemainAfterExit=yes
-User=${CURRENT_USER}
-Group=${CURRENT_USER}
-SupplementaryGroups=spi gpio audio
-WorkingDirectory=/opt/sj201
-Environment=PATH=/usr/local/bin:/usr/sbin:/usr/bin:/bin
-ExecStart=${USER_HOME}/.venvs/sj201/bin/python /opt/sj201/xvf3510-flash --direct /opt/sj201/app_xvf3510_int_spi_boot_v4_2_0.bin --verbose
-ExecStartPost=${USER_HOME}/.venvs/sj201/bin/python /opt/sj201/init_tas5806
-Restart=on-failure
-RestartSec=3s
+ExecStart=/usr/local/bin/mark2-xvf-post-wp.sh
+Environment=XDG_RUNTIME_DIR=/run/user/${USER_UID}
+Environment=DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/${USER_UID}/bus
+Environment=PULSE_RUNTIME_PATH=/run/user/${USER_UID}/pulse
 
 [Install]
-WantedBy=multi-user.target
+WantedBy=default.target
 EOF
-    sudo systemctl daemon-reload
-    sudo systemctl enable mark2-xvf3510-init.service
-    log "mark2-xvf3510-init.service installed and enabled (system-level, Before=user@${USER_UID}.service)"
+    systemctl --user daemon-reload
+    systemctl --user enable mark2-audio-init.service
+    log "mark2-audio-init.service enabled"
 
-    # Disable the old user-scope sj201.service — replaced by mark2-xvf3510-init
-    systemctl --user disable sj201.service 2>/dev/null || true
-    systemctl --user stop   sj201.service 2>/dev/null || true
+    # Disable old services replaced by mark2-audio-init
+    systemctl --user disable sj201.service mark2-reflash.service mark2-audio-init.service 2>/dev/null || true
+    systemctl --user enable  mark2-audio-init.service
 
-    section "Configuring PipeWire for SJ201"
-    # WirePlumber resets XVF3510 DSP when it opens hw:sj201,1 via ACP pro-audio.
-    # Fix: expose capture via pipewire-pulse module-alsa-source directly,
-    # bypassing WirePlumber ACP entirely for the capture side.
-    # This creates "ALSA Source on hw:sj201,1" as a PulseAudio source.
-    # Output still uses WirePlumber pro-audio via sj201-output.conf.
-    mkdir -p "${USER_HOME}/.config/pipewire/pipewire.conf.d"
-    mkdir -p "${USER_HOME}/.config/pipewire/pipewire-pulse.conf.d"
-    cp "${SCRIPT_DIR}/assets/pipewire-sj201-output.conf" "${USER_HOME}/.config/pipewire/pipewire.conf.d/sj201-output.conf"
-    cp "${SCRIPT_DIR}/assets/pipewire-sj201-asr.conf"    "${USER_HOME}/.config/pipewire/pipewire-pulse.conf.d/sj201-asr.conf"
-    log "PipeWire SJ201 output sink + PulseAudio capture source installed"
-    sudo cp "${SCRIPT_DIR}/lib/wait-pipewire.sh" /usr/local/bin/mark2-wait-pipewire
-    sudo chmod +x /usr/local/bin/mark2-wait-pipewire
-    log "PipeWire wait script installed: /usr/local/bin/mark2-wait-pipewire"
-    # Install WirePlumber drop-in that re-flashes XVF3510 after every WirePlumber start.
-    # WirePlumber resets XVF3510 DSP on every open — this ExecStartPost script:
-    #   1. Waits 7s for WirePlumber's ACP reset to complete
-    #   2. Stops pipewire-pulse (releases module-alsa-source's hold on hw:sj201,1)
-    #   3. Re-flashes XVF3510
-    #   4. Restarts pipewire-pulse (module-alsa-source now opens fresh chip)
-    #   5. Starts LVA
-    sudo cp "${SCRIPT_DIR}/lib/mark2-xvf-post-wp.sh" /usr/local/bin/mark2-xvf-post-wp.sh
-    sudo chmod +x /usr/local/bin/mark2-xvf-post-wp.sh
-    log "mark2-xvf-post-wp.sh installed"
-    mkdir -p "${USER_HOME}/.config/systemd/user/wireplumber.service.d"
-    cp "${SCRIPT_DIR}/assets/wireplumber.service.d/reflash.conf" \
-       "${USER_HOME}/.config/systemd/user/wireplumber.service.d/reflash.conf"
-    log "WirePlumber drop-in installed: reflash XVF3510 after every WirePlumber start"
-    # Disable old mark2-reflash.service if present
-    systemctl --user disable mark2-reflash.service 2>/dev/null || true
-    systemctl --user stop pipewire.socket pipewire.service wireplumber.service 2>/dev/null || true
-    sleep 1
-    systemctl --user start pipewire.socket pipewire.service 2>/dev/null || true
-    systemctl --user start wireplumber.service 2>/dev/null || true
+    # Install pipewire-alsa for PipeWire ALSA routing
+    sudo apt-get install -y pipewire-alsa 2>/dev/null | grep -E "Installing|already" || true
 
-    log "Waiting for SJ201 devices in PipeWire..."
-    PW_OK=false
-    for i in $(seq 1 15); do
-        SPK=$(wpctl status 2>/dev/null | grep -c "SJ201 Speaker")
-        SRC=$(wpctl status 2>/dev/null | grep -c "pro-input-1")
-        if [ "$SPK" -gt 0 ] && [ "$SRC" -gt 0 ]; then
-            log "PipeWire SJ201 devices ready after ${i}s ✓"
-            PW_OK=true
-            break
-        fi
-        sleep 1
-    done
-    if [ "$PW_OK" = false ]; then
-        warn "PipeWire SJ201 devices not visible after 15s — audio may not work"
-    fi
+    section "Configuring WirePlumber for SJ201"
 
     section "Creating lva.service"
     mkdir -p "$SYSTEMD_USER_DIR"
