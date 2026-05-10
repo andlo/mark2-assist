@@ -82,22 +82,23 @@ _log_write() {
 }
 
 # --- Mark II Assist banner — call at start of every user-facing script ---
-# Matches Home Assistant MOTD style exactly: block house left, doom font right
+# Matches Home Assistant MOTD style: tall house left, small text right (centred)
 print_banner() {
     local subtitle="${1:-}"
     echo ""
-    echo -e "${CYAN}     ▄██▄           ___  ___           _      _____ _____ ${NC}"
-    echo -e "${CYAN}    ▄██████▄        |  \\/  |          | |    |_   _|_   _|${NC}"
-    echo -e "${CYAN}  ▄████▀▀████▄      | .  . | __ _ _ __| | __   | |   | |  ${NC}"
-    echo -e "${CYAN} ▄█████    █████▄   | |\\/| |/ _\` | '__| |/ /   | |   | |  ${NC}"
-    echo -e "${CYAN}▄██████▄  ▄██████▄  | |  | | (_| | |  |   <   _| |_ _| |_ ${NC}"
-    echo -e "${CYAN}████████  ██▀  ▀██  \\_|  |_/\\__,_|_|  |_|\\_\\  \\___/ \\___/ ${NC}"
-    echo -e "${CYAN}███▀▀███  ██   ▄██    ___          _     _   ${NC}"
-    echo -e "${CYAN}██    ██  ▀ ▄█████   / _ \\        (_)   | |  ${NC}"
-    echo -e "${CYAN}███▄▄ ▀█  ▄███████  / /_\\ \\___ ___ _ ___| |_ ${NC}"
-    echo -e "${CYAN}▀█████▄   ███████▀  |  _  / __/ __| / __| __|${NC}"
-    echo -e "${CYAN}                    | | | \\__ \\__ \\ \\__ \\ |_ ${NC}"
-    echo -e "${CYAN}                    \\_| |_/___/___/_|___/\\__|${NC}"
+    echo -e "${CYAN}       ▄█▄           ${NC}"
+    echo -e "${CYAN}      ▄███▄          ${NC}"
+    echo -e "${CYAN}     ▄██████▄         __  __          _     ___ ___ ${NC}"
+    echo -e "${CYAN}   ▄████▀▀████▄      |  \\/  |__ _ _ _| |__ |_ _|_ _|${NC}"
+    echo -e "${CYAN}  ▄█████    █████▄   | |\\/| / _\` | '_| / /  | | | | ${NC}"
+    echo -e "${CYAN} ▄██████▄  ▄██████▄  |_|  |_\\__,_|_| |_\\_\\ |___|___|${NC}"
+    echo -e "${CYAN} ████████  ██▀  ▀██  ${NC}"
+    echo -e "${CYAN} ███▀▀███  ██   ▄██     _          _    _   ${NC}"
+    echo -e "${CYAN} ██    ██  ▀ ▄█████    /_\\   _____(_)__| |_ ${NC}"
+    echo -e "${CYAN} ███▄▄ ▀█  ▄███████   / _ \\ (_-<_-< (_-<  _|${NC}"
+    echo -e "${CYAN} ▀█████▄   ███████▀  /_/ \\_\\/__/__/_/__/\\__|${NC}"
+    echo -e "${CYAN}  ▀▀█████████████▀   ${NC}"
+    echo -e "${CYAN}     ▀▀▀▀▀▀▀▀▀▀      ${NC}"
     echo ""
     echo -e "${BLUE}  Mycroft Mark II — Home Assistant Voice Satellite${NC}"
     echo -e "${BLUE}  github.com/andlo/mark2-assist${NC}"
