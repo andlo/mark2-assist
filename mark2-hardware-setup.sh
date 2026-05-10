@@ -566,7 +566,7 @@ EOF
 # MAIN
 # =============================================================================
 
-print_banner "Hardware Setup"
+[ "${MARK2_CALLED_FROM_INSTALLER:-0}" = "1" ] || print_banner "Hardware Setup"
 echo "  User: ${CURRENT_USER}  |  Boot: ${BOOT_DIR}"
 echo ""
 

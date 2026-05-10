@@ -127,7 +127,7 @@ if progress_is_done "hardware"; then
     log "Hardware already done — skipping"
 else
     section "Step 1/2 — Hardware Drivers"
-    if MARK2_MODULE_CONFIRMED=1 bash "${SCRIPT_DIR}/mark2-hardware-setup.sh"; then
+    if MARK2_MODULE_CONFIRMED=1 MARK2_CALLED_FROM_INSTALLER=1 bash "${SCRIPT_DIR}/mark2-hardware-setup.sh"; then
         progress_set "hardware" "done"
         install_resume_hook
         echo ""
@@ -153,7 +153,7 @@ if progress_is_done "satellite"; then
     log "Satellite/Kiosk already done — skipping"
 else
     section "Step 2/2 — Linux Voice Assistant + Kiosk"
-    if MARK2_MODULE_CONFIRMED=1 bash "${SCRIPT_DIR}/mark2-satellite-setup.sh"; then
+    if MARK2_MODULE_CONFIRMED=1 MARK2_CALLED_FROM_INSTALLER=1 bash "${SCRIPT_DIR}/mark2-satellite-setup.sh"; then
         progress_set "satellite" "done"
     else
         progress_set "satellite" "failed"

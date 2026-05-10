@@ -507,7 +507,7 @@ print_summary() {
 # MAIN
 # =============================================================================
 
-print_banner "Satellite + Kiosk Setup"
+[ "${MARK2_CALLED_FROM_INSTALLER:-0}" = "1" ] || print_banner "Satellite + Kiosk Setup"
 echo "  User:     ${CURRENT_USER}"
 echo "  Hostname: $(hostname)"
 echo ""
