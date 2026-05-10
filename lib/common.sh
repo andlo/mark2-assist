@@ -82,7 +82,7 @@ _log_write() {
 }
 
 # --- Mark II Assist banner — call at start of every user-facing script ---
-# Matches Home Assistant MOTD exactly: 10-line house, standard font, no gap
+# Matches Home Assistant MOTD exactly: 10-line house + 5+5 line standard font
 print_banner() {
     local subtitle="${1:-}"
     echo ""
