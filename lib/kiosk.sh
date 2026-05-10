@@ -60,12 +60,11 @@ pkill -f 'mark2-httpd.py' 2>/dev/null || true
 sleep 0.3
 python3 "${HOME}/mark2-httpd.py" >> /tmp/mark2-httpd.log 2>&1 &
 
-# Wait for HA to be reachable
-echo "[$(date)] Waiting for HA at ${HA_URL}..."
-until curl -o /dev/null -sf --max-time 3 "${HA_URL}" 2>/dev/null; do
-    sleep 3
-done
-echo "[$(date)] HA ready"
+# Brief pause to let network settle, then start regardless.
+# Chromium shows its own error page if HA is not yet reachable — much
+# better than a black screen. The user can refresh once HA is up.
+echo "[$(date)] Starting kiosk (HA: ${HA_URL})"
+sleep 5
 
 # ── Face overlay ─────────────────────────────────────────────────────────────
 # Launch face.html as a transparent always-on-top window.
