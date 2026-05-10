@@ -77,8 +77,8 @@ The face fades out after a few seconds of idle and reappears on wake word detect
 
 ### Screensaver
 The display blanks after inactivity (default: 5 minutes). Any touch or voice activity wakes it.
-Timeout is configurable as an ESPHome number entity in HA, or via `SCREEN_BLANK_SECONDS`
-in `~/.config/mark2/config`.
+Timeout is set via `SCREEN_BLANK_SECONDS` in `~/.config/mark2/config`.
+Configurable from HA UI is planned — see [issue #30](https://github.com/andlo/mark2-assist/issues/30).
 
 ### XVF-3510 microphone
 The XMOS XVF-3510 chip requires a specific 12.288 MHz clock (MCLK) and SPI slave boot
@@ -97,35 +97,39 @@ See [docs/XVF3510_HARDWARE.md](docs/XVF3510_HARDWARE.md) for technical details.
 2. **SSH access** to the device on your network
 3. **Home Assistant** running on the same network
 
-### Step 1: Hardware setup
+### Quickstart (recommended)
+
+`install.sh` handles both steps and the reboot in between:
 
 ```bash
 git clone https://github.com/andlo/mark2-assist.git
 cd mark2-assist
-chmod +x mark2-hardware-setup.sh
+./install.sh
+# → hardware setup → reboot → log back in → ./install.sh → satellite setup → reboot
+```
+
+### Manual step-by-step
+
+**Step 1: Hardware setup**
+```bash
 ./mark2-hardware-setup.sh
 sudo reboot
 ```
+Installs: SJ201 kernel driver, DTBO overlays, Python venv, clock utilities (setup_mclk/setup_bclk), WirePlumber audio profile.
 
-Installs: SJ201 kernel driver, DTBO overlays, Python venv for XVF-3510 firmware,
-WirePlumber audio profile, setup_mclk/setup_bclk clock utilities.
-
-### Step 2: Satellite + kiosk setup
-
+**Step 2: Satellite + kiosk**
 ```bash
 ./mark2-satellite-setup.sh
 sudo reboot
 ```
+Installs: Linux Voice Assistant, mark2-audio-init service, face animation overlay, Weston kiosk, Chromium, volume buttons, PipeWire config.
 
-Installs: Linux Voice Assistant, mark2-audio-init service, face animation overlay,
-Weston kiosk compositor, Chromium, volume buttons, PipeWire media config.
+**No prompts in either step.** Everything configurable in HA UI afterwards.
 
-**No prompts.** Everything works with defaults and is configurable in HA UI afterwards.
-
-### Step 3: Verify (after reboot)
+### After reboot
 
 ```bash
-# All services running?
+# Services running?
 systemctl --user status mark2-audio-init lva wireplumber
 
 # Microphone working?
@@ -137,12 +141,12 @@ journalctl --user -u lva -f
 # Look for: ✅ Connected to Home Assistant
 ```
 
-### Step 4: In Home Assistant
+### In Home Assistant
 
-1. **ESPHome device appears automatically** — check Settings → Devices & Services
-2. **Set voice pipeline** — Settings → Voice Assistants → your Mark II → select pipeline
-3. **Say "okay nabu"** — the face animates and voice command is processed
-4. **Configure settings** — via the ESPHome device entities in HA UI
+1. **ESPHome device appears automatically** — Settings → Devices & Services
+2. **Set voice pipeline** — Settings → Voice Assistants → your Mark II
+3. **Say "okay nabu"** — face animates, voice command processed
+4. **Configure** satellite name, wake word, volume, mic gain in HA UI
 
 ---
 
