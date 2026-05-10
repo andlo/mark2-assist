@@ -99,9 +99,10 @@ See [docs/XVF3510_HARDWARE.md](docs/XVF3510_HARDWARE.md) for technical details.
 
 ### Prerequisites
 
-1. **Raspberry Pi OS Lite Trixie** (64-bit) flashed via [Raspberry Pi Imager](https://www.raspberrypi.com/software/)
+1. **Raspberry Pi OS Lite Trixie** (64-bit), freshly flashed via [Raspberry Pi Imager](https://www.raspberrypi.com/software/)
    - Enable SSH, set username (`pi` recommended) and password in Imager advanced settings
    - Enable WiFi if not using ethernet
+   - A fresh flash is strongly recommended — existing installations may have conflicting packages
 2. **SSH access** to the device on your network
 3. **Home Assistant** running on the same network
 
@@ -110,6 +111,11 @@ See [docs/XVF3510_HARDWARE.md](docs/XVF3510_HARDWARE.md) for technical details.
 `install.sh` handles both steps and the reboot in between:
 
 ```bash
+# Update the system and install git
+sudo apt update && sudo apt upgrade -y
+sudo apt install -y git
+
+# Clone and run
 git clone https://github.com/andlo/mark2-assist.git
 cd mark2-assist
 ./install.sh
