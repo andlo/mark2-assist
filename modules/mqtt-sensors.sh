@@ -1,4 +1,6 @@
 #!/bin/bash
+# DEPRECATED — see issue #28. Hardware sensors via ESPHome planned instead.
+# This module is no longer called by install.sh.
 # =============================================================================
 # modules/mqtt-sensors.sh
 # Publish Mark II status as sensors to Home Assistant via MQTT

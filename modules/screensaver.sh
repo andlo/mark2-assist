@@ -1,4 +1,6 @@
 #!/bin/bash
+# DEPRECATED — now handled by mark2-satellite-setup.sh directly.
+# This module is no longer called by install.sh.
 # =============================================================================
 # modules/screensaver.sh
 # Fullscreen clock + weather screensaver for the Mark II touchscreen
