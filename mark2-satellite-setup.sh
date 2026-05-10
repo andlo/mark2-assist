@@ -507,12 +507,9 @@ print_summary() {
 # MAIN
 # =============================================================================
 
-echo ""
-echo "========================================"
-echo "  Mark II Linux Voice Assistant + Kiosk"
+print_banner "Satellite + Kiosk Setup"
 echo "  User:     ${CURRENT_USER}"
 echo "  Hostname: $(hostname)"
-echo "========================================"
 echo ""
 
 detect_sj201_audio

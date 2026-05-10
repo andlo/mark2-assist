@@ -81,6 +81,26 @@ _log_write() {
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] [${level}] ${msg}" >> "$MARK2_LOG"
 }
 
+# --- Mark II Assist banner — call at start of every user-facing script ---
+print_banner() {
+    local subtitle="${1:-}"
+    echo -e "${CYAN}"
+    echo '  ╔══════════════════════════════════════════╗'
+    echo '  ║                                          ║'
+    echo '  ║     ★  Mark II Assist  ★                ║'
+    echo '  ║                                          ║'
+    echo '  ║   Mycroft Mark II → Home Assistant       ║'
+    echo '  ║   Voice Satellite + Kiosk Display        ║'
+    echo '  ║                                          ║'
+    echo '  ║   github.com/andlo/mark2-assist          ║'
+    echo '  ╚══════════════════════════════════════════╝'
+    echo -e "${NC}"
+    if [ -n "$subtitle" ]; then
+        echo -e "  ${BLUE}${subtitle}${NC}"
+        echo ""
+    fi
+}
+
 # --- Show informational message ---
 show_info() {
     local msg="$1"

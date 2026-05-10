@@ -28,10 +28,7 @@ for arg in "$@"; do
     [[ "$arg" == "--keep-hardware" ]] && KEEP_HARDWARE=true
 done
 
-echo ""
-echo "  Mark II Assist — Uninstaller"
-echo "  ============================="
-echo ""
+print_banner "Uninstaller"
 echo "  This will remove all mark2-assist services and files."
 [ "$KEEP_HARDWARE" = true ] && echo "  Hardware/SJ201 config will be kept (--keep-hardware)."
 echo ""

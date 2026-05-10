@@ -566,13 +566,8 @@ EOF
 # MAIN
 # =============================================================================
 
-echo ""
-echo "========================================"
-echo "  Mycroft Mark II Hardware Setup"
-echo "  User:    ${CURRENT_USER}"
-echo "  Boot:    ${BOOT_DIR}"
-echo "  Pi5 suffix: '${PI5_SUFFIX:-none}'"
-echo "========================================"
+print_banner "Hardware Setup"
+echo "  User: ${CURRENT_USER}  |  Boot: ${BOOT_DIR}"
 echo ""
 
 check_requirements

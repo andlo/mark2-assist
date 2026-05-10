@@ -94,12 +94,7 @@ print_progress() {
 # =============================================================================
 # MAIN
 # =============================================================================
-echo ""
-echo "  ╔══════════════════════════════════════╗"
-echo "  ║   Mark II Assist — Installer         ║"
-echo "  ║   github.com/andlo/mark2-assist       ║"
-echo "  ╚══════════════════════════════════════╝"
-echo ""
+print_banner "Installer"
 
 # Auto-detect resume: hardware done, satellite not yet
 if ! $RESUME && progress_is_done "hardware" && ! progress_is_done "satellite"; then

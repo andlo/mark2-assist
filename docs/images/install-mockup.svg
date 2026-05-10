@@ -1,1 +1,27 @@
-²ø0‰Ûa
+<svg width="680" height="400" viewBox="0 0 680 400" xmlns="http://www.w3.org/2000/svg">
+<rect x="20" y="10" width="640" height="380" rx="8" fill="#0d1117" stroke="#30363d" stroke-width="1"/>
+<rect x="20" y="10" width="640" height="32" rx="8" fill="#161b22"/>
+<rect x="20" y="30" width="640" height="12" fill="#161b22"/>
+<circle cx="44" cy="26" r="6" fill="#ff5f56"/><circle cx="64" cy="26" r="6" fill="#ffbd2e"/><circle cx="84" cy="26" r="6" fill="#27c93f"/>
+<text x="340" y="30" text-anchor="middle" font-family="sans-serif" font-size="11" fill="#8b949e">pi@Nabu-1 -- mark2-assist</text>
+<text x="44" y="70" font-family="monospace" font-size="11" fill="#5060cc">  +==========================================+</text>
+<text x="44" y="85" font-family="monospace" font-size="11" fill="#5060cc">  |   * Mark II Assist *                     |</text>
+<text x="44" y="100" font-family="monospace" font-size="11" fill="#5060cc">  |   Mycroft Mark II to Home Assistant      |</text>
+<text x="44" y="115" font-family="monospace" font-size="11" fill="#5060cc">  |   github.com/andlo/mark2-assist           |</text>
+<text x="44" y="130" font-family="monospace" font-size="11" fill="#5060cc">  +==========================================+</text>
+<text x="44" y="150" font-family="monospace" font-size="11" fill="#8b949e">  Progress:</text>
+<text x="44" y="165" font-family="monospace" font-size="11" fill="#27c93f">    [OK] hardware</text>
+<text x="44" y="180" font-family="monospace" font-size="11" fill="#e3b341">    [ ] satellite (pending)</text>
+<line x1="44" y1="193" x2="636" y2="193" stroke="#30363d" stroke-width="0.5"/>
+<text x="44" y="210" font-family="monospace" font-size="11" fill="#58a6ff">  Resuming after reboot -- hardware done</text>
+<text x="44" y="225" font-family="monospace" font-size="11" fill="#8b949e">  Run hardware test before continuing? [y/N]: n</text>
+<text x="44" y="245" font-family="monospace" font-size="11" fill="#444d56">  === </text>
+<text x="80" y="245" font-family="monospace" font-size="11" fill="#58a6ff">Step 2/2 -- Linux Voice Assistant + Kiosk</text>
+<text x="44" y="265" font-family="monospace" font-size="11" fill="#27c93f">  [OK] Linux Voice Assistant installed</text>
+<text x="44" y="280" font-family="monospace" font-size="11" fill="#27c93f">  [OK] mark2-audio-init.service enabled</text>
+<text x="44" y="295" font-family="monospace" font-size="11" fill="#27c93f">  [OK] Kiosk configured (homeassistant.local)</text>
+<text x="44" y="310" font-family="monospace" font-size="11" fill="#27c93f">  [OK] Face overlay installed</text>
+<text x="44" y="325" font-family="monospace" font-size="11" fill="#27c93f">  [OK] Volume buttons service enabled</text>
+<text x="44" y="355" font-family="monospace" font-size="11" fill="#8b949e">  Reboot now? [Y/n]: </text>
+<rect x="222" y="343" width="7" height="13" fill="#e6edf3" opacity="0.8"/>
+</svg>

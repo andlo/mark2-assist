@@ -26,7 +26,7 @@ The voice pipeline runs through Home Assistant Assist. You choose what powers it
 fully local (Whisper + Piper), Nabu Casa, OpenAI, Claude, or any HA conversation agent.
 
 <p align="center">
-  <img src="docs/images/splash-mockup.svg" width="480" alt="Mark II splash screen — animated face at boot">
+  <img src="docs/images/splash-mockup.png" width="480" alt="Mark II splash screen — animated face at boot">
 </p>
 
 ---
@@ -70,7 +70,7 @@ A transparent Chromium window sits on top of the HA dashboard as an always-on-to
 It shows the Mark II face animation:
 
 <p align="center">
-  <img src="docs/images/face-states.svg" alt="Mark II face animation states: idle, listening, thinking, speaking, error">
+  <img src="docs/images/face-states.png" alt="Mark II face animation states: idle, listening, thinking, speaking, error">
 </p>
 
 | State | Face |
@@ -117,7 +117,7 @@ cd mark2-assist
 ```
 
 <p align="center">
-  <img src="docs/images/install-mockup.svg" alt="mark2-assist installer terminal — two-step zero-config install">
+  <img src="docs/images/install-mockup.png" alt="mark2-assist installer terminal — two-step zero-config install">
 </p>
 
 ### Manual step-by-step
