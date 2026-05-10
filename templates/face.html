@@ -328,6 +328,51 @@ function setState(s) {
   }
 }
 
+// --- Screen blanking / screensaver ---
+// Timeout is read from /tmp/mark2-kiosk-config.json (written by face-event-bridge.py).
+// Default: 300 seconds. Set to 0 to disable.
+let screenBlankMs = 300 * 1000;
+let screenOn = true;
+let screenBlankTimer = null;
+
+function resetScreenBlank() {
+  if (!screenOn) {
+    fetch('http://localhost:8088/screen-on').catch(() => {});
+    screenOn = true;
+  }
+  clearTimeout(screenBlankTimer);
+  if (screenBlankMs > 0) {
+    screenBlankTimer = setTimeout(() => {
+      fetch('http://localhost:8088/screen-off').catch(() => {});
+      screenOn = false;
+    }, screenBlankMs);
+  }
+}
+
+// Wake screen on any touch (user interacts with HA below)
+document.addEventListener('touchstart', resetScreenBlank, {passive: true});
+document.addEventListener('click', resetScreenBlank);
+
+// Also wake screen when voice is active
+function onVoiceActive() {
+  resetScreenBlank();
+}
+
+// --- Config polling (screensaver timeout from LVA preferences) ---
+async function pollConfig() {
+  try {
+    const r = await fetch('file:///tmp/mark2-kiosk-config.json?' + Date.now());
+    const d = JSON.parse(await r.text());
+    if (typeof d.screen_blank_seconds === 'number') {
+      const newMs = d.screen_blank_seconds * 1000;
+      if (newMs !== screenBlankMs) {
+        screenBlankMs = newMs;
+        resetScreenBlank(); // restart timer with new value
+      }
+    }
+  } catch(e) {}
+}
+
 // --- Listen for events via file polling ---
 let lastEvent = '';
 async function pollEvent() {
@@ -337,7 +382,11 @@ async function pollEvent() {
     if (text !== lastEvent) {
       lastEvent = text;
       const d = JSON.parse(text);
-      if (d.state) setState(d.state);
+      if (d.state) {
+        setState(d.state);
+        // Wake screen on any voice activity
+        if (d.state !== 'idle') onVoiceActive();
+      }
     }
   } catch(e) {}
 }
@@ -366,6 +415,9 @@ applyState('idle');
 scheduleBlink();
 requestAnimationFrame(loop);
 setInterval(pollEvent, 200);
+setInterval(pollConfig, 5000); // re-read config every 5s
+pollConfig();                  // read immediately on start
+resetScreenBlank();            // start screensaver timer
 </script>
 </body>
 </html>

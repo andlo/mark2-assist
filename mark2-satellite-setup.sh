@@ -5,38 +5,32 @@
 #
 # Run AFTER mark2-hardware-setup.sh and a reboot.
 #
-# Uses linux-voice-assistant (OHF-Voice/linux-voice-assistant) which replaces
-# the deprecated wyoming-satellite. Uses ESPHome protocol — same as HA Voice PE.
-# Features: local OWW wake word, timers, announcements, media player, auto-discovery.
+# Zero-config install: no prompts. Everything configurable in HA UI.
 #
 # What this script does:
-#   1. Detects SJ201 audio device automatically
-#   2. Installs Linux Voice Assistant (ESPHome protocol, replaces Wyoming Satellite)
-#   3. Creates lva.service (auto-discovered by HA as ESPHome device)
-#   4. Installs face event bridge (LVA state → /tmp/mark2-face-event.json)
-#   5. Installs hardware volume button handler (vol up/down/mute → TAS5806)
-#   6. Installs Weston + Chromium kiosk showing Home Assistant dashboard
-#   6. Configures auto-login on tty1 + Weston session startup
-#   7. Fixes Chromium GPU flags for Pi4 + Trixie (invalid gles ANGLE backend)
-#   8. Disables screen blanking
-#   9. Configures PipeWire + MPV for media playback
+#   1. Installs Linux Voice Assistant (ESPHome protocol, auto-discovered by HA)
+#   2. Creates mark2-audio-init.service (MCLK fix + SPI flash + PipeWire restart)
+#   3. Installs face event bridge (LVA state → face animation overlay)
+#   4. Installs hardware volume button handler (vol up/down/mute → TAS5806)
+#   5. Installs Weston + Chromium kiosk opening Home Assistant directly
+#   6. Face animation runs as transparent always-on-top overlay window
+#   7. Screensaver timeout configurable via HA ESPHome entity
 #
-# Wayland compositor: Weston (not labwc)
-#   labwc does not composite Chromium surfaces to the DSI display on Pi4
-#   with vc4-kms-v3d. Weston renders correctly.
+# After install + reboot:
+#   - Touchscreen shows your HA dashboard (homeassistant.local by default)
+#   - Say "okay nabu" to activate voice — face animates during interaction
+#   - LVA auto-discovered in HA as ESPHome device (Settings → Devices)
+#   - Configure satellite name, wake word, volume in HA UI
+#
+# Optional config (~/.config/mark2/config):
+#   HA_URL=http://192.168.1.100:8123   (if mDNS doesn't work)
+#   HA_TOKEN=<long-lived access token> (for face bridge + screensaver)
+#   SCREEN_BLANK_SECONDS=300           (screensaver timeout, default 5 min)
 #
 # Requirements:
-#   - mark2-hardware-setup.sh has been run and device rebooted
+#   - mark2-hardware-setup.sh completed + rebooted
 #   - Raspberry Pi OS Trixie (Debian 13, 64-bit)
 #   - sudo access, internet connection
-#
-# Usage:
-#   chmod +x mark2-satellite-setup.sh
-#   ./mark2-satellite-setup.sh
-#
-# After running, reboot. The touchscreen will show your HA dashboard.
-# LVA auto-discovers in HA as ESPHome device — no manual integration needed
-# Host: <Mark II IP>  Port: 10700
 # =============================================================================
 
 set -euo pipefail
@@ -48,11 +42,11 @@ check_not_root
 setup_paths
 config_load
 
-# Satellite name shown in HA — use hostname so each device is unique
+# Satellite name: use hostname so each device is unique.
+# Can be renamed in HA UI after discovery.
 SATELLITE_NAME="${SATELLITE_NAME:-$(hostname)}"
 
-# Wake word: okay_nabu, hey_mycroft, alexa, hey_jarvis, hey_rhasspy
-# NOTE: pyopen_wakeword uses 'okay_nabu' (not 'ok_nabu') — must match exactly
+# Wake word: okay_nabu (default). Change in HA UI via ESPHome select entity.
 WAKE_WORD="${WAKE_WORD:-okay_nabu}"
 
 LVA_DIR="${USER_HOME}/lva"
@@ -62,39 +56,12 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 # FUNCTIONS
 # =============================================================================
 
-prompt_ha_url() {
-    if [ -z "${HA_URL:-}" ]; then
-        HA_URL=$(ask_input "Home Assistant URL" "http://192.168.1.100:8123") \
-            || die "Home Assistant URL is required"
-        [ -z "$HA_URL" ] && die "Home Assistant URL is required"
-        config_save "HA_URL" "$HA_URL"
-    else
-        log "Using saved Home Assistant URL: ${HA_URL}"
-    fi
-    export HA_URL
-}
-
 detect_sj201_audio() {
     section "Detecting SJ201 audio device"
-    sleep 2  # give ALSA a moment after boot
-
-    # Microphone: use ALSA 'default' device which resolves via ~/.asoundrc
-    # to VF_ASR_(L) — XMOS XVF-3510's dedicated ASR output channel.
-    # Do NOT use plughw:CARD=sj201,DEV=1 directly: that bypasses .asoundrc
-    # and delivers raw 48kHz stereo from the XMOS chip before resampling,
-    # which produces RMS~20 (unusable) vs RMS~500+ via the ASR channel.
-    MIC_DEVICE="default"
-
-    # Speaker: detect plughw device for aplay (needs explicit device + format)
-    SPK_DEVICE=""
-    if aplay -L 2>/dev/null | grep -q "soc_sound\|xvf3510\|sj201"; then
-        SPK_DEVICE=$(aplay -L 2>/dev/null \
-               | grep -i "soc_sound\|xvf3510\|sj201" \
-               | grep "^plughw:" | head -1)
+    if ! aplay -l 2>/dev/null | grep -q "sj201"; then
+        die "SJ201 sound card not found. Run mark2-hardware-setup.sh first and reboot."
     fi
-    [ -z "$SPK_DEVICE" ] && SPK_DEVICE="plughw:CARD=sj201,DEV=0"
-    log "Mic device:     default (→ VF_ASR_(L) via .asoundrc)"
-    log "Speaker device: ${SPK_DEVICE}"
+    log "SJ201 audio device detected ✓"
 }
 
 install_dependencies() {
@@ -402,59 +369,23 @@ WESTONEOF
 }
 
 configure_kiosk() {
-    section "Configuring Chromium kiosk and HUD"
+    section "Configuring Chromium kiosk + face overlay"
 
-    TEMPLATE_DIR="${SCRIPT_DIR}/templates"
-    KIOSK_DIR="${USER_HOME}/.config/mark2-kiosk"
-    mkdir -p "$KIOSK_DIR"
-
-    # MPD watcher — polls MPD TCP port and writes /tmp/mark2-mpd-state.json
-    # Used by MQTT sensors and face animation modules
-    sudo install -m 755 "${SCRIPT_DIR}/lib/mpd-watcher.py" /usr/local/bin/mark2-mpd-watcher
-    cat > "${SYSTEMD_USER_DIR}/mark2-mpd-watcher.service" << EOF
-[Unit]
-Description=Mark II MPD state watcher (for face animation and MQTT sensors)
-After=mpd.service network-online.target
-
-[Service]
-Type=simple
-ExecStart=/usr/local/bin/mark2-mpd-watcher
-Restart=always
-RestartSec=5
-
-[Install]
-WantedBy=default.target
-EOF
-
-    # HUD overlay template (face animation + volume bar)
-    cp "${TEMPLATE_DIR}/kiosk.html" "${KIOSK_DIR}/kiosk.html"
-    log "Installed kiosk template → ${KIOSK_DIR}/kiosk.html"
-
-    # ── mark2-httpd.py — local HTTP server on :8088 ──
-    # Serves combined.html, splash.html, and proxies /ha/ to Home Assistant.
-    # kiosk.sh starts this at boot; without it Chromium shows "site can't be reached".
+    # ── mark2-httpd.py — minimal local server (screen-on/off + sounds) ──
     cp "${SCRIPT_DIR}/lib/mark2-httpd.py" "${USER_HOME}/mark2-httpd.py"
     chmod +x "${USER_HOME}/mark2-httpd.py"
-    log "Installed ~/mark2-httpd.py"
+    log "Installed ~/mark2-httpd.py (backlight control server)"
 
     # ── kiosk.sh — main display launcher ──
-    # Uses ${HOME} for paths — works with any username, not just pi.
+    # Opens HA directly. Face animation runs as a separate overlay window.
     KIOSK_SCRIPT="${USER_HOME}/kiosk.sh"
     cp "${SCRIPT_DIR}/lib/kiosk.sh" "$KIOSK_SCRIPT"
     chmod +x "$KIOSK_SCRIPT"
     log "Installed ~/kiosk.sh"
 
-    # ── hud.sh — HUD overlay launcher ──
-    # Uses ${HOME} for paths — works with any username, not just pi.
-    HUD_SCRIPT="${USER_HOME}/hud.sh"
-    cp "${SCRIPT_DIR}/lib/hud.sh" "$HUD_SCRIPT"
-    chmod +x "$HUD_SCRIPT"
-    log "Installed ~/hud.sh"
-
-    # ── labwc rc.xml ──
-    # labwc is installed alongside Weston for use by the optional face and
-    # overlay modules which need window management (always-on-top windows).
-    # rc.xml sets serverDecoration=no globally and maximizes Chromium.
+    # ── labwc rc.xml — window rules for face overlay ──
+    # face.html runs as a transparent always-on-top Chromium window above HA.
+    # Weston kiosk shell is used for the main window; labwc handles the overlay.
     LABWC_RC="${USER_HOME}/.config/labwc/rc.xml"
     mkdir -p "$(dirname "$LABWC_RC")"
     cat > "$LABWC_RC" << 'EOF'
@@ -467,18 +398,18 @@ EOF
   <windowRules>
     <!-- Remove title bars from all windows -->
     <windowRule identifier="*" serverDecoration="no"/>
-    <!-- Maximize Chromium kiosk window -->
+    <!-- Maximize main Chromium kiosk window (HA) -->
     <windowRule identifier="org.chromium.Chromium">
       <action name="Maximize"/>
     </windowRule>
-    <!-- Keep HUD overlay always on top -->
-    <windowRule identifier="hud.html" matchType="substring">
+    <!-- Keep face overlay always on top -->
+    <windowRule identifier="face.html" matchType="substring">
       <action name="ToggleAlwaysOnTop"/>
     </windowRule>
   </windowRules>
 </labwc_config>
 EOF
-    log "Configured labwc window rules (for optional face/overlay modules)"
+    log "Configured labwc: face overlay always-on-top"
 }
 
 configure_screen_no_blank() {
@@ -538,9 +469,8 @@ EOF
 print_summary() {
     local IP
     IP=$(hostname -I | awk '{print $1}')
-    echo ""
-    echo "========================================"
-    # Boot splash — covers kernel boot with Mark II branding
+
+    # Boot splash
     log "Installing boot splash (Plymouth)..."
     sudo bash "${SCRIPT_DIR}/lib/install-plymouth.sh" \
         && log "Boot splash installed" \
@@ -548,25 +478,27 @@ print_summary() {
 
     log "Mark II Satellite + Kiosk setup complete!"
     echo ""
+    echo "========================================"
+    echo "  Mark II Linux Voice Assistant + Kiosk"
+    echo "========================================"
+    echo ""
     echo "  Next steps:"
     echo ""
-    echo "  1. Reboot the Mark II:"
+    echo "  1. Reboot:"
     echo "     sudo reboot"
     echo ""
-    echo "  2. In Home Assistant — add ESPHome device:"
-    echo "     Settings → Devices & Services → Add Integration → ESPHome"
-    echo "     Host: ${IP}   Port: 6053"
-    echo "     (or wait for auto-discovery notification)"
+    echo "  2. Touchscreen shows Home Assistant (homeassistant.local)"
+    echo "     If mDNS doesn't work, set HA URL:"
+    echo "     echo 'HA_URL=http://192.168.x.x:8123' >> ~/.config/mark2/config"
     echo ""
-    echo "  3. Set the voice pipeline (IMPORTANT — #9):"
+    echo "  3. In Home Assistant — ESPHome device auto-discovered:"
+    echo "     Settings → Devices & Services → ESPHome → ${SATELLITE_NAME}"
+    echo "     Configure: satellite name, wake word, volume, screensaver"
+    echo ""
+    echo "  4. Set voice pipeline:"
     echo "     Settings → Voice Assistants → ${SATELLITE_NAME}"
-    echo "     → Select pipeline (e.g. 'preferred', 'Whisper+Piper', 'Claude')"
-    echo "     Without this step the satellite uses HA's default pipeline."
     echo ""
-    echo "  4. Test: say '${WAKE_WORD}' and give a voice command."
-    echo ""
-    echo "  For auto-login on touchscreen without keyboard:"
-    echo "  See README.md → Auto-login on the touchscreen"
+    echo "  5. Say '${WAKE_WORD}' — face animates, voice command processed"
     echo "========================================"
     echo ""
 }
@@ -578,15 +510,11 @@ print_summary() {
 echo ""
 echo "========================================"
 echo "  Mark II Linux Voice Assistant + Kiosk"
-echo "  User:           ${CURRENT_USER}"
-echo "  Hostname:       $(hostname)"
-echo "  Satellite name: ${SATELLITE_NAME} (shown in HA)"
-echo "  Wake word:      ${WAKE_WORD}"
-echo "  Compositor:     Weston (kiosk shell)"
+echo "  User:     ${CURRENT_USER}"
+echo "  Hostname: $(hostname)"
 echo "========================================"
 echo ""
 
-prompt_ha_url
 detect_sj201_audio
 install_dependencies
 install_lva
