@@ -165,18 +165,19 @@ SCREEN_BLANK_SECONDS=300
 
 ## Optional modules
 
-Run from the `modules/` directory after the base install:
+Modules for Snapcast, AirPlay, MPD and KDE Connect will be manageable
+directly from the HA UI in a future update — see [issue #31](https://github.com/andlo/mark2-assist/issues/31).
 
-| Module | What it does |
-|--------|-------------|
-| `snapcast.sh` | Multiroom audio — Snapcast endpoint |
-| `airplay.sh` | AirPlay 1 speaker |
-| `mpd.sh` | Local music player (integrates with Music Assistant) |
-| `kdeconnect.sh` | Android phone integration |
-| `usb-audio.sh` | USB audio fallback |
+Until then, install manually after the base setup:
 
-> MQTT sensors module (`mqtt-sensors.sh`) is deprecated. Hardware sensors
-> are available via ESPHome entities in HA directly.
+```bash
+bash modules/snapcast.sh   # synchronized multiroom audio
+bash modules/airplay.sh    # AirPlay 1 speaker
+bash modules/mpd.sh        # local music player
+bash modules/kdeconnect.sh # Android integration
+```
+
+See [docs/MODULES.md](docs/MODULES.md) for details.
 
 ---
 
@@ -220,10 +221,11 @@ cat /tmp/mark2-face-event.json
 | Document | Description |
 |----------|-------------|
 | [docs/XVF3510_HARDWARE.md](docs/XVF3510_HARDWARE.md) | XVF-3510 mic chip technical details, MCLK root cause, boot sequence |
-| [docs/SATELLITE_SETUP.md](docs/SATELLITE_SETUP.md) | Satellite setup technical reference |
+| [docs/SATELLITE_SETUP.md](docs/SATELLITE_SETUP.md) | Satellite + kiosk setup technical reference |
 | [docs/HARDWARE_SETUP.md](docs/HARDWARE_SETUP.md) | Hardware driver setup details |
+| [docs/INSTALL_SH.md](docs/INSTALL_SH.md) | install.sh architecture and flow |
+| [docs/MODULES.md](docs/MODULES.md) | Optional modules — manual install + planned HA UI management |
 | [docs/HA_INTEGRATION.md](docs/HA_INTEGRATION.md) | Home Assistant integration guide |
-| [docs/MODULES.md](docs/MODULES.md) | Optional modules reference |
 | [docs/HISTORY.md](docs/HISTORY.md) | Project history and design decisions |
 
 ---
