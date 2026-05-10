@@ -517,7 +517,7 @@ configure_screen_no_blank
 configure_kiosk
 configure_pipewire_media
 
-print_summary
+[ "${MARK2_CALLED_FROM_INSTALLER:-0}" = "1" ] || print_summary
 
 if [ "${MARK2_MODULE_CONFIRMED:-0}" != "1" ]; then
     if ask_yes_no "Reboot now to apply all changes?"; then
