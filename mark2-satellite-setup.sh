@@ -264,7 +264,7 @@ ExecStartPre=/usr/local/bin/mark2-wait-pipewire
 ExecStart=${LVA_DIR}/.venv/bin/python3 -m linux_voice_assistant \\
     --name '${SATELLITE_NAME}' \\
     --wake-model '${WAKE_WORD}' \\
-    --audio-input-device 'ALSA Source on hw:sj201,1' \\
+    --audio-input-device 'Built-in Audio (bcm2835-i2s-dir-hifi dir-hifi-1)' \\
     --audio-output-device 'pipewire/alsa_output.platform-soc_sound.pro-output-0'
 WorkingDirectory=${LVA_DIR}
 Environment=PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin

@@ -61,11 +61,13 @@ log "Flash done — waiting 1s for chip startup..."
 sleep 1
 
 log "Starting PipeWire stack..."
-systemctl --user start pipewire.socket pipewire.service
-systemctl --user start pipewire-pulse.socket pipewire-pulse.service
-systemctl --user start wireplumber.service
+systemctl --user start pipewire.socket pipewire.service 2>/dev/null || \
+    systemctl --user start pipewire.service 2>/dev/null || true
+systemctl --user start pipewire-pulse.socket pipewire-pulse.service 2>/dev/null || \
+    systemctl --user start pipewire-pulse.service 2>/dev/null || true
+systemctl --user start wireplumber.service || true
 sleep 4
 
 log "Starting LVA..."
-systemctl --user start lva.service
+systemctl --user start lva.service || true
 log "Done"
