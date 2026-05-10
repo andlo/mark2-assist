@@ -64,9 +64,21 @@ install_resume_hook() {
     cat >> "$BASH_PROFILE" << 'HOOKEOF'
 
 # mark2-install-resume
+CYAN='\033[0;36m'
+BLUE='\033[0;34m'
+GREEN='\033[0;32m'
+NC='\033[0m'
 echo ""
-echo "  Mark II install paused for reboot. Hardware done ✓"
-echo "  Continue:  cd mark2-assist && ./install.sh"
+echo -e "${CYAN}    __  ___           __      ________     ___              _      __ ${NC}"
+echo -e "${CYAN}   /  |/  /___ ______/ /__   /  _/  _/    /   |  __________(_)____/ /_${NC}"
+echo -e "${CYAN}  / /|_/ / __ \`/ ___/ //_/   / / / /     / /| | / ___/ ___/ / ___/ __/${NC}"
+echo -e "${CYAN} / /  / / /_/ / /  / ,<    _/ /_/ /     / ___ |(__  |__  ) (__  ) /_  ${NC}"
+echo -e "${CYAN}/_/  /_/\__,_/_/  /_/|_|  /___/___/    /_/  |_/____/____/_/____/\__/  ${NC}"
+echo ""
+echo -e "${GREEN}  Hardware done ✓  —  Step 1 of 2 complete${NC}"
+echo ""
+echo -e "  ${BLUE}Continue the install:${NC}"
+echo -e "  ${CYAN}  cd ~/mark2-assist && ./install.sh${NC}"
 echo ""
 HOOKEOF
 }
