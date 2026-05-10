@@ -1,4 +1,6 @@
 #!/bin/bash
+# DEPRECATED — now handled by mark2-satellite-setup.sh directly.
+# This module is no longer called by install.sh.
 # =============================================================================
 # modules/face.sh
 # Animated robot face overlay for the Mark II touchscreen

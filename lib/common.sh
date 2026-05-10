@@ -81,16 +81,29 @@ _log_write() {
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] [${level}] ${msg}" >> "$MARK2_LOG"
 }
 
-# --- Show informational whiptail box (non-blocking display) ---
+# --- Mark II Assist banner — call at start of every user-facing script ---
+print_banner() {
+    local subtitle="${1:-}"
+    echo ""
+    echo -e "${CYAN}    __  ___           __      ________     ___              _      __ ${NC}"
+    echo -e "${CYAN}   /  |/  /___ ______/ /__   /  _/  _/    /   |  __________(_)____/ /_${NC}"
+    echo -e "${CYAN}  / /|_/ / __ \`/ ___/ //_/   / / / /     / /| | / ___/ ___/ / ___/ __/${NC}"
+    echo -e "${CYAN} / /  / / /_/ / /  / ,<    _/ /_/ /     / ___ |(__  |__  ) (__  ) /_  ${NC}"
+    echo -e "${CYAN}/_/  /_/\__,_/_/  /_/|_|  /___/___/    /_/  |_/____/____/_/____/\__/  ${NC}"
+    echo ""
+    echo -e "${BLUE}  Mycroft Mark II — Home Assistant Voice Satellite${NC}"
+    echo -e "${BLUE}  github.com/andlo/mark2-assist${NC}"
+    if [ -n "$subtitle" ]; then
+        echo ""
+        echo -e "  ${CYAN}——  ${subtitle}  ——${NC}"
+    fi
+    echo ""
+}
+
+# --- Show informational message ---
 show_info() {
     local msg="$1"
-    local height="${2:-8}"
-    local width="${3:-60}"
-    if command -v whiptail >/dev/null 2>&1 && [ -t 0 ]; then
-        whiptail --title "Mark II Assist" --infobox "$msg" "$height" "$width"
-    else
-        echo -e "${BLUE}[INFO]${NC} ${msg}"
-    fi
+    echo -e "${BLUE}[INFO]${NC} ${msg}"
 }
 
 # --- Section header for modules ---
@@ -102,58 +115,33 @@ module_header() {
     echo ""
 }
 
-# --- Show whiptail message box (waits for OK) ---
+# --- Show message (waits for Enter) ---
 show_msg() {
     local msg="$1"
-    local height="${2:-10}"
-    local width="${3:-60}"
-    if command -v whiptail >/dev/null 2>&1 && [ -t 0 ]; then
-        whiptail --title "Mark II Assist" --msgbox "$msg" "$height" "$width"
-    else
-        echo -e "${BLUE}[INFO] ${msg}${NC}"
-    fi
+    echo -e "${BLUE}[INFO]${NC} ${msg}"
+    read -rp "  Press Enter to continue..." _
 }
 
 ask_yes_no() {
     local prompt="$1"
-    if command -v whiptail >/dev/null 2>&1 && [ -t 0 ]; then
-        whiptail --title "Mark II Assist" --yesno "$prompt" 8 60
-        return $?
-    else
-        local answer
-        read -rp "${prompt} [y/N]: " answer
-        [[ "${answer,,}" == "y" ]]
-    fi
+    local answer
+    read -rp "${prompt} [y/N]: " answer
+    [[ "${answer,,}" == "y" ]]
 }
 
 ask_input() {
-    # ask_input "Prompt text" "default value"
     local prompt="$1"
     local default="${2:-}"
-    if command -v whiptail >/dev/null 2>&1 && [ -t 0 ]; then
-        local result
-        result=$(whiptail --title "Mark II Assist" \
-            --inputbox "$prompt" 10 65 "$default" \
-            3>&1 1>&2 2>&3) || return 1
-        echo "$result"
-    else
-        local answer
-        read -rp "${prompt} [${default}]: " answer
-        echo "${answer:-$default}"
-    fi
+    local answer
+    read -rp "${prompt} [${default}]: " answer
+    echo "${answer:-$default}"
 }
 
 ask_password() {
     local prompt="$1"
-    if command -v whiptail >/dev/null 2>&1 && [ -t 0 ]; then
-        whiptail --title "Mark II Assist" \
-            --passwordbox "$prompt" 10 65 \
-            3>&1 1>&2 2>&3
-    else
-        local answer
-        read -rsp "${prompt}: " answer; echo
-        echo "$answer"
-    fi
+    local answer
+    read -rsp "${prompt}: " answer; echo
+    echo "$answer"
 }
 
 # --- Used by modules to skip their own prompt when called from install.sh ---

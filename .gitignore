@@ -3,3 +3,4 @@
 # Personal dashboard copies — not for public repo
 docs/*-andreas.yaml
 docs/*-personal.yaml
+lib/__pycache__

@@ -1,31 +1,20 @@
 #!/bin/bash
-# Wait for PipeWire SJ201 virtual devices to appear (max 30s)
-# Used as ExecStartPre in lva.service to avoid starting before audio is ready.
-# wireplumber is Type=simple and gives no systemd ready notification,
-# so we poll wpctl status instead.
-for i in $(seq 1 30); do
-    ASR=$(wpctl status 2>/dev/null | grep -c 'SJ201 ASR')
-    SPK=$(wpctl status 2>/dev/null | grep -c 'SJ201 Speaker')
-    if [ "$ASR" -gt 0 ] && [ "$SPK" -gt 0 ]; then
-        echo "PipeWire SJ201 devices ready after ${i}s"
-        # Extra settle time — WirePlumber re-opens I2S after XVF3510 flash
-        # and the device needs a moment before audio data flows reliably.
-        sleep 3
-        # Set default volume to 60% at boot.
-        # Read saved volume from config if available.
-        CONFIG="${HOME}/.config/mark2/config"
-        DEFAULT_VOL=0.6
+# Wait for SJ201 microphone to be available via PipeWire/PulseAudio.
+# With module-alsa-source approach, the source appears as "ALSA Source on hw:sj201,1"
+# in wpctl status — not as pro-input-1.
+CONFIG="${HOME}/.config/mark2/config"
+DEFAULT_VOL=0.6
+for i in $(seq 1 60); do
+    if wpctl status 2>/dev/null | grep -q 'ALSA Source on hw:sj201'; then
+        echo "SJ201 mic ready after ${i}s"
         if [ -f "$CONFIG" ]; then
             SAVED=$(grep '^MARK2_VOLUME=' "$CONFIG" 2>/dev/null | cut -d= -f2 | tr -d '"')
-            if [ -n "$SAVED" ]; then
-                DEFAULT_VOL=$(echo "$SAVED / 100" | bc -l 2>/dev/null || echo "0.6")
-            fi
+            [ -n "$SAVED" ] && DEFAULT_VOL=$(echo "$SAVED / 100" | bc -l 2>/dev/null || echo "0.6")
         fi
-        wpctl set-volume @DEFAULT_AUDIO_SINK@ "$DEFAULT_VOL" 2>/dev/null && \
-            echo "Default volume set to ${DEFAULT_VOL}" || true
+        wpctl set-volume @DEFAULT_AUDIO_SINK@ "$DEFAULT_VOL" 2>/dev/null || true
         exit 0
     fi
     sleep 1
 done
-echo "WARNING: PipeWire SJ201 devices not ready after 30s — starting LVA anyway"
+echo "WARNING: SJ201 mic not ready after 60s — starting LVA anyway"
 exit 0

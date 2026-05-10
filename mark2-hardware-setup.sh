@@ -341,17 +341,39 @@ download_sj201_firmware() {
     sudo cp "${ASSETS_DIR}/app_xvf3510_int_spi_boot_v4_2_0.bin" "${WORK_DIR}/app_xvf3510_int_spi_boot_v4_2_0.bin"
     log "Firmware copied from assets/"
 
+    # Compile setup_mclk and setup_bclk from source
+    # These set the correct MCLK (12.288MHz) and BCLK clock frequencies
+    # required by XVF3510. sj201.dtbo sets wrong MCLK=24.576MHz.
+    log "Compiling setup_mclk and setup_bclk (XMOS clock utilities)..."
+    local clk_src="${SCRIPT_DIR}/lib/setup_mclk_bclk.c"
+    if [ -f "${clk_src}" ]; then
+        sudo gcc -g -DMCLK "${clk_src}" -o /usr/local/bin/setup_mclk
+        sudo gcc -g       "${clk_src}" -o /usr/local/bin/setup_bclk
+        sudo chmod +x /usr/local/bin/setup_mclk /usr/local/bin/setup_bclk
+        log "setup_mclk and setup_bclk installed to /usr/local/bin/"
+    else
+        log "WARNING: ${clk_src} not found — skipping setup_mclk/setup_bclk"
+    fi
+
     sudo chown -R "${CURRENT_USER}:${CURRENT_USER}" "$WORK_DIR"
 }
 
 create_sj201_service() {
-    # ── sj201.service — OVOS installer style ─────────────────────────────────
-    # Flash XVF3510 firmware and init TAS5806 amplifier.
-    # Critically: NO PipeWire stop/start. Flash runs WITH PipeWire/WirePlumber
-    # already running. This is how OVOS does it and it works correctly.
-    # WirePlumber holds the I2S clock active which XVF3510 needs to receive
-    # the SPI firmware correctly. Stopping PipeWire before flash breaks this.
-    log "Creating sj201.service systemd unit (OVOS-style)..."
+    # ── sj201.service — simple hardware verification service ──────────────────
+    # Flashes XVF3510 firmware and inits TAS5806 on boot.
+    #
+    # NOTE: This service does NOT set the correct MCLK (12.288MHz) before flash.
+    # It runs WITH PipeWire/WirePlumber already running (OVOS-style), which means
+    # the microphone pipeline may or may not start depending on clock state.
+    #
+    # For full satellite functionality, mark2-satellite-setup.sh replaces this
+    # service with mark2-audio-init.service, which runs the complete sequence:
+    #   setup_mclk (12.288MHz) → setup_bclk → flash → restart PipeWire
+    #
+    # This sj201.service is kept for hardware-only installs that just need
+    # firmware flash without voice satellite functionality.
+    # See docs/XVF3510_HARDWARE.md for full explanation.
+    log "Creating sj201.service systemd unit..."
     cat > "${SYSTEMD_USER_DIR}/sj201.service" << EOF
 [Unit]
 Documentation=https://github.com/MycroftAI/mark-ii-hardware-testing/blob/main/README.md
@@ -373,7 +395,7 @@ EOF
 
     log "Enabling sj201.service..."
     systemctl --user daemon-reload
-    systemctl --user enable sj201.service
+    systemctl --user enable --quiet sj201.service
 }
 
 configure_wireplumber() {
@@ -498,7 +520,7 @@ User=root
 WantedBy=multi-user.target
 EOF
     sudo systemctl daemon-reload
-    sudo systemctl enable mark2-vocalfusion-watchdog.service
+    sudo systemctl enable --quiet mark2-vocalfusion-watchdog.service
 
     # Safe weekly update cron (Sunday 03:00)
     UPDATE_SCRIPT="${MARK2_DIR}/safe-update.sh"
@@ -544,13 +566,8 @@ EOF
 # MAIN
 # =============================================================================
 
-echo ""
-echo "========================================"
-echo "  Mycroft Mark II Hardware Setup"
-echo "  User:    ${CURRENT_USER}"
-echo "  Boot:    ${BOOT_DIR}"
-echo "  Pi5 suffix: '${PI5_SUFFIX:-none}'"
-echo "========================================"
+[ "${MARK2_CALLED_FROM_INSTALLER:-0}" = "1" ] || print_banner "Hardware Setup"
+echo "  User: ${CURRENT_USER}  |  Boot: ${BOOT_DIR}"
 echo ""
 
 check_requirements
@@ -568,6 +585,10 @@ create_sj201_service
 configure_wireplumber
 cleanup_vocalfusion_src
 install_kernel_watchdog
+
+# Boot splash — installed here so it is active from first reboot onwards
+log "Installing boot splash (Plymouth)..."
+sudo bash "${SCRIPT_DIR}/lib/install-plymouth.sh"     && log "Boot splash installed"     || warn "Boot splash install failed — rerun: sudo bash lib/install-plymouth.sh"
 
 echo ""
 echo "========================================"
