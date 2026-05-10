@@ -85,39 +85,17 @@ _log_write() {
 print_banner() {
     local subtitle="${1:-}"
     echo ""
-    printf "${CYAN}%s${NC}
-" $'___  ___           _      _____ _____ '
-    printf "${CYAN}%s${NC}
-" $'|  \/  |          | |    |_   _|_   _|'
-    printf "${CYAN}%s${NC}
-" $'| .  . | __ _ _ __| | __   | |   | |  '
-    printf "${CYAN}%s${NC}
-" $'| |\/| |/ _` | \'__| |/ /   | |   | |  '
-    printf "${CYAN}%s${NC}
-" $'| |  | | (_| | |  |   <   _| |_ _| |_ '
-    printf "${CYAN}%s${NC}
-" $'\_|  |_/\__,_|_|  |_|\_\  \___/ \___/ '
-    printf "${CYAN}%s${NC}
-" $'  ___          _     _   '
-    printf "${CYAN}%s${NC}
-" $' / _ \        (_)   | |  '
-    printf "${CYAN}%s${NC}
-" $'/ /_\ \___ ___ _ ___| |_ '
-    printf "${CYAN}%s${NC}
-" $'|  _  / __/ __| / __| __|'
-    printf "${CYAN}%s${NC}
-" $'| | | \__ \__ \ \__ \ |_ '
-    printf "${CYAN}%s${NC}
-" $'\_| |_/___/___/_|___/\__|'
+    echo -e "${CYAN}    __  ___           __      ________     ___              _      __ ${NC}"
+    echo -e "${CYAN}   /  |/  /___ ______/ /__   /  _/  _/    /   |  __________(_)____/ /_${NC}"
+    echo -e "${CYAN}  / /|_/ / __ \`/ ___/ //_/   / / / /     / /| | / ___/ ___/ / ___/ __/${NC}"
+    echo -e "${CYAN} / /  / / /_/ / /  / ,<    _/ /_/ /     / ___ |(__  |__  ) (__  ) /_  ${NC}"
+    echo -e "${CYAN}/_/  /_/\__,_/_/  /_/|_|  /___/___/    /_/  |_/____/____/_/____/\__/  ${NC}"
     echo ""
-    printf "${BLUE}  Mycroft Mark II — Home Assistant Voice Satellite${NC}
-"
-    printf "${BLUE}  github.com/andlo/mark2-assist${NC}
-"
+    echo -e "${BLUE}  Mycroft Mark II — Home Assistant Voice Satellite${NC}"
+    echo -e "${BLUE}  github.com/andlo/mark2-assist${NC}"
     if [ -n "$subtitle" ]; then
         echo ""
-        printf "  ${CYAN}——  %s  ——${NC}
-" "$subtitle"
+        echo -e "  ${CYAN}——  ${subtitle}  ——${NC}"
     fi
     echo ""
 }
