@@ -359,13 +359,21 @@ download_sj201_firmware() {
 }
 
 create_sj201_service() {
-    # ── sj201.service — OVOS installer style ─────────────────────────────────
-    # Flash XVF3510 firmware and init TAS5806 amplifier.
-    # Critically: NO PipeWire stop/start. Flash runs WITH PipeWire/WirePlumber
-    # already running. This is how OVOS does it and it works correctly.
-    # WirePlumber holds the I2S clock active which XVF3510 needs to receive
-    # the SPI firmware correctly. Stopping PipeWire before flash breaks this.
-    log "Creating sj201.service systemd unit (OVOS-style)..."
+    # ── sj201.service — simple hardware verification service ──────────────────
+    # Flashes XVF3510 firmware and inits TAS5806 on boot.
+    #
+    # NOTE: This service does NOT set the correct MCLK (12.288MHz) before flash.
+    # It runs WITH PipeWire/WirePlumber already running (OVOS-style), which means
+    # the microphone pipeline may or may not start depending on clock state.
+    #
+    # For full satellite functionality, mark2-satellite-setup.sh replaces this
+    # service with mark2-audio-init.service, which runs the complete sequence:
+    #   setup_mclk (12.288MHz) → setup_bclk → flash → restart PipeWire
+    #
+    # This sj201.service is kept for hardware-only installs that just need
+    # firmware flash without voice satellite functionality.
+    # See docs/XVF3510_HARDWARE.md for full explanation.
+    log "Creating sj201.service systemd unit..."
     cat > "${SYSTEMD_USER_DIR}/sj201.service" << EOF
 [Unit]
 Documentation=https://github.com/MycroftAI/mark-ii-hardware-testing/blob/main/README.md
