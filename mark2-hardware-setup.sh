@@ -341,6 +341,20 @@ download_sj201_firmware() {
     sudo cp "${ASSETS_DIR}/app_xvf3510_int_spi_boot_v4_2_0.bin" "${WORK_DIR}/app_xvf3510_int_spi_boot_v4_2_0.bin"
     log "Firmware copied from assets/"
 
+    # Compile setup_mclk and setup_bclk from source
+    # These set the correct MCLK (12.288MHz) and BCLK clock frequencies
+    # required by XVF3510. sj201.dtbo sets wrong MCLK=24.576MHz.
+    log "Compiling setup_mclk and setup_bclk (XMOS clock utilities)..."
+    local clk_src="${SCRIPT_DIR}/lib/setup_mclk_bclk.c"
+    if [ -f "${clk_src}" ]; then
+        sudo gcc -g -DMCLK "${clk_src}" -o /usr/local/bin/setup_mclk
+        sudo gcc -g       "${clk_src}" -o /usr/local/bin/setup_bclk
+        sudo chmod +x /usr/local/bin/setup_mclk /usr/local/bin/setup_bclk
+        log "setup_mclk and setup_bclk installed to /usr/local/bin/"
+    else
+        log "WARNING: ${clk_src} not found — skipping setup_mclk/setup_bclk"
+    fi
+
     sudo chown -R "${CURRENT_USER}:${CURRENT_USER}" "$WORK_DIR"
 }
 
