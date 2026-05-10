@@ -84,21 +84,20 @@ _log_write() {
 # --- Mark II Assist banner — call at start of every user-facing script ---
 print_banner() {
     local subtitle="${1:-}"
-    echo -e "${CYAN}"
-    echo '  ╔══════════════════════════════════════════╗'
-    echo '  ║                                          ║'
-    echo '  ║     ★  Mark II Assist  ★                ║'
-    echo '  ║                                          ║'
-    echo '  ║   Mycroft Mark II → Home Assistant       ║'
-    echo '  ║   Voice Satellite + Kiosk Display        ║'
-    echo '  ║                                          ║'
-    echo '  ║   github.com/andlo/mark2-assist          ║'
-    echo '  ╚══════════════════════════════════════════╝'
-    echo -e "${NC}"
+    echo ""
+    echo -e "${CYAN}    __  ___           __      ________     ___              _      __ ${NC}"
+    echo -e "${CYAN}   /  |/  /___ ______/ /__   /  _/  _/    /   |  __________(_)____/ /_${NC}"
+    echo -e "${CYAN}  / /|_/ / __ \`/ ___/ //_/   / / / /     / /| | / ___/ ___/ / ___/ __/${NC}"
+    echo -e "${CYAN} / /  / / /_/ / /  / ,<    _/ /_/ /     / ___ |(__  |__  ) (__  ) /_  ${NC}"
+    echo -e "${CYAN}/_/  /_/\__,_/_/  /_/|_|  /___/___/    /_/  |_/____/____/_/____/\__/  ${NC}"
+    echo ""
+    echo -e "${BLUE}  Mycroft Mark II — Home Assistant Voice Satellite${NC}"
+    echo -e "${BLUE}  github.com/andlo/mark2-assist${NC}"
     if [ -n "$subtitle" ]; then
-        echo -e "  ${BLUE}${subtitle}${NC}"
         echo ""
+        echo -e "  ${CYAN}——  ${subtitle}  ——${NC}"
     fi
+    echo ""
 }
 
 # --- Show informational message ---

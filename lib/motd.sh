@@ -18,7 +18,7 @@ echo -e "${CYAN}  / /|_/ / __ \`/ ___/ //_/   / / / /     / /| | / ___/ ___/ / _
 echo -e "${CYAN} / /  / / /_/ / /  / ,<    _/ /_/ /     / ___ |(__  |__  ) (__  ) /_  ${NC}"
 echo -e "${CYAN}/_/  /_/\__,_/_/  /_/|_|  /___/___/    /_/  |_/____/____/_/____/\__/  ${NC}"
 echo ""
-echo -e "${BLUE}  Mycroft Mark II — Home Assistant Voice Satellite (LVA)${NC}"
+echo -e "${BLUE}  Mycroft Mark II — Home Assistant Voice Satellite${NC}"
 echo -e "${BLUE}  github.com/andlo/mark2-assist${NC}"
 echo ""
 
@@ -52,48 +52,41 @@ MACHINE_FLAG=""
 
 echo -e "${CYAN}  Services:${NC}"
 
-# Core services — always shown
+# Core services
 declare -A CORE
 CORE[lva]="Voice assistant (LVA)"
-CORE[sj201]="SJ201 audio hardware"
+CORE[mark2-audio-init]="XVF3510 audio init"
 CORE[mark2-volume-buttons]="Volume buttons"
-CORE[mark2-leds]="LED ring"
-CORE[mark2-face-events]="Face / HUD events"
+CORE[mark2-face-events]="Face animation"
+CORE[wireplumber]="PipeWire/WirePlumber"
 
-for svc in lva sj201 mark2-volume-buttons mark2-face-events; do
+for svc in lva mark2-audio-init mark2-volume-buttons mark2-face-events wireplumber; do
     LABEL="${CORE[$svc]}"
-    STATUS=$(systemctl $MACHINE_FLAG --user is-active "$svc" 2>/dev/null | head -1 | tr -d "[:space:]")
+    STATUS=$(systemctl $MACHINE_FLAG --user is-active "$svc" 2>/dev/null | tr -d "[:space:]")
+    [ -z "$STATUS" ] && STATUS=$(systemctl $MACHINE_FLAG --user show -p ActiveState "$svc" 2>/dev/null | cut -d= -f2)
     [ -z "$STATUS" ] && STATUS="inactive"
     if [ "$STATUS" = "active" ]; then
         printf "  ${GREEN}✓${NC} %-28s %s\n" "$LABEL" "running"
+    elif [ "$STATUS" = "exited" ]; then
+        printf "  ${GREEN}✓${NC} %-28s %s\n" "$LABEL" "done (oneshot)"
     else
         printf "  ${YELLOW}✗${NC} %-28s %s\n" "$LABEL" "$STATUS"
     fi
 done
 
-# mark2-leds is a system service (runs as root for GPIO) — query directly
-LED_STATUS=$(systemctl is-active mark2-leds 2>/dev/null | head -1 | tr -d "[:space:]")
-[ -z "$LED_STATUS" ] && LED_STATUS="inactive"
-if [ "$LED_STATUS" = "active" ]; then
-    printf "  ${GREEN}✓${NC} %-28s %s\n" "${CORE[mark2-leds]}" "running"
-else
-    printf "  ${YELLOW}✗${NC} %-28s %s\n" "${CORE[mark2-leds]}" "$LED_STATUS"
-fi
-
-# Optional services — only shown if installed/enabled
+# Optional services — only shown if enabled
 declare -A OPT
-OPT[mark2-mqtt-bridge]="MQTT sensors"
-OPT[mark2-screensaver]="Screensaver"
 OPT[snapclient]="Snapcast (multiroom audio)"
 OPT[shairport-sync]="AirPlay"
 OPT[mpd]="MPD music player"
+OPT[kdeconnect]="KDE Connect"
 
-for svc in mark2-mqtt-bridge mark2-screensaver snapclient shairport-sync mpd; do
-    ENABLED=$(systemctl $MACHINE_FLAG --user is-enabled "$svc" 2>/dev/null | head -1 | tr -d "[:space:]")
+for svc in snapclient shairport-sync mpd kdeconnect; do
+    ENABLED=$(systemctl $MACHINE_FLAG --user is-enabled "$svc" 2>/dev/null | tr -d "[:space:]")
     [ -z "$ENABLED" ] && ENABLED="not-found"
     case "$ENABLED" in not-found|masked|static|disabled) continue ;; esac
     LABEL="${OPT[$svc]}"
-    STATUS=$(systemctl $MACHINE_FLAG --user is-active "$svc" 2>/dev/null | head -1 | tr -d "[:space:]")
+    STATUS=$(systemctl $MACHINE_FLAG --user is-active "$svc" 2>/dev/null | tr -d "[:space:]")
     [ -z "$STATUS" ] && STATUS="inactive"
     if [ "$STATUS" = "active" ]; then
         printf "  ${GREEN}✓${NC} %-28s %s\n" "$LABEL" "running"
@@ -103,9 +96,7 @@ for svc in mark2-mqtt-bridge mark2-screensaver snapclient shairport-sync mpd; do
 done
 echo ""
 
-# Install summary reference
-if [ -f "${HOME}/.config/mark2/install-summary.txt" ]; then
-    echo -e "${CYAN}  Install summary:${NC}"
-    echo -e "  cat ~/.config/mark2/install-summary.txt"
-    echo ""
-fi
+echo ""
+echo -e "  ${CYAN}Docs:${NC} github.com/andlo/mark2-assist"
+echo -e "  ${CYAN}Logs:${NC} journalctl --user -u lva -f"
+echo ""
