@@ -12,21 +12,36 @@ YELLOW='\033[1;33m'
 NC='\033[0m'
 
 echo ""
-echo -e "${CYAN}     ▄██▄           ___  ___           _      _____ _____ ${NC}"
-echo -e "${CYAN}   ▄██████▄         |  \\/  |          | |    |_   _|_   _|${NC}"
-echo -e "${CYAN}  ▄████▀▀████▄      | .  . | __ _ _ __| | __   | |   | |  ${NC}"
-echo -e "${CYAN} ▄█████    █████▄   | |\\/| |/ _\` | '__| |/ /   | |   | |  ${NC}"
-echo -e "${CYAN}▄██████▄  ▄██████▄  | |  | | (_| | |  |   <   _| |_ _| |_ ${NC}"
-echo -e "${CYAN}████████  ██▀  ▀██  \\_|  |_/\\__,_|_|  |_|\\_\\  \\___/ \\___/ ${NC}"
-echo -e "${CYAN}███▀▀███  ██   ▄██    ___          _     _   ${NC}"
-echo -e "${CYAN}██    ██  ▀ ▄█████   / _ \\        (_)   | |  ${NC}"
-echo -e "${CYAN}███▄▄ ▀█  ▄███████  / /_\\ \\___ ___ _ ___| |_ ${NC}"
-echo -e "${CYAN}▀█████▄   ███████▀  |  _  / __/ __| / __| __|${NC}"
-echo -e "${CYAN}                    | | | \\__ \\__ \\ \\__ \\ |_ ${NC}"
-echo -e "${CYAN}                    \\_| |_/___/___/_|___/\\__|${NC}"
+printf "${CYAN}%s${NC}
+" $'     ▄██▄           ___  ___           _      _____ _____ '
+printf "${CYAN}%s${NC}
+" $'   ▄██████▄         |  \/  |          | |    |_   _|_   _|'
+printf "${CYAN}%s${NC}
+" $'  ▄████▀▀████▄      | .  . | __ _ _ __| | __   | |   | |  '
+printf "${CYAN}%s${NC}
+" $' ▄█████    █████▄   | |\/| |/ _` | \'__| |/ /   | |   | |  '
+printf "${CYAN}%s${NC}
+" $'▄██████▄  ▄██████▄  | |  | | (_| | |  |   <   _| |_ _| |_ '
+printf "${CYAN}%s${NC}
+" $'████████  ██▀  ▀██  \_|  |_/\__,_|_|  |_|\_\  \___/ \___/ '
+printf "${CYAN}%s${NC}
+" $'███▀▀███  ██   ▄██    ___          _     _   '
+printf "${CYAN}%s${NC}
+" $'██    ██  ▀ ▄█████   / _ \        (_)   | |  '
+printf "${CYAN}%s${NC}
+" $'███▄▄ ▀█  ▄███████  / /_\ \___ ___ _ ___| |_ '
+printf "${CYAN}%s${NC}
+" $'▀█████▄   ██████▀  |  _  / __/ __| / __| __|'
+printf "${CYAN}%s${NC}
+" $'                    | | | \__ \__ \ \__ \ |_ '
+printf "${CYAN}%s${NC}
+" $'                    \_| |_/___/___/_|___/\__|'
 echo ""
-echo -e "${BLUE}  Mycroft Mark II — Home Assistant Voice Satellite${NC}"
-echo -e "${BLUE}  github.com/andlo/mark2-assist${NC}"
+printf "${BLUE}  Mycroft Mark II — Home Assistant Voice Satellite${NC}
+"
+printf "${BLUE}  github.com/andlo/mark2-assist${NC}
+"
+echo ""
 echo ""
 
 # System info
@@ -104,6 +119,35 @@ done
 echo ""
 
 echo ""
-echo -e "  ${CYAN}Docs:${NC} github.com/andlo/mark2-assist"
+printf "${CYAN}%s${NC}
+" $'     ▄██▄           ___  ___           _      _____ _____ '
+printf "${CYAN}%s${NC}
+" $'   ▄██████▄         |  \/  |          | |    |_   _|_   _|'
+printf "${CYAN}%s${NC}
+" $'  ▄████▀▀████▄      | .  . | __ _ _ __| | __   | |   | |  '
+printf "${CYAN}%s${NC}
+" $' ▄█████    █████▄   | |\/| |/ _` | \'__| |/ /   | |   | |  '
+printf "${CYAN}%s${NC}
+" $'▄██████▄  ▄██████▄  | |  | | (_| | |  |   <   _| |_ _| |_ '
+printf "${CYAN}%s${NC}
+" $'████████  ██▀  ▀██  \_|  |_/\__,_|_|  |_|\_\  \___/ \___/ '
+printf "${CYAN}%s${NC}
+" $'███▀▀███  ██   ▄██    ___          _     _   '
+printf "${CYAN}%s${NC}
+" $'██    ██  ▀ ▄█████   / _ \        (_)   | |  '
+printf "${CYAN}%s${NC}
+" $'███▄▄ ▀█  ▄███████  / /_\ \___ ___ _ ___| |_ '
+printf "${CYAN}%s${NC}
+" $'▀█████▄   ██████▀  |  _  / __/ __| / __| __|'
+printf "${CYAN}%s${NC}
+" $'                    | | | \__ \__ \ \__ \ |_ '
+printf "${CYAN}%s${NC}
+" $'                    \_| |_/___/___/_|___/\__|'
+echo ""
+printf "${BLUE}  Mycroft Mark II — Home Assistant Voice Satellite${NC}
+"
+printf "${BLUE}  github.com/andlo/mark2-assist${NC}
+"
+echo ""
 echo -e "  ${CYAN}Logs:${NC} journalctl --user -u lva -f"
 echo ""
