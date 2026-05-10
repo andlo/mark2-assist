@@ -82,30 +82,33 @@ _log_write() {
 }
 
 # --- Mark II Assist banner — call at start of every user-facing script ---
-# ASCII house (pure 7-bit) + small font — works in all terminals over SSH
 print_banner() {
     local subtitle="${1:-}"
     echo ""
     printf "${CYAN}%s${NC}
-" $'       /\        '
+" $'___  ___           _      _____ _____ '
     printf "${CYAN}%s${NC}
-" $'      /  \        __  __          _     ___ ___ '
+" $'|  \/  |          | |    |_   _|_   _|'
     printf "${CYAN}%s${NC}
-" $'     /    \      |  \/  |__ _ _ _| |__ |_ _|_ _|'
+" $'| .  . | __ _ _ __| | __   | |   | |  '
     printf "${CYAN}%s${NC}
-" $'    /  /\  \     | |\/| / _` | \'_| / /  | | | | '
+" $'| |\/| |/ _` | \'__| |/ /   | |   | |  '
     printf "${CYAN}%s${NC}
-" $'   /__/  \__\    |_|  |_\__,_|_| |_\_\ |___|___|'
+" $'| |  | | (_| | |  |   <   _| |_ _| |_ '
     printf "${CYAN}%s${NC}
-" $'   |  |  |  |       _          _    _   '
+" $'\_|  |_/\__,_|_|  |_|\_\  \___/ \___/ '
     printf "${CYAN}%s${NC}
-" $'   |  |  |  |      /_\   _____(_)__| |_ '
+" $'  ___          _     _   '
     printf "${CYAN}%s${NC}
-" $'   |  |  |  |     / _ \ (_-<_-< (_-<  _|'
+" $' / _ \        (_)   | |  '
     printf "${CYAN}%s${NC}
-" $'   |__|  |__|    /_/ \_\/__/__/_/__/\__|'
+" $'/ /_\ \___ ___ _ ___| |_ '
     printf "${CYAN}%s${NC}
-" $'                 '
+" $'|  _  / __/ __| / __| __|'
+    printf "${CYAN}%s${NC}
+" $'| | | \__ \__ \ \__ \ |_ '
+    printf "${CYAN}%s${NC}
+" $'\_| |_/___/___/_|___/\__|'
     echo ""
     printf "${BLUE}  Mycroft Mark II — Home Assistant Voice Satellite${NC}
 "
