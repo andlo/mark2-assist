@@ -395,7 +395,7 @@ EOF
 
     log "Enabling sj201.service..."
     systemctl --user daemon-reload
-    systemctl --user enable sj201.service
+    systemctl --user enable --quiet sj201.service
 }
 
 configure_wireplumber() {
@@ -520,7 +520,7 @@ User=root
 WantedBy=multi-user.target
 EOF
     sudo systemctl daemon-reload
-    sudo systemctl enable mark2-vocalfusion-watchdog.service
+    sudo systemctl enable --quiet mark2-vocalfusion-watchdog.service
 
     # Safe weekly update cron (Sunday 03:00)
     UPDATE_SCRIPT="${MARK2_DIR}/safe-update.sh"

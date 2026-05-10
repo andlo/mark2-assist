@@ -149,12 +149,12 @@ Environment=PULSE_RUNTIME_PATH=/run/user/${USER_UID}/pulse
 WantedBy=default.target
 EOF
     systemctl --user daemon-reload
-    systemctl --user enable mark2-audio-init.service
+    systemctl --user enable --quiet mark2-audio-init.service
     log "mark2-audio-init.service enabled"
 
     # Disable old services replaced by mark2-audio-init
-    systemctl --user disable sj201.service mark2-reflash.service mark2-audio-init.service 2>/dev/null || true
-    systemctl --user enable  mark2-audio-init.service
+    systemctl --user disable --quiet sj201.service mark2-reflash.service mark2-audio-init.service 2>/dev/null || true
+    systemctl --user enable --quiet  mark2-audio-init.service
 
     # Install pipewire-alsa for PipeWire ALSA routing
     sudo apt-get install -y pipewire-alsa 2>/dev/null | grep -E "Installing|already" || true
@@ -196,7 +196,7 @@ WantedBy=default.target
 EOF
 
     systemctl --user daemon-reload 2>/dev/null
-    systemctl --user enable lva.service 2>/dev/null
+    systemctl --user enable --quiet lva.service 2>/dev/null
     log "lva.service created and enabled"
     log "LVA auto-discovers in HA as ESPHome device — no manual integration needed"
     log "To start now: systemctl --user start lva"
@@ -229,7 +229,7 @@ WantedBy=default.target
 EOF
 
     systemctl --user daemon-reload 2>/dev/null
-    systemctl --user enable mark2-face-events.service 2>/dev/null
+    systemctl --user enable --quiet mark2-face-events.service 2>/dev/null
     log "Face event bridge installed"
 }
 
@@ -258,7 +258,7 @@ WantedBy=default.target
 EOF
 
     systemctl --user daemon-reload 2>/dev/null
-    systemctl --user enable mark2-volume-buttons.service 2>/dev/null
+    systemctl --user enable --quiet mark2-volume-buttons.service 2>/dev/null
     log "Volume button handler installed"
 }
 
@@ -285,7 +285,7 @@ export CHROMIUM_FLAGS="$CHROMIUM_FLAGS --ignore-gpu-blocklist"
 EOF
     log "Chromium GPU flags installed (/etc/chromium.d/gpu-flags)"
 
-    sudo systemctl enable seatd >> "${MARK2_LOG}" 2>&1
+    sudo systemctl enable --quiet seatd >> "${MARK2_LOG}" 2>&1
     sudo usermod -aG video,input "$CURRENT_USER"
     log "Kiosk packages installed"
 }
@@ -460,9 +460,9 @@ EOF
     log "Created MPV config for PipeWire/Wayland"
 
     # Enable PipeWire user services (audio routing)
-    systemctl --user enable pipewire.service 2>/dev/null || true
-    systemctl --user enable pipewire-pulse.service 2>/dev/null || true
-    systemctl --user enable wireplumber.service 2>/dev/null || true
+    systemctl --user enable --quiet pipewire.service 2>/dev/null || true
+    systemctl --user enable --quiet pipewire-pulse.service 2>/dev/null || true
+    systemctl --user enable --quiet wireplumber.service 2>/dev/null || true
     log "Enabled PipeWire user services"
 }
 
