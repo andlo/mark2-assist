@@ -179,8 +179,8 @@ ExecStartPre=/usr/local/bin/mark2-wait-pipewire
 ExecStart=${LVA_DIR}/.venv/bin/python3 -m linux_voice_assistant \\
     --name '${SATELLITE_NAME}' \\
     --wake-model '${WAKE_WORD}' \\
-    --audio-input-device 'alsa_input.platform-soc_sound.pro-input-1' \\
-    --audio-output-device 'alsa_output.platform-soc_sound.pro-output-0'
+    --audio-input-device 'Built-in Audio Pro 1' \\
+    --audio-output-device 'pipewire/alsa_output.platform-soc_sound.pro-output-0'
 WorkingDirectory=${LVA_DIR}
 Environment=PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 Environment=XDG_RUNTIME_DIR=/run/user/$(id -u "$CURRENT_USER")
