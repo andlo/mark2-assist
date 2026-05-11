@@ -342,7 +342,10 @@ if [ -z "${WAYLAND_DISPLAY:-}" ] && [ "$(tty)" = "/dev/tty1" ]; then
     printf '\033[2J\033[H\033[?25l'   # clear screen + hide cursor (ANSI)
     export XDG_RUNTIME_DIR=/run/user/$(id -u)
     export XDG_SESSION_TYPE=wayland
-    weston --backend=drm --shell=kiosk --idle-time=300 --log=/tmp/weston.log \
+    # Read idle timeout from config (default 300s)
+    _IDLE=300
+    [ -f "${HOME}/.config/mark2/config" ] && _IDLE=$(grep '^SCREEN_BLANK_SECONDS=' "${HOME}/.config/mark2/config" | cut -d= -f2 || echo 300)
+    weston --backend=drm --shell=kiosk --idle-time="${_IDLE}" --log=/tmp/weston.log \
         --config="${HOME}/.config/weston.ini" -- "${HOME}/startup.sh"
 fi
 # mark2-weston-end
