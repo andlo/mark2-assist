@@ -129,6 +129,9 @@ PYEOF
     sudo cp "${SCRIPT_DIR}/lib/mark2-xvf-post-wp.sh" /usr/local/bin/mark2-xvf-post-wp.sh
     sudo chmod +x /usr/local/bin/mark2-xvf-post-wp.sh
     log "mark2-xvf-post-wp.sh installed"
+    sudo cp "${SCRIPT_DIR}/lib/mark2-wait-pipewire.sh" /usr/local/bin/mark2-wait-pipewire
+    sudo chmod +x /usr/local/bin/mark2-wait-pipewire
+    log "mark2-wait-pipewire installed"
 
     local USER_UID
     USER_UID=$(id -u "$CURRENT_USER")
@@ -176,8 +179,8 @@ ExecStartPre=/usr/local/bin/mark2-wait-pipewire
 ExecStart=${LVA_DIR}/.venv/bin/python3 -m linux_voice_assistant \\
     --name '${SATELLITE_NAME}' \\
     --wake-model '${WAKE_WORD}' \\
-    --audio-input-device 'Built-in Audio (bcm2835-i2s-dir-hifi dir-hifi-1)' \\
-    --audio-output-device 'pipewire/alsa_output.platform-soc_sound.pro-output-0'
+    --audio-input-device 'alsa_input.platform-soc_sound.pro-input-1' \\
+    --audio-output-device 'alsa_output.platform-soc_sound.pro-output-0'
 WorkingDirectory=${LVA_DIR}
 Environment=PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 Environment=XDG_RUNTIME_DIR=/run/user/$(id -u "$CURRENT_USER")
@@ -339,7 +342,10 @@ if [ -z "${WAYLAND_DISPLAY:-}" ] && [ "$(tty)" = "/dev/tty1" ]; then
     printf '\033[2J\033[H\033[?25l'   # clear screen + hide cursor (ANSI)
     export XDG_RUNTIME_DIR=/run/user/$(id -u)
     export XDG_SESSION_TYPE=wayland
-    weston --backend=drm --shell=kiosk --idle-time=300 --log=/tmp/weston.log \
+    # Read idle timeout from config (default 300s)
+    _IDLE=300
+    [ -f "${HOME}/.config/mark2/config" ] && _IDLE=$(grep '^SCREEN_BLANK_SECONDS=' "${HOME}/.config/mark2/config" | cut -d= -f2 || echo 300)
+    weston --backend=drm --shell=kiosk --idle-time="${_IDLE}" --log=/tmp/weston.log \
         --config="${HOME}/.config/weston.ini" -- "${HOME}/startup.sh"
 fi
 # mark2-weston-end
@@ -517,7 +523,7 @@ configure_screen_no_blank
 configure_kiosk
 configure_pipewire_media
 
-print_summary
+[ "${MARK2_CALLED_FROM_INSTALLER:-0}" = "1" ] || print_summary
 
 if [ "${MARK2_MODULE_CONFIRMED:-0}" != "1" ]; then
     if ask_yes_no "Reboot now to apply all changes?"; then

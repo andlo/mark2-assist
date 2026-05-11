@@ -588,7 +588,7 @@ install_kernel_watchdog
 
 # Boot splash — installed here so it is active from first reboot onwards
 log "Installing boot splash (Plymouth)..."
-sudo bash "${SCRIPT_DIR}/lib/install-plymouth.sh"     && log "Boot splash installed"     || warn "Boot splash install failed — rerun: sudo bash lib/install-plymouth.sh"
+sudo bash "${SCRIPT_DIR}/lib/install-plymouth.sh" >> "${MARK2_LOG}" 2>&1     && log "Boot splash installed"     || warn "Boot splash install failed — rerun: sudo bash lib/install-plymouth.sh"
 
 echo ""
 echo "========================================"

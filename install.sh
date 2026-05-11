@@ -25,6 +25,12 @@ source "$(dirname "$0")/lib/common.sh"
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
+# Ensure working tree matches git — prevent "file not found" errors
+# if git checkout left files missing (e.g. after interrupted operations)
+if git -C "${SCRIPT_DIR}" rev-parse --is-inside-work-tree &>/dev/null; then
+    git -C "${SCRIPT_DIR}" checkout -- . 2>/dev/null || true
+fi
+
 RESUME=false
 for arg in "$@"; do
     case "$arg" in
@@ -196,19 +202,32 @@ fi
 MARK2_IP=$(hostname -I | awk '{print $1}')
 
 echo ""
-echo "  ✓ Installation complete!"
+echo -e "${CYAN}    __  ___           __      ________     ___              _      __ ${NC}"
+echo -e "${CYAN}   /  |/  /___ ______/ /__   /  _/  _/    /   |  __________(_)____/ /_${NC}"
+echo -e "${CYAN}  / /|_/ / __ \`/ ___/ //_/   / / / /     / /| | / ___/ ___/ / ___/ __/${NC}"
+echo -e "${CYAN} / /  / / /_/ / /  / ,<    _/ /_/ /     / ___ |(__  |__  ) (__  ) /_  ${NC}"
+echo -e "${CYAN}/_/  /_/\__,_/_/  /_/|_|  /___/___/    /_/  |_/____/____/_/____/\__/  ${NC}"
 echo ""
-echo "  Next steps:"
+echo -e "${GREEN}  ✓  Installation complete!${NC}"
 echo ""
-echo "  1. Reboot:    sudo reboot"
-echo "  2. Touchscreen opens Home Assistant (homeassistant.local)"
-echo "     If mDNS fails: echo 'HA_URL=http://x.x.x.x:8123' >> ~/.config/mark2/config"
-echo "  3. HA: Settings → Devices & Services → ESPHome → set pipeline"
-echo "  4. Say 'okay nabu'"
+echo -e "${CYAN}  Next steps:${NC}"
 echo ""
-echo "  Optional modules (Snapcast, AirPlay, MPD):"
-echo "  Coming via HA UI — see github.com/andlo/mark2-assist/issues/31"
-echo "  Manual install in the meantime: bash modules/<name>.sh"
+echo -e "  ${BLUE}1. Reboot (required):${NC}"
+echo    "       sudo reboot"
+echo ""
+echo -e "  ${BLUE}2. Touchscreen opens Home Assistant${NC}"
+echo    "     If mDNS fails, set your HA URL:"
+echo    "       echo 'HA_URL=http://x.x.x.x:8123' >> ~/.config/mark2/config"
+echo ""
+echo -e "  ${BLUE}3. In Home Assistant:${NC}"
+echo    "     Settings → Devices & Services → ESPHome → ${SATELLITE_NAME:-Nabu-1}"
+echo    "     Set voice pipeline + wake word"
+echo ""
+echo -e "  ${BLUE}4. Say 'okay nabu' — done!${NC}"
+echo ""
+echo -e "  ${YELLOW}  Optional modules (Snapcast, AirPlay, MPD):${NC}"
+echo    "     Coming via HA UI — see github.com/andlo/mark2-assist/issues/31"
+echo    "     Manual: bash modules/<name>.sh"
 echo ""
 
 ans=""
