@@ -25,6 +25,12 @@ source "$(dirname "$0")/lib/common.sh"
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
+# Ensure working tree matches git — prevent "file not found" errors
+# if git checkout left files missing (e.g. after interrupted operations)
+if git -C "${SCRIPT_DIR}" rev-parse --is-inside-work-tree &>/dev/null; then
+    git -C "${SCRIPT_DIR}" checkout -- . 2>/dev/null || true
+fi
+
 RESUME=false
 for arg in "$@"; do
     case "$arg" in
