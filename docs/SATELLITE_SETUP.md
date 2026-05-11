@@ -163,3 +163,43 @@ journalctl --user -u lva -f
 journalctl -u getty@tty1 -f
 cat /tmp/mark2-kiosk.log
 ```
+
+---
+
+## Home Assistant configuration (required)
+
+### Kiosk display — first-time login
+
+The touchscreen kiosk opens Home Assistant in Chromium. On first boot, HA shows its
+login screen. This is expected and only happens once — Chromium stores the session cookie
+permanently.
+
+**For the one-tap login to work** (no password needed), HA must be configured with
+`trusted_networks` auth. Add this to your `configuration.yaml`:
+
+```yaml
+homeassistant:
+  auth_providers:
+    - type: trusted_networks
+      trusted_networks:
+        - 192.168.0.0/16   # adjust to your network
+      allow_bypass_login: true
+    - type: homeassistant
+```
+
+With `allow_bypass_login: true` under `trusted_networks`, the kiosk user is logged in
+automatically without any click. Without it, a single tap on the username is required.
+
+Either way, this only happens once — after the first login the session is permanent.
+
+### Kiosk frame options
+
+HA must also allow the dashboard to be embedded (required for future iframe features):
+
+```yaml
+http:
+  use_x_frame_options: false
+```
+
+After editing `configuration.yaml`, restart HA:
+**Settings → System → Restart Home Assistant**
