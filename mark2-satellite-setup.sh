@@ -129,6 +129,9 @@ PYEOF
     sudo cp "${SCRIPT_DIR}/lib/mark2-xvf-post-wp.sh" /usr/local/bin/mark2-xvf-post-wp.sh
     sudo chmod +x /usr/local/bin/mark2-xvf-post-wp.sh
     log "mark2-xvf-post-wp.sh installed"
+    sudo cp "${SCRIPT_DIR}/lib/mark2-wait-pipewire.sh" /usr/local/bin/mark2-wait-pipewire
+    sudo chmod +x /usr/local/bin/mark2-wait-pipewire
+    log "mark2-wait-pipewire installed"
 
     local USER_UID
     USER_UID=$(id -u "$CURRENT_USER")
