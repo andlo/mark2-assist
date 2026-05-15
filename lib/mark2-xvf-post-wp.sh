@@ -14,22 +14,35 @@
 #   setup_bclk                   (PCM divider = 3.072MHz BCLK, clk_enable=0)
 #   xvf3510-flash --direct ...   (SPI slave boot)
 #
+# Can be run as the mark2 user OR via sudo — /etc/mark2.conf or SUDO_USER
+# is used to resolve the correct user/venv regardless.
+#
 set -euo pipefail
 
 log() { echo "[mark2-audio-init] $*"; }
 
-VENV="$(getent passwd "$(id -un)" | cut -d: -f6)/.venvs/sj201"
-UID_NUM="$(id -u)"
-export XDG_RUNTIME_DIR="/run/user/${UID_NUM}"
-export DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/${UID_NUM}/bus"
-export PULSE_RUNTIME_PATH="/run/user/${UID_NUM}/pulse"
+# --- Resolve the actual Mark II user (works as user OR via sudo) ---
+if [ -f /etc/mark2.conf ]; then
+    # shellcheck source=/etc/mark2.conf
+    source /etc/mark2.conf
+    MARK2_USER="${MARK2_USER:-pi}"
+else
+    MARK2_USER="${SUDO_USER:-${USER:-pi}}"
+fi
+MARK2_HOME="$(getent passwd "${MARK2_USER}" | cut -d: -f6)"
+MARK2_UID="$(id -u "${MARK2_USER}")"
+
+VENV="${MARK2_HOME}/.venvs/sj201"
+export XDG_RUNTIME_DIR="/run/user/${MARK2_UID}"
+export DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/${MARK2_UID}/bus"
+export PULSE_RUNTIME_PATH="/run/user/${MARK2_UID}/pulse"
 
 SETUP_MCLK="${SETUP_MCLK:-/usr/local/bin/setup_mclk}"
 SETUP_BCLK="${SETUP_BCLK:-/usr/local/bin/setup_bclk}"
 I2S_LOADER="${I2S_LOADER:-/usr/local/bin/i2s_master_loader.ko}"
 FW="${FW:-/opt/sj201/app_xvf3510_int_spi_boot_v4_2_0.bin}"
 
-log "Stopping ALL audio services..."
+log "Stopping ALL audio services (user=${MARK2_USER}, uid=${MARK2_UID})..."
 systemctl --user stop lva.service 2>/dev/null || true
 systemctl --user stop wireplumber.service 2>/dev/null || true
 systemctl --user stop pipewire-pulse.service pipewire-pulse.socket 2>/dev/null || true
