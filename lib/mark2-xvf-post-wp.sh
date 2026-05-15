@@ -1,25 +1,25 @@
 #!/bin/bash
-# mark2-audio-init — XVF3510 initialization
+# mark2-xvf-post-wp.sh — XVF3510 full init sequence
 #
-# ROOT CAUSE FOUND (Session 4-5):
-# XVF3510-INT requires MCLK=12.288MHz (NOT 24.576MHz).
-# sj201.dtbo sets MCLK=24.576MHz which prevents the audio pipeline from starting.
-# The fix: use setup_mclk (from XMOS vocalfusion-rpi-setup) to set correct MCLK,
-# then setup_bclk for PCM clock, then SPI flash. No data_partition needed.
+# ROOT CAUSE (Session 4-5, maj 2026):
+#   XVF3510-INT requires MCLK=12.288MHz. sj201.dtbo sets 24.576MHz → silence.
+#   WirePlumber opens hw:sj201,1 during init which resets the XVF3510 DSP.
 #
-# Mycroft's original run.sh sequence:
-#   insmod i2s_master_loader.ko  (activates I2S hardware)
-#   arecord -d 1                 (forces ALSA to configure I2S)
-#   setup_mclk                   (GPIO4/GPCLK0 = 12.288MHz)
-#   setup_bclk                   (PCM divider = 3.072MHz BCLK, clk_enable=0)
-#   xvf3510-flash --direct ...   (SPI slave boot)
+# Required sequence (from Mycroft's original run.sh):
+#   1. Stop all audio (WP holds device otherwise)
+#   2. arecord -d 1   (activates I2S hardware block — CRITICAL)
+#   3. setup_mclk     (GPIO4/GPCLK0 = 12.288MHz)
+#   4. setup_bclk     (PCM divider = 3.072MHz BCLK)
+#   5. xvf3510-flash  (SPI slave boot)
+#   6. init_tas5806   (amplifier)
+#   7. restart PipeWire + WirePlumber
+#   8. start LVA
 #
-# Can be run as the mark2 user OR via sudo — /etc/mark2.conf or SUDO_USER
-# is used to resolve the correct user/venv regardless.
+# Works whether invoked as the mark2 user OR via sudo (uses /etc/mark2.conf).
 #
 set -euo pipefail
 
-log() { echo "[mark2-audio-init] $*"; }
+log() { echo "[mark2-xvf-flash] $*"; }
 
 # --- Resolve the actual Mark II user (works as user OR via sudo) ---
 if [ -f /etc/mark2.conf ]; then
@@ -39,29 +39,20 @@ export PULSE_RUNTIME_PATH="/run/user/${MARK2_UID}/pulse"
 
 SETUP_MCLK="${SETUP_MCLK:-/usr/local/bin/setup_mclk}"
 SETUP_BCLK="${SETUP_BCLK:-/usr/local/bin/setup_bclk}"
-I2S_LOADER="${I2S_LOADER:-/usr/local/bin/i2s_master_loader.ko}"
 FW="${FW:-/opt/sj201/app_xvf3510_int_spi_boot_v4_2_0.bin}"
 
-log "Stopping ALL audio services (user=${MARK2_USER}, uid=${MARK2_UID})..."
-systemctl --user stop lva.service 2>/dev/null || true
-systemctl --user stop wireplumber.service 2>/dev/null || true
-systemctl --user stop pipewire-pulse.service pipewire-pulse.socket 2>/dev/null || true
-systemctl --user stop pipewire.service pipewire.socket 2>/dev/null || true
-pkill -f 'aplay\|arecord' 2>/dev/null || true
+log "Stopping audio services (user=${MARK2_USER})..."
+sudo -u "${MARK2_USER}" XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR}" \
+    systemctl --user stop lva wireplumber pipewire-pulse pipewire 2>/dev/null || true
 sleep 2
 
-log "Loading i2s_master_loader kernel module..."
-sudo modprobe i2s_master_loader 2>/dev/null || \
-sudo insmod "${I2S_LOADER}" 2>/dev/null || \
-log "WARNING: i2s_master_loader not loaded (may already be active via sj201.dtbo)"
-
-log "Activating I2S hardware via arecord..."
+log "Activating I2S hardware via arecord (CRITICAL: initialises I2S clocks)..."
 arecord -d 1 > /dev/null 2>&1 || true
 
-log "Setting MCLK=12.288MHz (GPIO4/GPCLK0) via setup_mclk..."
+log "Setting MCLK=12.288MHz (GPIO4/GPCLK0)..."
 sudo "${SETUP_MCLK}"
 
-log "Setting BCLK=3.072MHz (PCM divider) via setup_bclk..."
+log "Setting BCLK=3.072MHz (PCM divider)..."
 sudo "${SETUP_BCLK}"
 
 log "Flashing XVF3510 via SPI slave boot..."
@@ -70,17 +61,16 @@ log "Flashing XVF3510 via SPI slave boot..."
 log "Initializing TAS5806 amplifier..."
 "${VENV}/bin/python" /opt/sj201/init_tas5806 2>/dev/null || true
 
-log "Flash done — waiting 1s for chip startup..."
+log "Waiting 1s for chip startup..."
 sleep 1
 
 log "Starting PipeWire stack..."
-systemctl --user start pipewire.socket pipewire.service 2>/dev/null || \
-    systemctl --user start pipewire.service 2>/dev/null || true
-systemctl --user start pipewire-pulse.socket pipewire-pulse.service 2>/dev/null || \
-    systemctl --user start pipewire-pulse.service 2>/dev/null || true
-systemctl --user start wireplumber.service || true
+sudo -u "${MARK2_USER}" XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR}" \
+    systemctl --user start pipewire pipewire-pulse wireplumber || true
 sleep 4
 
 log "Starting LVA..."
-systemctl --user start lva.service || true
+sudo -u "${MARK2_USER}" XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR}" \
+    systemctl --user start lva || true
+
 log "Done"

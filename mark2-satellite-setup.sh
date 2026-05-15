@@ -137,12 +137,15 @@ PYEOF
     USER_UID=$(id -u "$CURRENT_USER")
     cat > "${SYSTEMD_USER_DIR}/mark2-audio-init.service" << EOF
 [Unit]
-Description=Mark II XVF3510 init — MCLK + SPI flash + PipeWire restart
-After=network.target
+Description=Mark II XVF3510 init — MCLK + SPI flash (after WirePlumber)
+After=wireplumber.service
+Wants=wireplumber.service
 
 [Service]
 Type=oneshot
 RemainAfterExit=yes
+# Wait for WirePlumber to finish device enumeration before flashing XVF3510
+ExecStartPre=/bin/sleep 3
 ExecStart=/usr/local/bin/mark2-xvf-post-wp.sh
 Environment=XDG_RUNTIME_DIR=/run/user/${USER_UID}
 Environment=DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/${USER_UID}/bus
