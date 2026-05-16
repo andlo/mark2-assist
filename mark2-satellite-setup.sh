@@ -182,7 +182,7 @@ ExecStartPre=/usr/local/bin/mark2-wait-pipewire
 ExecStart=${LVA_DIR}/.venv/bin/python3 -m linux_voice_assistant \\
     --name '${SATELLITE_NAME}' \\
     --wake-model '${WAKE_WORD}' \\
-    --audio-input-device 'Built-in Audio Pro 1' \\
+    --audio-input-device 'echo-cancel-source' \\
     --audio-output-device 'pipewire/alsa_output.platform-soc_sound.pro-output-0'
 WorkingDirectory=${LVA_DIR}
 Environment=PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
@@ -473,6 +473,67 @@ EOF
     systemctl --user enable --quiet pipewire-pulse.service 2>/dev/null || true
     systemctl --user enable --quiet wireplumber.service 2>/dev/null || true
     log "Enabled PipeWire user services"
+
+    # WebRTC noise suppression via PipeWire echo-cancel module.
+    # XVF3510 outputs constant DSP noise on the raw ALSA capture device.
+    # libpipewire-module-echo-cancel with WebRTC noise suppression filters
+    # this out and exposes a clean 'echo-cancel-source' that LVA reads from.
+    # This is the same approach used by OVOS on Mark II (99-noise-suppression.conf).
+    mkdir -p "${USER_HOME}/.config/pipewire/pipewire.conf.d"
+    cat > "${USER_HOME}/.config/pipewire/pipewire.conf.d/99-noise-suppression.conf" << 'PIPEEOF'
+context.modules = [
+    { name = libpipewire-module-echo-cancel
+      args = {
+        aec.method = webrtc
+        aec.webrtc.noise_suppression = true
+        aec.webrtc.noise_suppression_level = 1
+        aec.webrtc.gain_control = true
+        source.name = "echo-cancel-source"
+        source.props = {
+          node.description = "Mark II Noise Suppressed Source"
+        }
+        sink.name = "echo-cancel-sink"
+        sink.props = {
+          node.description = "Mark II Noise Suppressed Sink"
+        }
+      }
+    }
+]
+PIPEEOF
+    log "Installed PipeWire echo-cancel noise suppression config"
+
+    # WirePlumber: keep capture node always active (prevent suspend/reset)
+    mkdir -p "${USER_HOME}/.config/wireplumber/wireplumber.conf.d"
+    cat > "${USER_HOME}/.config/wireplumber/wireplumber.conf.d/90-sj201-profile.conf" << 'WPEOF'
+monitor.alsa.rules = [
+  {
+    matches = [
+      {
+        device.name = "alsa_card.platform-soc_sound"
+      }
+    ]
+    actions = {
+      update-props = {
+        api.acp.auto-profile = false
+        api.acp.auto-port = false
+        device.profile = "pro-audio"
+      }
+    }
+  },
+  {
+    matches = [ { node.name = "alsa_input.platform-soc_sound.pro-input-1" } ]
+    actions = {
+      update-props = {
+        session.suspend-timeout-seconds = 0
+        node.pause-on-idle = false
+        node.suspend-on-idle = false
+        node.always-process = true
+      }
+    }
+  }
+]
+WPEOF
+    log "Installed WirePlumber SJ201 profile config"
 }
 
 print_summary() {
